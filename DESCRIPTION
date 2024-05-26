@@ -1,0 +1,30 @@
+Package: nicher
+Type: Package
+Title: Estimates Ecological Niche Models Using Ellipses
+Version: 1.0.0
+Authors@R: 
+  c(person(given = "Angel",
+           family = "Robles",
+           email = "a.l.robles.fernandez@gmail.com",
+           role = c("aut", "cre")),
+    person(given = "Laura",
+           family = "Jimenez",
+           comment = c(ORCID = "0000-0002-4674-4270"),
+           email = "ljimenez@cmm.uchile.cl",
+           role = c("ctb"))
+           )
+Description: Ecological niche model estimation using elipses under an M hypothesis.
+    Methods for the optimization of ellipses parameter are as described in :
+    Jimenez et al. (2022) <doi:10.1016/j.ecolmodel.2021.109823>.
+License: GPL (>= 3)
+Encoding: UTF-8
+LazyData: true
+Depends: 
+    R (>= 2.10)
+RoxygenNote: 7.2.3
+Imports: 
+    httr,
+    mvnfast,
+    readr,
+    stringr,
+    terra
