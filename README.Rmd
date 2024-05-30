@@ -32,23 +32,30 @@ devtools::install_github("alrobles/nicher")
 
 ## Example
 
-This is a basic example which shows you how to solve a common problem:
+This is a basic example which shows you how to solve a common problem. First we
+get the shapefile of an accesibility area (M):
 
 ```{r example}
 library(nicher)
 library(terra)
 
+
 M_path <- system.file("extdata", "Mshp_test.rds", package="nicher")
 Mshp <- terra::unwrap(readr::read_rds(M_path))
+plot(Mshp)
+```
+
+
+Then we get environmental variables to model:
+```{r}
+
 stack_path <- system.file("extdata", "stack_1_12_crop.rds", package="nicher")
 stack_1_12 <- terra::unwrap(readr::read_rds(stack_path))
 stack_1_12_19 <- get_example_data("stack_1_12_19")
 
-
-
 ```
 
-We get the parameters of the ellipse
+We get the parameters of the ellipse:
 
 ```{r}
 
@@ -56,14 +63,12 @@ pars <-  get_ENM_par(rawSpOccPnts, stack_1_12_19, Mshp, method = "mahalanobis")
 ```
 
 
-Then we plot the ellipse in 2d comparassions
+Then we plot the ellipse in 2d comparassions:
 ```{r cars,  echo = FALSE}
 plot(pars)
-
 ```
 
-Finally we predict the suitability given environmental data
-
+Finally we predict the suitability given environmental data:
 ```{r pressure, echo = FALSE}
 outputRast <- predict(pars, stack_1_12_19)
 plot(outputRast)
