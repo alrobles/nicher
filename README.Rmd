@@ -50,28 +50,44 @@ Then we get environmental variables to model:
 ```{r}
 
 stack_path <- system.file("extdata", "stack_1_12_crop.rds", package="nicher")
+# 2 variables
 stack_1_12 <- terra::unwrap(readr::read_rds(stack_path))
+plot(stack_1_12)
+# 3 variables
 stack_1_12_19 <- get_example_data("stack_1_12_19")
-
+plot(stack_1_12_19)
 ```
 
 We get the parameters of the ellipse:
 
 ```{r}
+pars_2var <-  get_ENM_par(rawSpOccPnts, stack_1_12, Mshp, method = "mahalanobis")
 
-pars <-  get_ENM_par(rawSpOccPnts, stack_1_12_19, Mshp, method = "mahalanobis")
+pars_3var <-  get_ENM_par(rawSpOccPnts, stack_1_12_19, Mshp, method = "mahalanobis")
 ```
 
 
-Then we plot the ellipse in 2d comparassions:
-```{r cars,  echo = FALSE}
-plot(pars)
+Then we plot the ellipse (2 vars case):
+```{r 2varsPars,  echo = FALSE}
+plot(pars_2var)
 ```
 
-Finally we predict the suitability given environmental data:
-```{r pressure, echo = FALSE}
-outputRast <- predict(pars, stack_1_12_19)
-plot(outputRast)
+Then we plot the ellipse (3 vars case):
+```{r 3varsPars,  echo = FALSE}
+plot(pars_3var)
+```
+
+We predict the suitability given environmental data (2 vars case):
+```{r predict2vars, echo = FALSE}
+outputRast_2vars <- predict(pars_2var, stack_1_12)
+plot(outputRast_2vars)
+
+```
+
+Finally we predict the suitability given environmental data (3 vars case All world):
+```{r predict3vars, echo = FALSE}
+outputRast_3vars <- predict(pars_3var, stack_1_12_19)
+plot(outputRast_3vars)
 
 ```
 
