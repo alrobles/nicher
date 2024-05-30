@@ -41,5 +41,5 @@ get_ENM_par <- function(occPts, env, M_shp = NULL,
     sampleM <- sam_polyM(M_shp, env)
     pars <- get_negloglike_optimr_par(occPts, sampleM, lower = TRUE )
   }
-  return(pars)
+  return(ellipse(pars))
 }

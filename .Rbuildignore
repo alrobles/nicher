@@ -2,5 +2,9 @@
 ^\.Rproj\.user$
 ^LICENSE\.md$
 ^data-raw$
+^.github$
+^.gitignore$
+^.Rhistory$
 ^cran-comments\.md$
 ^CRAN-SUBMISSION$
+^README\.Rmd$
