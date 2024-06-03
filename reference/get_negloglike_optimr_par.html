@@ -89,6 +89,10 @@ of environmental points from a M hypothesis. Internally runs Returns a list of p
 <dt>return_best</dt>
 <dd><p>logical. If true return the best optimization. If false return all the possible optimizations</p></dd>
 
+
+<dt>precision</dt>
+<dd><p>numeric. The decimal precision of the output variables. The default is 3</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -99,7 +103,7 @@ of environmental points from a M hypothesis. Internally runs Returns a list of p
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu">get_negloglike_optimr_par</span><span class="op">(</span><span class="fu"><a href="https://rspatial.github.io/terra/reference/headtail.html" class="external-link">head</a></span><span class="op">(</span><span class="va">spOccPnts</span>, <span class="fl">10</span><span class="op">)</span>, <span class="va">samMPts</span>, fastmode <span class="op">=</span> <span class="cn">TRUE</span>, itnmax <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu">get_negloglike_optimr_par</span><span class="op">(</span><span class="fu"><a href="https://rspatial.github.io/terra/reference/headtail.html" class="external-link">head</a></span><span class="op">(</span><span class="va">spOccPnts</span>, <span class="fl">10</span><span class="op">)</span>, <span class="va">samMPts</span>, fastmode <span class="op">=</span> <span class="cn">TRUE</span>, itnmax <span class="op">=</span> <span class="fl">1</span>, precision <span class="op">=</span> <span class="fl">3</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> fastmode</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> TRUE</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Optimization starting </span>
@@ -107,15 +111,10 @@ of environmental points from a M hypothesis. Internally runs Returns a list of p
 <span class="r-out co"><span class="r-pr">#&gt;</span> L-BFGS-B</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Optimization finished. </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> L-BFGS-B is the returned method</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> $mu</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     bio1WH    bio12WH </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   20.97068 2019.70321 </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> $S</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>           bio1WH     bio12WH</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> bio1WH    2.1926    252.1651</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> bio12WH 252.1651 230331.7889</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>          mu.bio1WH mu.bio12WH     S1       S2       S3       S4    value fevals</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> L-BFGS-B  20.97068   2019.703 2.1926 252.1651 252.1651 230331.8 77.14745      3</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>          gevals niter convcode  kkt1  kkt2 xtime</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> L-BFGS-B      3    NA        1 FALSE FALSE 0.024</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc"><h2>On this page</h2>
