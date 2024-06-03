@@ -12,7 +12,8 @@ get_negloglike_optimr_par(
   lower = FALSE,
   itnmax = 100,
   fastmode = FALSE,
-  return_best = TRUE
+  return_best = TRUE,
+  precision = 3
 )
 }
 \arguments{
@@ -39,5 +40,5 @@ Function  to optime negloglike function given parameters from presence points an
 of environmental points from a M hypothesis. Internally runs Returns a list of parameters
 }
 \examples{
-get_negloglike_optimr_par(head(spOccPnts, 10), samMPts, fastmode = TRUE, itnmax = 1, precision = 3)
+get_negloglike_optimr_par(head(spOccPnts, 10), samMPts, fastmode = TRUE, itnmax = 1)
 }
