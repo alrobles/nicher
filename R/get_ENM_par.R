@@ -5,7 +5,6 @@
 #' @param M_shp A shape file as M hypothesis
 #' @param env A raster stack
 #' @param method Method selection. By default, optimization of the negloglike function with lower bound
-#'
 #' @return a list of parameters
 #' @export
 #'
@@ -14,9 +13,9 @@
 #' Mshp <- terra::unwrap(readr::read_rds(M_path))
 #' stack_path <- system.file("extdata", "stack_1_12_crop.rds", package="nicher")
 #' stack_1_12 <- terra::unwrap(readr::read_rds(stack_path))
-#' get_ENM_par(rawSpOccPnts, stack_1_12, Mshp, method = "bound")
+#' get_ENM_par(rawSpOccPnts, stack_1_12, Mshp, method = "mahalanobis")
 get_ENM_par <- function(occPts, env, M_shp = NULL,
-                        method = c("bound", "mahalanobis", "vmmin", "Nelder-Mead")){
+                        method = c("unbound", "bound", "mahalanobis" )){
   method <- match.arg(method)
   occPts <- get_env_var(occPts, env)
 
@@ -27,17 +26,10 @@ get_ENM_par <- function(occPts, env, M_shp = NULL,
 
   if(method == "mahalanobis"){
     pars <- get_ellip_par(occPts)
-  }
-
-  if(method == "Nelder-Mead"){
+  } else if(method == "unbound"){
     sampleM <- sam_polyM(M_shp, env)
-    pars <- get_negloglike_optim_par(occPts, sampleM )
-  }
-  if(method == "vmmin"){
-    sampleM <- sam_polyM(M_shp, env)
-    pars <- get_negloglike_optimr_par(occPts, sampleM )
-  }
-  if (method == "bound"){
+    pars <- get_negloglike_optimr_par(occPts, sampleM, lower = FALSE )
+  } else if (method == "bound"){
     sampleM <- sam_polyM(M_shp, env)
     pars <- get_negloglike_optimr_par(occPts, sampleM, lower = TRUE )
   }

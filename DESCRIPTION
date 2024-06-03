@@ -26,6 +26,7 @@ Imports:
     graphics,
     httr,
     mvnfast,
+    optimx,
     readr,
     stringr,
     terra,

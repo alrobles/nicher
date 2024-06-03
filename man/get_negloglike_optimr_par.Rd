@@ -6,7 +6,15 @@
 Function  to optime negloglike function given parameters from presence points and a sample
 of environmental points from a M hypothesis. Internally runs Returns a list of parameters}
 \usage{
-get_negloglike_optimr_par(env_pts, M_pts, lower = FALSE)
+get_negloglike_optimr_par(
+  env_pts,
+  M_pts,
+  lower = FALSE,
+  itnmax = 100,
+  fastmode = FALSE,
+  convergence = TRUE,
+  return_best = TRUE
+)
 }
 \arguments{
 \item{env_pts}{A dataframe with environmental variables extracted from presence points}
@@ -14,6 +22,14 @@ get_negloglike_optimr_par(env_pts, M_pts, lower = FALSE)
 \item{M_pts}{A dataframe with a sample of environmental values inside an M hypothesis region.}
 
 \item{lower}{logical if is set create a low bowndarie for parameters from M points}
+
+\item{itnmax}{The maximum number of iterations.}
+
+\item{fastmode}{logical if is true the L-BFGS-B method is by default}
+
+\item{convergence}{logical if is false return all possible optimizations even if still does not converge. It is possible to add more iterations}
+
+\item{return_best}{logical. If true return the best optimization. If false return all the possible optimizations}
 }
 \value{
 A list with optimized parameters for negloglike function

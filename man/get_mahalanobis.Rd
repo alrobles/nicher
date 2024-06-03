@@ -7,17 +7,19 @@
 get_mahalanobis(df, el_pars)
 }
 \arguments{
-\item{df}{A data frame with environmental information according to presence points}
+\item{df}{A data frame with environmental information according to presence
+points}
 
 \item{el_pars}{A list with ellipsoid parameters}
 }
 \value{
-A vector with Mahalanobis distance according to each point in environmental space
+A vector with Mahalanobis distance according to each point in
+  environmental space
 }
 \description{
 Mahalanobis distance
 }
 \examples{
-pars <- get_negloglike_optimr_par(spOccPnts, samMPts)
+pars <- get_negloglike_optimr_par(spOccPnts, samMPts, lower = TRUE, fastmode = TRUE )
 get_mahalanobis(spOccPnts, pars)
 }

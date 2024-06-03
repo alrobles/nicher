@@ -10,7 +10,7 @@
 #' @examples
 #' par <- get_ellip_par(spOccPnts)
 #' negloglike_multivariable(par$mu, par$S, spOccPnts, samMPts)
-negloglike_multivariable <- function(mu, S, sam1, sam2){
+negloglike_multivariable_matrix <- function(mu, S, sam1, sam2){
 
   q1 <- stats::mahalanobis(x = sam1, center = mu, cov = S, inverted = FALSE) # quadratic terms of presence points
   q2 <- stats::mahalanobis(x = sam2, center = mu, cov = S, inverted = FALSE) # quadratic terms of M points

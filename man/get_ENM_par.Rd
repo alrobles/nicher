@@ -8,7 +8,7 @@ get_ENM_par(
   occPts,
   env,
   M_shp = NULL,
-  method = c("bound", "mahalanobis", "vmmin", "Nelder-Mead")
+  method = c("unbound", "bound", "mahalanobis")
 )
 }
 \arguments{
@@ -32,4 +32,6 @@ Mshp <- terra::unwrap(readr::read_rds(M_path))
 stack_path <- system.file("extdata", "stack_1_12_crop.rds", package="nicher")
 stack_1_12 <- terra::unwrap(readr::read_rds(stack_path))
 get_ENM_par(rawSpOccPnts, stack_1_12, Mshp, method = "bound")
+get_ENM_par(rawSpOccPnts, stack_1_12, Mshp, method = "unbound")
+get_ENM_par(rawSpOccPnts, stack_1_12, Mshp, method = "mahalanobis")
 }
