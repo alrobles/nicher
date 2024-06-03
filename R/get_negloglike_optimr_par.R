@@ -87,7 +87,7 @@ get_negloglike_optimr_par <- function(env_pts, M_pts, lower = FALSE, itnmax = 10
     }
   })
 
-  mle.par <- Map(function(x)  relist(unlist(find.mle[x, 1:6]), skeleton = par), 1:nrow(find.mle))
+  mle.par <- Map(function(x)  relist(unlist(find.mle[x, 1:length(unlist(par))]), skeleton = par), 1:nrow(find.mle))
   names(mle.par) <- rownames(find.mle)
 
   if(return_best == TRUE){
@@ -96,7 +96,7 @@ get_negloglike_optimr_par <- function(env_pts, M_pts, lower = FALSE, itnmax = 10
     find.mle <- find.mle[simVector, ]
     find.mle <- find.mle[find.mle$value == min(find.mle$value), ]
 
-    optim_parameters <- unlist(find.mle[1, 1:6])
+    optim_parameters <- unlist(find.mle[1, 1:length(unlist(par))])
     optim_parameters <- round(optim_parameters, 5)
     optim_parameters <- relist(optim_parameters, skeleton = par)
 
