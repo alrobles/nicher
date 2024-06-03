@@ -25,6 +25,7 @@ get_example_data <- function(file){
     url <- "https://examples.fra1.digitaloceanspaces.com/stack_1_12.tif"
     r <- terra::rast(url)
   }
+
   # check if the url exists
   if(file == "stack_1_12_19"){
     url <- "https://examples.fra1.digitaloceanspaces.com/stack_1_12_19.tif"
@@ -42,11 +43,27 @@ get_example_data <- function(file){
     r <- readr::read_rds(url)
     r <- terra::unwrap(r)
   }
+
   if(file == "Mshp_test"){
     url <- "https://examples.fra1.digitaloceanspaces.com/Mshp_test.rds"
     r <- readr::read_rds(url)
     r <- terra::unwrap(r)
   }
+  # Examples Pellaea pternifolia
+  if(file == "msample_pellaea_pternifolia"){
+    url <- "https://examples.fra1.digitaloceanspaces.com/msample_pellaea_pternifolia.rds"
+    r <- readr::read_rds(url)
+    r <- terra::unwrap(r)
+  }
+
+  if(file == "occpts_pellaea_pternifolia"){
+    url <- "https://examples.fra1.digitaloceanspaces.com/occpts_pellaea_pternifolia.rds"
+    r <- readr::read_rds(url)
+    r <- terra::unwrap(r)
+  }
+
+
+
 
   if (!url_exists(url)) {
       return("Can't access data.")

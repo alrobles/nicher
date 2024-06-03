@@ -105,8 +105,7 @@ get_negloglike_optimr_par <- function(env_pts, M_pts, lower = FALSE, itnmax = 10
       cat(rownames(find.mle))
       cat(" is the returned method")
       cat("\n")
-      #return(optim_parameters)
-      return(find.mle)
+      return(optim_parameters)
 
 
     }
