@@ -11,7 +11,7 @@ Authors@R:
            family = "Jimenez",
            comment = c(ORCID = "0000-0002-4674-4270"),
            email = "ljimenez@cmm.uchile.cl",
-           role = c("ctb"))
+           role = c("aut", "ctb"))
            )
 Description: Ecological niche model estimation using elipses under an M hypothesis.
     Methods for the optimization of ellipses parameter are as described in :
