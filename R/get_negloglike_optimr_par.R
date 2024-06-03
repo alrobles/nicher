@@ -8,6 +8,7 @@
 #' @param itnmax The maximum number of iterations.
 #' @param fastmode logical if is true the L-BFGS-B method is by default
 #' @param return_best logical. If true return the best optimization. If false return all the possible optimizations
+#' @param precision numeric. The decimal precision of the output variables. The default is 3
 #' @importFrom  utils as.relistable relist
 #' @importFrom optimx optimx
 #' @return A list with optimized parameters for negloglike function
@@ -15,7 +16,7 @@
 #'
 #' @examples
 #' get_negloglike_optimr_par(head(spOccPnts, 10), samMPts, fastmode = TRUE, itnmax = 1)
-get_negloglike_optimr_par <- function(env_pts, M_pts, lower = FALSE, itnmax = 100, fastmode = FALSE, return_best = TRUE){
+get_negloglike_optimr_par <- function(env_pts, M_pts, lower = FALSE, itnmax = 100, fastmode = FALSE, return_best = TRUE, precision = 3){
   par <- get_ellip_par(env_pts)
   initial.param <- as.relistable(par)
   ul <- unlist(initial.param)
@@ -64,8 +65,6 @@ get_negloglike_optimr_par <- function(env_pts, M_pts, lower = FALSE, itnmax = 10
     cat(fastmode)
     cat("\n")
 
-
-
     if(fastmode == FALSE){
       methods <- c("Nelder-Mead", "BFGS", "CG", "L-BFGS-B")
     } else {
@@ -91,24 +90,31 @@ get_negloglike_optimr_par <- function(env_pts, M_pts, lower = FALSE, itnmax = 10
   names(mle.par) <- rownames(find.mle)
 
   if(return_best == TRUE){
-    simVector <- Reduce(c, Map(function(x) isSymmetric(round(x$S, 5) ), mle.par))
+    simVector <- Reduce(c, Map(function(x) isSymmetric(round(x$S, precision) ), mle.par))
 
     find.mle <- find.mle[simVector, ]
     find.mle <- find.mle[find.mle$value == min(find.mle$value), ]
+    if(nrow(find.mle) == 0){
+      return( cat("please fit pressicion \n") )
+    } else {
+      optim_parameters <- unlist(find.mle[1, 1:length(unlist(par))])
+      optim_parameters <- round(optim_parameters, precision)
+      optim_parameters <- relist(optim_parameters, skeleton = par)
 
-    optim_parameters <- unlist(find.mle[1, 1:length(unlist(par))])
-    optim_parameters <- round(optim_parameters, 5)
-    optim_parameters <- relist(optim_parameters, skeleton = par)
+      cat("Optimization finished. \n")
+      cat(rownames(find.mle))
+      cat(" is the returned method")
+      cat("\n")
+      #return(optim_parameters)
+      return(find.mle)
 
-    cat("Optimization finished. \n")
-    cat(rownames(find.mle))
-    cat(" is the returned method")
-    cat("\n")
-    return(optim_parameters)
+
+    }
+
 
   } else {
     cat("Optimization finished. \n")
     cat("All methods are returned")
-    return(mle.par)
+    return(find.mle)
   }
 }
