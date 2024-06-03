@@ -20,6 +20,6 @@ A vector with Mahalanobis distance according to each point in
 Mahalanobis distance
 }
 \examples{
-pars <- get_negloglike_optimr_par(spOccPnts, samMPts, lower = TRUE, fastmode = TRUE )
+pars <- get_negloglike_optimr_par(spOccPnts, samMPts, lower = TRUE, fastmode = TRUE, itnmax = 1 )
 get_mahalanobis(spOccPnts, pars)
 }

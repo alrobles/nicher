@@ -8,7 +8,10 @@ get_ENM_par(
   occPts,
   env,
   M_shp = NULL,
-  method = c("unbound", "bound", "mahalanobis")
+  method = c("unbound", "bound", "mahalanobis"),
+  fastmode = TRUE,
+  itnmax = 100,
+  return_best = TRUE
 )
 }
 \arguments{
@@ -19,6 +22,12 @@ get_ENM_par(
 \item{M_shp}{A shape file as M hypothesis}
 
 \item{method}{Method selection. By default, optimization of the negloglike function with lower bound}
+
+\item{fastmode}{logical if is true the L-BFGS-B method is by default}
+
+\item{itnmax}{The maximum number of iterations.}
+
+\item{return_best}{logical. If true return the best optimization. If false return all the possible optimizations}
 }
 \value{
 a list of parameters
@@ -31,7 +40,5 @@ M_path <- system.file("extdata", "Mshp_test.rds", package="nicher")
 Mshp <- terra::unwrap(readr::read_rds(M_path))
 stack_path <- system.file("extdata", "stack_1_12_crop.rds", package="nicher")
 stack_1_12 <- terra::unwrap(readr::read_rds(stack_path))
-get_ENM_par(rawSpOccPnts, stack_1_12, Mshp, method = "bound")
-get_ENM_par(rawSpOccPnts, stack_1_12, Mshp, method = "unbound")
 get_ENM_par(rawSpOccPnts, stack_1_12, Mshp, method = "mahalanobis")
 }

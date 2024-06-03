@@ -10,7 +10,7 @@
 #' @export
 #'
 #' @examples
-#' pars <- get_negloglike_optimr_par(spOccPnts, samMPts)
+#' pars <- get_negloglike_optimr_par(head(spOccPnts, 10), samMPts, fastmode = TRUE, itnmax = 1)
 #' get_suitability(spOccPnts, pars)
 get_suitability <- function(df, el_pars){
   max.val <- mvnfast::dmvt(X = el_pars$mu,

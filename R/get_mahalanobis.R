@@ -9,7 +9,7 @@
 #' @export
 #'
 #' @examples
-#' pars <- get_negloglike_optimr_par(spOccPnts, samMPts, lower = TRUE, fastmode = TRUE )
+#' pars <- get_negloglike_optimr_par(spOccPnts, samMPts, lower = TRUE, fastmode = TRUE, itnmax = 1 )
 #' get_mahalanobis(spOccPnts, pars)
 get_mahalanobis <- function(df, el_pars){
   mahadist <- mvnfast::maha(X = df,

@@ -22,6 +22,6 @@ get_suitability
 Function that calculates the log(suitability)
 }
 \examples{
-pars <- get_negloglike_optimr_par(spOccPnts, samMPts)
+pars <- get_negloglike_optimr_par(head(spOccPnts, 10), samMPts, fastmode = TRUE, itnmax = 1)
 get_suitability(spOccPnts, pars)
 }

@@ -12,7 +12,6 @@ get_negloglike_optimr_par(
   lower = FALSE,
   itnmax = 100,
   fastmode = FALSE,
-  convergence = TRUE,
   return_best = TRUE
 )
 }
@@ -27,8 +26,6 @@ get_negloglike_optimr_par(
 
 \item{fastmode}{logical if is true the L-BFGS-B method is by default}
 
-\item{convergence}{logical if is false return all possible optimizations even if still does not converge. It is possible to add more iterations}
-
 \item{return_best}{logical. If true return the best optimization. If false return all the possible optimizations}
 }
 \value{
@@ -40,5 +37,5 @@ Function  to optime negloglike function given parameters from presence points an
 of environmental points from a M hypothesis. Internally runs Returns a list of parameters
 }
 \examples{
-get_negloglike_optimr_par(head(spOccPnts, 10), samMPts)
+get_negloglike_optimr_par(head(spOccPnts, 10), samMPts, fastmode = TRUE, itnmax = 1)
 }
