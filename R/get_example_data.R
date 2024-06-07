@@ -62,6 +62,17 @@ get_example_data <- function(file){
     r <- terra::unwrap(r)
   }
 
+  if(file == "sciurus_aberti_pts"){
+    url <- "https://examples.fra1.digitaloceanspaces.com/sciurus_aberti_pts.csv"
+    r <- readr::read_csv(url)
+  }
+
+  if(file == "sciurus_aberti_M"){
+    url <- "https://examples.fra1.digitaloceanspaces.com/sciurus_aberti_M.rds"
+    r <- readr::read_rds(url)
+    r <- terra::unwrap(r)
+  }
+
 
 
 
