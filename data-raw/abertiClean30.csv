@@ -1,0 +1,46 @@
+id,species,num,long,lat,year,locat,window
+3356358332,sciurus_aberti,343,-105.703325,23.719946,1956,"1.5 mi, by road, SW La Ciudad, Durango",20_25
+3892467959,sciurus_aberti,99,-104.980473,23.609688,2022,"34345 Dgo., México",20_25
+2423168997,sciurus_aberti,1040,-105.071495,23.641437,2019,"Durango, Dgo., México",20_25
+3923642039,sciurus_aberti,11,-105.489182,23.715834,2022,"Pueblo Nuevo, Dgo., México",20_25
+3039357342,sciurus_aberti,595,-105.573753,24.267906,2017,"San Dimas, Dgo., México",20_25
+3018106600,sciurus_aberti,607,-105.503548,23.710628,2020,"Pueblo Nuevo, Dgo., México",20_25
+896306900,sciurus_aberti,2269,-104.739952,23.58361,1947,"DURANGO: MOUNTAINS, 50 MI S",20_25
+2429262535,sciurus_aberti,1034,-105.055552,23.642142,2019,"Durango, Durango, Mexico",20_25
+3873987801,sciurus_aberti,125,-105.669379,23.713736,2022,"Pueblo Nuevo, Dgo., México",20_25
+2540829447,sciurus_aberti,978,-108.212428,29.322992,2019,"Madera, Chih., México",25_30
+2999104972,sciurus_aberti,627,-106.937155,25.986277,2020,"Guadalupe y Calvo, Chih., México",25_30
+2294651797,sciurus_aberti,1085,-107.641248,27.978262,2019,"Bocoyna, Chih., México",25_30
+2543022425,sciurus_aberti,963,-108.271929,28.635435,2019,"Temósachic, Chih., México",25_30
+2862337784,sciurus_aberti,749,-108.20963,29.409708,2020,"Madera, Chih., México",25_30
+2596105029,sciurus_aberti,930,-107.84622,28.353484,2010,"Tomochi, Chih., México",25_30
+3903497562,sciurus_aberti,32,-108.249201,29.339844,2021,"Madera, MX-CH, MX",25_30
+1987319696,sciurus_aberti,1188,-108.3167393,29.86605957,1991,"MEXICO: CHIHUAHUA:  CO.; SIERRA MADRE OCCIDENTAL, CUESTA NALGAS, 22KM N, 6-8KM W MESA DEL HURACAN, 29DEG51'N, 108DEG20'W; 29.8659036, -108.3163666;",25_30
+3903381060,sciurus_aberti,36,-108.236229,29.260104,2021,"Madera, MX-CH, MX",25_30
+2252043012,sciurus_aberti,1111,-110.760306,32.439108,2019,"Summerhaven, AZ 85619, USA",30_35
+2901722844,sciurus_aberti,654,-110.69126,32.374879,2020,"Coronado National Forest, Tucson, AZ, US",30_35
+2429396051,sciurus_aberti,1032,-110.692924,32.372364,2019,"Mt Lemmon, AZ 85619, USA",30_35
+3872375322,sciurus_aberti,140,-110.78843,32.443131,1991,United States of America | Arizona | Pima,30_35
+2883007365,sciurus_aberti,675,-112.509766,34.551919,2020,"Prescott, AZ 86305, USA",30_35
+1145359993,sciurus_aberti,1896,-107.16666,33.9905,1992,"4 MI E, 9 MI S MAGDELENA, LAT 33D59'25.8''N, LON 10; 33D59'N,107D10W",30_35
+2641304136,sciurus_aberti,860,-110.767803,32.447642,2020,"Coronado National Forest, Mount Lemmon, AZ, US",30_35
+2883089525,sciurus_aberti,673,-110.7884,34.338404,2020,"Coconino County, AZ, USA",30_35
+3499531774,sciurus_aberti,266,-110.75879,32.436485,2022,"Pima County, AZ, USA",30_35
+3343991253,sciurus_aberti,440,-106.485787,35.17945,2021,"White Oaks Dr Ne, Albuquerque, NM, US",35_40
+1145358724,sciurus_aberti,1901,-106.620585,35.721199,1991,"Santa Fe National Forest; 5 mi. N of Ponderosa NM, 0.25 mi W on jeep Rd.",35_40
+1847595080,sciurus_aberti,1457,-113.88548,35.097248,2018,"6250 Hualapai Mountain Rd, Kingman, AZ, US",35_40
+1453095576,sciurus_aberti,1667,-113.887101,35.098387,2016,"86401, Kingman, AZ, US",35_40
+891093453,sciurus_aberti,2290,-111.623625,35.257932,2012,35.258066 -111.62403799999998,35_40
+1880545937,sciurus_aberti,1395,-107.937605,37.292986,2016,"Lightner Creek, La Plata County, CO, USA",35_40
+1847965378,sciurus_aberti,1448,-111.73701199999999,35.156424,1992,"Arizona: Coconino, R6ExT21N",35_40
+1677286486,sciurus_aberti,1525,-112.179462,35.228792,2017,"1530 Pine Meadow Drive, Williams, AZ 86046, USA",35_40
+1891262090,sciurus_aberti,1367,-105.683089,35.651765,2016,Cowles,35_40
+3384401923,sciurus_aberti,333,-105.305194,40.26024,2021,"Boulder County, CO, USA",40_45
+1668867458,sciurus_aberti,1533,-105.308847,40.146838,2016,"Boulder County, CO, USA",40_45
+2823093667,sciurus_aberti,813,-105.168057,40.525732,2020,"Fort Collins, CO, US",40_45
+1978847917,sciurus_aberti,1235,-105.298739,40.172781,2018,"Boulder County, CO, USA",40_45
+2818498138,sciurus_aberti,829,-105.343628,40.01405,2012,"Betasso Rd, Boulder, CO 80302, USA",40_45
+3337451380,sciurus_aberti,460,-105.560527,40.072868,2020,"Boulder County, CO, USA",40_45
+3773033788,sciurus_aberti,187,-105.291245,40.643363,2022,"Arapaho & Roosevelt National Forests Pawnee National Grassland, Bellvue, CO, US",40_45
+1586099374,sciurus_aberti,1596,-105.186122,40.577937,2017,"Larimer County, CO, USA",40_45
+3773407842,sciurus_aberti,182,-105.2952,40.132921,2007,"81 Geer Canyon Dr, Boulder, CO 80302, USA",40_45

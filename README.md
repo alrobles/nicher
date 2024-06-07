@@ -1,6 +1,8 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
+![](man/figures/nicher-logo.png)
+
 # nicher
 
 <!-- badges: start -->
@@ -21,7 +23,6 @@ devtools::install_github("alrobles/nicher")
 
 ## Example
 
-This is a basic example which shows you how to solve a common problem.
 First we get the shapefile of an accesibility area (M):
 
 ``` r
@@ -29,6 +30,9 @@ library(nicher)
 library(terra)
 #> Warning: package 'terra' was built under R version 4.2.3
 #> terra 1.7.39
+```
+
+``` r
 
 
 M_path <- system.file("extdata", "Mshp_test.rds", package="nicher")

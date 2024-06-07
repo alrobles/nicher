@@ -4,10 +4,10 @@
 #' @examples
 #' get_example_data(file = "test")
 get_example_data <- function(file){
-  exampleMatch <- c("Mshp", "stack_1_12", "stack_1_12_19", "stack_1_12_crop", "test", "Mshp_test", "occpts_pellaea_pternifolia", "msample_pellaea_pternifolia")
+  exampleMatch <- c("Mshp", "stack_1_12", "stack_1_12_19", "stack_1_12_crop", "test", "Mshp_test", "occpts_pellaea_pternifolia", "msample_pellaea_pternifolia", "sciurus_aberti_pts")
   if( ! file %in% exampleMatch )  {
     stop("File not found. \n
-          Only Mshp, stack_1_12, stack_1_12_19, occpts_pellaea_pternifolia, msample_pellaea_pternifolia and test are valid. /n
+          Only Mshp, stack_1_12, stack_1_12_19, occpts_pellaea_pternifolia, msample_pellaea_pternifolia, sciurus_aberti_pts and test are valid. /n
          Check spell")
   }
 

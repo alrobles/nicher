@@ -12,6 +12,7 @@ knitr::opts_chunk$set(
   out.width = "100%"
 )
 ```
+![](man/figures/nicher-logo.png)
 
 # nicher
 
@@ -32,8 +33,7 @@ devtools::install_github("alrobles/nicher")
 
 ## Example
 
-This is a basic example which shows you how to solve a common problem. First we
-get the shapefile of an accesibility area (M):
+First we get the shapefile of an accesibility area (M):
 
 ```{r example}
 library(nicher)
