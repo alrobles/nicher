@@ -1,99 +1,35 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>http://alrobles.github.io/nicher/404.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/LICENSE.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/authors.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/index.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/ellipse.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/ellipse_par_example.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/ellipse_points.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/get_A_matrix.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/get_ENM_par.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/get_density.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/get_ellip_par.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/get_env_var.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/get_example_data.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/get_mahalanobis.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/get_negative_log.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/get_negloglike_optim_par.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/get_negloglike_optimr_par.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/get_optim_par.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/get_suitability.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/index.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/negloglike_multivariable.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/plot.ellipse.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/predict.ellipse.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/print.ellipse.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/quad.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/rawSpOccPnts.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/samMPts.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/samMPts_1_12_19.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/sam_polyM.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/spOccPnts.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/spOccPnts_1_12_19.html</loc>
-  </url>
-  <url>
-    <loc>http://alrobles.github.io/nicher/reference/url_exists.html</loc>
-  </url>
+<urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
+<url><loc>http://alrobles.github.io/nicher/404.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/LICENSE.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/authors.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/index.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/ellipse.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/ellipse_par_example.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/ellipse_points.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/get_A_matrix.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/get_ENM_par.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/get_density.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/get_ellip_par.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/get_env_var.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/get_example_data.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/get_mahalanobis.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/get_negative_log.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/get_negloglike_optim_par.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/get_negloglike_optimr_par.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/get_optim_par.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/get_suitability.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/index.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/negloglike_multivariable.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/plot.ellipse.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/predict.ellipse.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/print.ellipse.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/quad.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/rawSpOccPnts.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/samMPts.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/samMPts_1_12_19.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/sam_polyM.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/spOccPnts.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/spOccPnts_1_12_19.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/url_exists.html</loc></url>
 </urlset>
+

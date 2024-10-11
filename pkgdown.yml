@@ -1,9 +1,8 @@
 pandoc: 3.1.11
-pkgdown: 2.0.9
+pkgdown: 2.1.1
 pkgdown_sha: ~
 articles: {}
-last_built: 2024-06-07T07:15Z
+last_built: 2024-10-11T15:46Z
 urls:
   reference: http://alrobles.github.io/nicher/reference
   article: http://alrobles.github.io/nicher/articles
-
