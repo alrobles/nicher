@@ -17,7 +17,8 @@
 #' stack_path <- system.file("extdata", "stack_1_12_crop.rds", package="nicher")
 #' stack_1_12 <- terra::unwrap(readr::read_rds(stack_path))
 #' get_ENM_par(rawSpOccPnts, stack_1_12, Mshp, method = "mahalanobis")
-get_ENM_par <- function(occPts, env, M_shp = NULL,
+get_ENM_par <- function(occPts, env,
+                        M_shp = NULL,
                         method = c("unbound", "bound", "mahalanobis" ),
                         fastmode = TRUE,
                         itnmax = 100,
