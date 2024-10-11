@@ -93,7 +93,9 @@ get_negloglike_optimr_par <- function(env_pts, M_pts, lower = FALSE, itnmax = 10
     simVector <- Reduce(c, Map(function(x) isSymmetric(round(x$S, precision) ), mle.par))
 
     find.mle <- find.mle[simVector, ]
+
     find.mle <- find.mle[find.mle$value == min(find.mle$value), ]
+
     if(nrow(find.mle) == 0){
       return( cat("please fit pressicion \n") )
     } else {
