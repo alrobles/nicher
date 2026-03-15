@@ -5,7 +5,6 @@
 #' @param num_starts Integer. Number of starting points.
 #' @param quant_vec Quantiles for generating ranges.
 #' @param start_method Starting point generation method ("sobol" or "uniform").
-#' @param parallel Logical. If TRUE, run optimizations in parallel (requires furrr).
 #' @param control List of control parameters passed to optim (e.g., list(maxit = 1000)).
 #' @param ... Additional arguments passed to loglik_niche_math (e.g., eta).
 #'
@@ -17,7 +16,7 @@ optimize_niche <- function(env_occ, env_m,
                            num_starts = 100,
                            quant_vec = c(0.1, 0.5, 0.9),
                            start_method = "sobol",
-                           parallel = FALSE,
+                           #parallel = FALSE,
                            control = list(),
                            ...) {
   # Generate starting points
@@ -47,16 +46,16 @@ optimize_niche <- function(env_occ, env_m,
     )
   }
   
-  if (parallel) {
-    if (!requireNamespace("furrr", quietly = TRUE)) {
-      stop("Package 'furrr' required for parallel execution. Please install it.")
-    }
-    future::plan("multisession", workers = future::availableCores())
-    on.exit(future::plan("sequential"), add = TRUE)
-    results <- furrr::future_map(starts_list, run_one, .progress = TRUE)
-  } else {
-    results <- lapply(starts_list, run_one)
-  }
+  # if (parallel) {
+  #   if (!requireNamespace("furrr", quietly = TRUE)) {
+  #     stop("Package 'furrr' required for parallel execution. Please install it.")
+  #   }
+  #   future::plan("multisession", workers = future::availableCores())
+  #   on.exit(future::plan("sequential"), add = TRUE)
+  #   results <- furrr::future_map(starts_list, run_one, .progress = TRUE)
+  # } else {
+  #   results <- lapply(starts_list, run_one)
+  # }
   
   # Compile results
   solutions <- data.frame(

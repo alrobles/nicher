@@ -10,7 +10,6 @@ optimize_niche(
   num_starts = 100,
   quant_vec = c(0.1, 0.5, 0.9),
   start_method = "sobol",
-  parallel = FALSE,
   control = list(),
   ...
 )
@@ -25,8 +24,6 @@ optimize_niche(
 \item{quant_vec}{Quantiles for generating ranges.}
 
 \item{start_method}{Starting point generation method ("sobol" or "uniform").}
-
-\item{parallel}{Logical. If TRUE, run optimizations in parallel (requires furrr).}
 
 \item{control}{List of control parameters passed to optim (e.g., list(maxit = 1000)).}
 
