@@ -12,8 +12,10 @@
 #' negloglike_multivariable(par$mu, par$S, spOccPnts, samMPts)
 negloglike_multivariable <- function(mu, S, sam1, sam2){
 
-  q1 <- stats::mahalanobis(x = sam1, center = mu, cov = S, inverted = FALSE) # quadratic terms of presence points
-  q2 <- stats::mahalanobis(x = sam2, center = mu, cov = S, inverted = FALSE) # quadratic terms of M points
+  # quadratic terms of presence points
+  q1 <- stats::mahalanobis(x = sam1, center = mu, cov = S, inverted = FALSE)
+  # quadratic terms of M points
+  q2 <- stats::mahalanobis(x = sam2, center = mu, cov = S, inverted = FALSE)
 
   # Check why Cholesky decomposition doesn't works
   # It gets a non symetric matrix error.
