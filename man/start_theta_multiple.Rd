@@ -13,17 +13,30 @@ start_theta_multiple(
 }
 \arguments{
 \item{env_data}{Data frame of environmental values from the accessibility
-area M.}
+area M. Used to define plausible ranges for the parameters.}
 
-\item{num_starts}{Integer. Number of starting points.}
+\item{num_starts}{Integer. Number of starting points to generate.}
 
-\item{quant_vec}{Quantiles for mu ranges.}
+\item{quant_vec}{Numeric vector of length 3 giving the quantiles used to
+define the lower, central and upper bounds for the `mu` parameters.
+Default `c(0.1, 0.5, 0.9)`.}
 
-\item{method}{Character: "sobol" or "uniform".}
+\item{method}{Character. Either `"sobol"` (requires the \pkg{pomp} package)
+or `"uniform"` for simple random sampling.}
 }
 \value{
-A data frame with num_starts rows and columns corresponding to parameters.
+A data frame with `num_starts` rows and one column per parameter.
+  Column names follow the math‑scale convention: `mu1, mu2, ...`,
+  `log_sigma1, log_sigma2, ...`, `v1, v2, ...` (the latter only if
+  `p > 1`). Each row is a valid starting point.
 }
 \description{
-Generate multiple starting points for niche model optimization
+Creates a set of starting parameter vectors on the math scale for use with
+[loglik_niche_math()]. Ranges for each parameter are derived from the
+environmental data of the accessibility area M using [get_range_df_niche()].
+}
+\examples{
+\dontrun{
+start_theta_multiple(example_env_m_2d, num_starts = 10, method = "uniform")
+}
 }

@@ -56,7 +56,7 @@ optimize_niche <- function(env_occ, env_m,
   # } else {
   #   results <- lapply(starts_list, run_one)
   # }
-  
+  results <- lapply(starts_list, run_one)
   # Compile results
   solutions <- data.frame(
     start_id = seq_along(results),
