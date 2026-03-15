@@ -3,6 +3,7 @@
 <url><loc>http://alrobles.github.io/nicher/LICENSE.html</loc></url>
 <url><loc>http://alrobles.github.io/nicher/authors.html</loc></url>
 <url><loc>http://alrobles.github.io/nicher/index.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/create_mask_niche.html</loc></url>
 <url><loc>http://alrobles.github.io/nicher/reference/ellipse.html</loc></url>
 <url><loc>http://alrobles.github.io/nicher/reference/ellipse_par_example.html</loc></url>
 <url><loc>http://alrobles.github.io/nicher/reference/ellipse_points.html</loc></url>
@@ -19,6 +20,9 @@
 <url><loc>http://alrobles.github.io/nicher/reference/get_optim_par.html</loc></url>
 <url><loc>http://alrobles.github.io/nicher/reference/get_suitability.html</loc></url>
 <url><loc>http://alrobles.github.io/nicher/reference/index.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/loglik_bio_niche.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/loglik_math_niche.html</loc></url>
+<url><loc>http://alrobles.github.io/nicher/reference/math_to_bio_niche.html</loc></url>
 <url><loc>http://alrobles.github.io/nicher/reference/negloglike_multivariable.html</loc></url>
 <url><loc>http://alrobles.github.io/nicher/reference/plot.ellipse.html</loc></url>
 <url><loc>http://alrobles.github.io/nicher/reference/predict.ellipse.html</loc></url>
