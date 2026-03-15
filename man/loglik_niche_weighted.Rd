@@ -2,9 +2,18 @@
 % Please edit documentation in R/loglik_niche_weighted.R
 \name{loglik_niche_weighted}
 \alias{loglik_niche_weighted}
-\title{Negative log-likelihood (weighted-normal, Jiménez & Soberón 2022)}
+\title{Negative log-likelihood (weighted-normal, Jiménez & Soberón 2022) with MC subsampling}
 \usage{
-loglik_niche_weighted(mu, s_mat, env_occ, env_m, neg = TRUE)
+loglik_niche_weighted(
+  mu,
+  s_mat,
+  env_occ,
+  env_m,
+  m_subsample = NULL,
+  m_kde_subsample = NULL,
+  seed = NULL,
+  neg = TRUE
+)
 }
 \arguments{
 \item{mu}{Numeric length-p vector (centroid).}
@@ -15,6 +24,16 @@ loglik_niche_weighted(mu, s_mat, env_occ, env_m, neg = TRUE)
 
 \item{env_m}{Data frame/matrix (n_m   x p): environmental values from M.}
 
+\item{m_subsample}{Optional integer or fraction. If NULL (default), uses all rows of
+env_m in the denominator. If 0 < value < 1, uses `floor(value * nrow(env_m))`
+rows (without replacement). If >= 1, uses `min(value, nrow(env_m))` rows.}
+
+\item{m_kde_subsample}{Optional integer or fraction controlling the KDE reference
+sample from env_m. Same rules as `m_subsample`. By default (NULL), KDE is built
+using all rows of env_m.}
+
+\item{seed}{Optional integer seed for reproducible subsampling (set only here).}
+
 \item{neg}{Logical, return negative log-likelihood (default TRUE).}
 }
 \value{
@@ -23,15 +42,14 @@ Numeric scalar (neg log-likelihood if neg=TRUE, else log-likelihood).
 \description{
 Implements the weighted likelihood:
   -log L = 0.5*sum(q1) - sum(log w_occ) + n * log( sum_j w_m[j] * exp(-0.5*q2_j) )
-where q1 uses env_occ, q2 uses env_m, and w(.) is a KDE over env_m.
+where q1 uses env_occ, q2 uses a (possibly subsampled) set from env_m, and
+w(.) is a KDE over env_m (optionally subsampled for KDE construction).
 }
 \examples{
-
-pars <- get_ellipsoid_pars(example_env_occ_2d)  # lista(mu, s_mat)
-negll_w <- loglik_niche_weighted(
-  mu = pars$mu,
-  s_mat = pars$s_mat,
-  env_occ = example_env_occ_2d,
-  env_m   = example_env_m_2d
-  )
+pars <- get_ellipsoid_pars(example_env_occ_2d)
+# Full M (no subsampling)
+loglik_niche_weighted(pars$mu, pars$s_mat, example_env_occ_2d, example_env_m_2d)
+# Subsample 2,000 puntos de M para el denominador, y 5,000 para el KDE
+loglik_niche_weighted(pars$mu, pars$s_mat, example_env_occ_2d, example_env_m_2d,
+                      m_subsample = 2000, m_kde_subsample = 5000, seed = 123)
 }

@@ -4,7 +4,7 @@
 \alias{loglik_niche_math_weighted}
 \title{Negative Log-Likelihood for the Weighted-Normal Niche Model (Math Scale)}
 \usage{
-loglik_niche_math_weighted(theta, env_occ, env_m, eta = 1, neg = TRUE)
+loglik_niche_math_weighted(theta, env_occ, env_m, eta = 1, neg = TRUE, ...)
 }
 \arguments{
 \item{theta}{Numeric vector of length \code{2p + p(p-1)/2} containing
@@ -21,6 +21,9 @@ loglik_niche_math_weighted(theta, env_occ, env_m, eta = 1, neg = TRUE)
 
 \item{neg}{Logical. If \code{TRUE} (default), returns the negative
 log-likelihood (for minimization).}
+
+\item{...}{Additional arguments forwarded to \code{loglik_niche_weighted()},
+e.g., \code{m_subsample}, \code{m_kde_subsample}, \code{seed}.}
 }
 \value{
 Negative log-likelihood value (scalar).
@@ -57,5 +60,9 @@ points, respectively.
 }
 \examples{
 theta <- start_theta(example_env_occ_2d)
+# Without subsampling
 loglik_niche_math_weighted(theta, example_env_occ_2d, example_env_m_2d)
+# With subsampling in M (Monte Carlo)
+loglik_niche_math_weighted(theta, example_env_occ_2d, example_env_m_2d,
+                           m_subsample = 2000, m_kde_subsample = 5000, seed = 2026)
 }

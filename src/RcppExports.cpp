@@ -23,9 +23,22 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// kde_gaussian_rcpp
+NumericVector kde_gaussian_rcpp(const NumericMatrix& x, const NumericMatrix& data);
+RcppExport SEXP _nicher_kde_gaussian_rcpp(SEXP xSEXP, SEXP dataSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const NumericMatrix& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< const NumericMatrix& >::type data(dataSEXP);
+    rcpp_result_gen = Rcpp::wrap(kde_gaussian_rcpp(x, data));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_nicher_cvine_cholesky", (DL_FUNC) &_nicher_cvine_cholesky, 3},
+    {"_nicher_kde_gaussian_rcpp", (DL_FUNC) &_nicher_kde_gaussian_rcpp, 2},
     {NULL, NULL, 0}
 };
 

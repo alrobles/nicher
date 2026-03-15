@@ -77,6 +77,7 @@ res1 <- optimize_niche(example_env_occ_2d, example_env_m_2d,
 res1$best
 
 # Weighted-normal (2022) with 5 starting points
+# (requires loglik_niche_math_weighted to be defined)
 res2 <- optimize_niche(example_env_occ_2d, example_env_m_2d,
                        num_starts = 5, start_method = "uniform",
                        likelihood = "weighted", eta = 1)

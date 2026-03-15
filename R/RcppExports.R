@@ -5,3 +5,7 @@ cvine_cholesky_cpp <- function(v, d, eta = 1.0) {
     .Call(`_nicher_cvine_cholesky`, v, d, eta)
 }
 
+kde_gaussian_rcpp <- function(x, data) {
+    .Call(`_nicher_kde_gaussian_rcpp`, x, data)
+}
+

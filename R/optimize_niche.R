@@ -51,6 +51,7 @@
 #' res1$best
 #'
 #' # Weighted-normal (2022) with 5 starting points
+#' # (requires loglik_niche_math_weighted to be defined)
 #' res2 <- optimize_niche(example_env_occ_2d, example_env_m_2d,
 #'                        num_starts = 5, start_method = "uniform",
 #'                        likelihood = "weighted", eta = 1)
@@ -72,8 +73,14 @@ optimize_niche <- function(env_occ, env_m,
     stop("env_occ and env_m must have the same variables (column names)")
   }
   
+  # Verify that the chosen likelihood function exists
+  if (likelihood == "weighted" && !exists("loglik_niche_math_weighted", mode = "function")) {
+    stop("Weighted likelihood function 'loglik_niche_math_weighted' is not defined. ",
+         "Please implement it or use likelihood = 'unweighted'.")
+  }
+  
   # Generate starting points (using env_m as reference for ranges)
-  starts_df <- start_theta_multiple(env_data   = env_m,
+  starts_df <- start_theta_multiple(env_data       = env_m,
                                     num_starts = num_starts,
                                     quant_vec  = quant_vec,
                                     method     = start_method)
@@ -100,8 +107,7 @@ optimize_niche <- function(env_occ, env_m,
   # Choose objective function pointer
   obj_fun <- switch(likelihood,
                     unweighted = loglik_niche_math,
-                    weighted   = loglik_niche_math_weighted
-  )
+                    weighted   = loglik_niche_math_weighted)
   
   # Runner for a single start
   runner <- function(start_vec, id) {
@@ -170,10 +176,8 @@ optimize_niche <- function(env_occ, env_m,
 .optimize_niche_helper <- function(param, obj_fun, env_occ, env_m, control, ...) {
   # Ensure param is numeric and finite
   param <- as.numeric(param)
-  if (requireNamespace("checkmate", quietly = TRUE)) {
-    checkmate::assert_numeric(param, any.missing = FALSE, finite = TRUE)
-  } else {
-    if (any(!is.finite(param))) stop("Non-finite starting parameters detected.")
+  if (any(!is.finite(param))) {
+    stop("All starting parameters must be finite")
   }
   
   # Objective function (returns negative log-likelihood)
@@ -191,7 +195,7 @@ optimize_niche <- function(env_occ, env_m,
       res <- ucminf::ucminf(par = param,
                             fn  = fn,
                             control = control,
-                            hessian = FALSE)  # Hessian not needed
+                            hessian = FALSE)  # Hessian not needed for optimization
       # Restore names if ucminf drops them
       if (is.null(names(res$par)) && !is.null(names(param))) {
         names(res$par) <- names(param)
