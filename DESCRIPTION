@@ -23,16 +23,11 @@ Depends:
     R (>= 3.5)
 RoxygenNote: 7.3.3
 Imports: 
-    graphics,
-    httr,
-    mvnfast,
-    optimx,
+    checkmate,
     pomp,
     Rcpp,
-    readr,
     stats,
-    stringr,
-    terra,
+    ucminf,
     utils
 URL: https://alrobles.github.io/nicher, https://github.com/alrobles/nicher, https://alrobles.github.io/nicher/
 LinkingTo: 

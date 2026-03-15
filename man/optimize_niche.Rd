@@ -2,7 +2,7 @@
 % Please edit documentation in R/optimize_niche.R
 \name{optimize_niche}
 \alias{optimize_niche}
-\title{Optimize niche model log-likelihood from multiple starting points}
+\title{Optimize niche model log-likelihood (math scale) with multiple starts (ucminf)}
 \usage{
 optimize_niche(
   env_occ,
@@ -10,30 +10,76 @@ optimize_niche(
   num_starts = 100,
   quant_vec = c(0.1, 0.5, 0.9),
   start_method = "sobol",
+  likelihood = c("unweighted", "weighted"),
   control = list(),
+  verbose = FALSE,
   ...
 )
 }
 \arguments{
 \item{env_occ}{Data frame with environmental values at presence points.}
 
-\item{env_m}{Data frame with environmental values from M area.}
+\item{env_m}{Data frame with environmental values from the accessibility
+area M (background).}
 
 \item{num_starts}{Integer. Number of starting points.}
 
-\item{quant_vec}{Quantiles for generating ranges.}
+\item{quant_vec}{Quantiles used to define ranges for `mu` (passed to
+[start_theta_multiple()]).}
 
-\item{start_method}{Starting point generation method ("sobol" or "uniform").}
+\item{start_method}{Method for generating starting points:
+`"sobol"` (requires \pkg{pomp}) or `"uniform"`.}
 
-\item{control}{List of control parameters passed to optim (e.g., list(maxit = 1000)).}
+\item{likelihood}{Character. Either `"unweighted"` (default; uses
+[loglik_niche_math()]) or `"weighted"` (uses
+[loglik_niche_math_weighted()]).}
 
-\item{...}{Additional arguments passed to loglik_niche_math (e.g., eta).}
+\item{control}{List of control parameters passed to [ucminf::ucminf()].
+Default values (if not supplied) are:
+\describe{
+  \item{grad}{"central"}
+  \item{gradstep}{c(1e-6, 1e-8)}
+  \item{grtol}{1e-4}
+  \item{xtol}{1e-8}
+  \item{stepmax}{5}
+  \item{maxeval}{2000}
+}}
+
+\item{verbose}{Logical. If `TRUE`, print progress messages.}
+
+\item{...}{Additional arguments passed to the chosen objective function
+([loglik_niche_math()] or [loglik_niche_math_weighted()]), e.g., `eta`.}
 }
 \value{
-A list with components:
-  \item{solutions}{Data frame with columns start_id, loglik, convergence, and list-column full_par (theta vector).}
-  \item{best}{List with best theta, loglik, and convergence.}
+A list with two components:
+  \item{solutions}{A data frame with columns:
+    \itemize{
+      \item `start_id`: integer identifier of the starting point.
+      \item `loglik`: the maximized log-likelihood (not negative).
+      \item `convergence`: convergence code from `ucminf` (1 or 2 mean success).
+      \item `full_par`: list column with the full parameter vector at the optimum.
+    }}
+  \item{best}{A list with the best solution: `theta`, `loglik`, `convergence`.}
 }
 \description{
-Optimize niche model log-likelihood from multiple starting points
+Runs multiple optimizations using [ucminf::ucminf()] from different starting
+points to maximize the likelihood of the ellipsoid niche model on the math
+scale. The objective function can be either the unweighted likelihood
+[loglik_niche_math()] (Jiménez & Soberón 2019) or the weighted-normal
+likelihood [loglik_niche_math_weighted()] (Jiménez & Soberón 2022).
+}
+\examples{
+\dontrun{
+# Unweighted (2019) with 5 starting points
+res1 <- optimize_niche(example_env_occ_2d, example_env_m_2d,
+                       num_starts = 5, start_method = "uniform",
+                       likelihood = "unweighted", eta = 1)
+res1$best
+
+# Weighted-normal (2022) with 5 starting points
+res2 <- optimize_niche(example_env_occ_2d, example_env_m_2d,
+                       num_starts = 5, start_method = "uniform",
+                       likelihood = "weighted", eta = 1)
+res2$best
+}
 }
