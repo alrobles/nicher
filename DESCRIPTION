@@ -20,15 +20,20 @@ License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
 Depends: 
-    R (>= 2.10)
-RoxygenNote: 7.3.1
+    R (>= 3.5)
+RoxygenNote: 7.3.3
 Imports: 
     graphics,
     httr,
     mvnfast,
     optimx,
+    pomp,
+    Rcpp,
     readr,
+    stats,
     stringr,
     terra,
     utils
 URL: https://alrobles.github.io/nicher, https://github.com/alrobles/nicher, https://alrobles.github.io/nicher/
+LinkingTo: 
+    Rcpp
