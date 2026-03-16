@@ -46,6 +46,10 @@ loglik_niche_math_cpp <- function(theta, env_occ, env_m, eta = 1, neg = TRUE) {
   # Build covariance Cholesky factor (lower triangular)
   L_cov <- diag(sigma) %*% L_corr
   
+  # Convert data frames to matrices to avoid Rcpp type conversion issues
+  env_occ <- as.matrix(env_occ)
+  env_m   <- as.matrix(env_m)
+  
   val <- loglik_niche_chol_cpp(mu, L_cov, env_occ, env_m)
   if (neg) val else -val
 }

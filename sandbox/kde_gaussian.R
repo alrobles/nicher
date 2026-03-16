@@ -1,9 +1,9 @@
-#' Multivariate Gaussian KDE with fixed Scott bandwidth
+#' Multivariate Gaussian KDE with fixed Scott bandwidth (C++ backend only)
 #'
 #' Computes a multivariate Gaussian kernel density estimate at the rows of `x`,
 #' using `data` as the reference sample. Bandwidths are set internally via
-#' Scott's rule-of-thumb (diagonal). For 2D, a manually optimized version is used;
-#' for higher dimensions, an Eigen-based vectorized version is used.
+#' Scott's rule-of-thumb (diagonal), and the computation is performed entirely
+#' in C++ (Rcpp).
 #'
 #' @param x Numeric matrix `n_eval x p` (evaluation points).
 #' @param data Numeric matrix `n_data x p` (reference sample for KDE).
@@ -16,10 +16,5 @@ kde_gaussian <- function(x, data) {
   if (ncol(x) != ncol(data)) {
     stop("x and data must have the same number of columns")
   }
-  p <- ncol(x)
-  if (p == 2) {
-    kde_gaussian_2d_cpp(x, data)
-  } else {
-    kde_gaussian_eigen_cpp(x, data)
-  }
+  kde_gaussian_rcpp(x, data)
 }

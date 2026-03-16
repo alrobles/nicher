@@ -2,21 +2,26 @@
 #'
 #' Runs multiple optimizations using [ucminf::ucminf()] from different starting
 #' points to maximize the likelihood of the ellipsoid niche model on the math
-#' scale. The objective function can be either the unweighted likelihood
-#' [loglik_niche_math()] (Jiménez & Soberón 2019) or the weighted-normal
-#' likelihood [loglik_niche_math_weighted()] (Jiménez & Soberón 2022).
+#' scale. The objective function can be:
+#' \itemize{
+#'   \item `"unweighted"`: the basic ellipsoid model with background correction
+#'         (Jiménez & Soberón 2019) – uses [loglik_niche_math_cpp()].
+#'   \item `"weighted"`: the weighted‑normal model with integrated KDE
+#'         (Jiménez & Soberón 2022) – uses [loglik_niche_math_weighted()].
+#'   \item `"presence_only"`: the simplest model using only presence points
+#'         (no background correction) – uses [loglik_niche_math_presence_only()].
+#' }
 #'
 #' @param env_occ Data frame with environmental values at presence points.
 #' @param env_m Data frame with environmental values from the accessibility
-#'   area M (background).
+#'   area M (background). Ignored if `likelihood = "presence_only"`.
 #' @param num_starts Integer. Number of starting points.
 #' @param quant_vec Quantiles used to define ranges for `mu` (passed to
 #'   [start_theta_multiple()]).
 #' @param start_method Method for generating starting points:
 #'   `"sobol"` (requires \pkg{pomp}) or `"uniform"`.
-#' @param likelihood Character. Either `"unweighted"` (default; uses
-#'   [loglik_niche_math()]) or `"weighted"` (uses
-#'   [loglik_niche_math_weighted()]).
+#' @param likelihood Character. One of `"unweighted"` (default), `"weighted"`,
+#'   or `"presence_only"`.
 #' @param control List of control parameters passed to [ucminf::ucminf()].
 #'   Default values (if not supplied) are:
 #'   \describe{
@@ -28,8 +33,9 @@
 #'     \item{maxeval}{2000}
 #'   }
 #' @param verbose Logical. If `TRUE`, print progress messages.
-#' @param ... Additional arguments passed to the chosen objective function
-#'   ([loglik_niche_math()] or [loglik_niche_math_weighted()]), e.g., `eta`.
+#' @param ... Additional arguments passed to the chosen objective function,
+#'   e.g., `eta` for the LKJ prior, or subsampling parameters for the weighted
+#'   model (`m_subsample`, `m_kde_subsample`, `seed`).
 #'
 #' @return A list with two components:
 #'   \item{solutions}{A data frame with columns:
@@ -50,37 +56,43 @@
 #'                        likelihood = "unweighted", eta = 1)
 #' res1$best
 #'
-#' # Weighted-normal (2022) with 5 starting points
-#' # (requires loglik_niche_math_weighted to be defined)
+#' # Weighted (2022) with 5 starting points
 #' res2 <- optimize_niche(example_env_occ_2d, example_env_m_2d,
 #'                        num_starts = 5, start_method = "uniform",
-#'                        likelihood = "weighted", eta = 1)
+#'                        likelihood = "weighted", eta = 1,
+#'                        m_subsample = 2000, m_kde_subsample = 5000, seed = 123)
 #' res2$best
+#'
+#' # Presence‑only (ultra‑light) with 5 starting points
+#' res3 <- optimize_niche(example_env_occ_2d, env_m = NULL,
+#'                        num_starts = 5, start_method = "uniform",
+#'                        likelihood = "presence_only", eta = 1)
+#' res3$best
 #' }
 optimize_niche <- function(env_occ, env_m,
                            num_starts = 100,
                            quant_vec = c(0.1, 0.5, 0.9),
                            start_method = "sobol",
-                           likelihood = c("unweighted", "weighted"),
+                           likelihood = c("unweighted", "weighted", "presence_only"),
                            control = list(),
                            verbose = FALSE,
                            ...) {
   # Match likelihood
   likelihood <- match.arg(likelihood)
   
-  # Check that env_occ and env_m have the same columns
-  if (!identical(sort(colnames(env_occ)), sort(colnames(env_m)))) {
-    stop("env_occ and env_m must have the same variables (column names)")
+  # Validate inputs based on likelihood
+  if (likelihood != "presence_only") {
+    if (missing(env_m)) stop("env_m must be provided for likelihood '", likelihood, "'")
+    if (!identical(sort(colnames(env_occ)), sort(colnames(env_m)))) {
+      stop("env_occ and env_m must have the same variables (column names)")
+    }
   }
   
-  # Verify that the chosen likelihood function exists
-  if (likelihood == "weighted" && !exists("loglik_niche_math_weighted", mode = "function")) {
-    stop("Weighted likelihood function 'loglik_niche_math_weighted' is not defined. ",
-         "Please implement it or use likelihood = 'unweighted'.")
-  }
+  # Determine which data to use for generating starting ranges
+  range_data <- if (likelihood == "presence_only") env_occ else env_m
   
-  # Generate starting points (using env_m as reference for ranges)
-  starts_df <- start_theta_multiple(env_data       = env_m,
+  # Generate starting points (using the appropriate data for ranges)
+  starts_df <- start_theta_multiple(env_data  = range_data,
                                     num_starts = num_starts,
                                     quant_vec  = quant_vec,
                                     method     = start_method)
@@ -106,8 +118,9 @@ optimize_niche <- function(env_occ, env_m,
   
   # Choose objective function pointer
   obj_fun <- switch(likelihood,
-                    unweighted = loglik_niche_math,
-                    weighted   = loglik_niche_math_weighted)
+                    unweighted    = loglik_niche_math_cpp,
+                    weighted      = loglik_niche_math_weighted,
+                    presence_only = loglik_niche_math_presence_only)
   
   # Runner for a single start
   runner <- function(start_vec, id) {
@@ -118,7 +131,7 @@ optimize_niche <- function(env_occ, env_m,
       param    = start_vec,
       obj_fun  = obj_fun,
       env_occ  = env_occ,
-      env_m    = env_m,
+      env_m    = env_m,          # will be ignored inside presence_only if not used
       control  = ctrl,
       ...
     )
@@ -166,11 +179,11 @@ optimize_niche <- function(env_occ, env_m,
 #' Internal helper: run ucminf for a single starting vector
 #'
 #' @param param Numeric vector of starting parameters (named).
-#' @param obj_fun Objective function pointer: either [loglik_niche_math] or
-#'   [loglik_niche_math_weighted].
-#' @param env_occ,env_m Data frames as in [loglik_niche_math()].
+#' @param obj_fun Objective function pointer: either [loglik_niche_math_cpp],
+#'   [loglik_niche_math_weighted], or [loglik_niche_math_presence_only].
+#' @param env_occ,env_m Data frames as in [optimize_niche].
 #' @param control List of control parameters for ucminf.
-#' @param ... Additional arguments passed to `obj_fun` (e.g., eta).
+#' @param ... Additional arguments passed to `obj_fun` (e.g., eta, subsampling).
 #' @return A list with components: par, value, convergence, invhessian.lt (if computed).
 #' @keywords internal
 .optimize_niche_helper <- function(param, obj_fun, env_occ, env_m, control, ...) {

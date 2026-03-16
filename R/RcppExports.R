@@ -5,19 +5,23 @@ cvine_cholesky_cpp <- function(v, d, eta = 1.0) {
     .Call(`_nicher_cvine_cholesky`, v, d, eta)
 }
 
-kde_gaussian_rcpp <- function(x, data) {
-    .Call(`_nicher_kde_gaussian_rcpp`, x, data)
+kde_gaussian_2d_cpp <- function(x, data) {
+    .Call(`_nicher_kde_gaussian_2d_cpp`, x, data)
+}
+
+kde_gaussian_eigen_cpp <- function(x, data) {
+    .Call(`_nicher_kde_gaussian_eigen_cpp`, x, data)
 }
 
 loglik_niche_chol_cpp <- function(mu, L, env_occ, env_m) {
     .Call(`_nicher_loglik_niche_chol_cpp`, mu, L, env_occ, env_m)
 }
 
-loglik_niche_chol_cpp_2d <- function(mu, L, env_occ, env_m) {
-    .Call(`_nicher_loglik_niche_chol_cpp_2d`, mu, L, env_occ, env_m)
+loglik_niche_presence_only_cpp <- function(mu, L, env_occ) {
+    .Call(`_nicher_loglik_niche_presence_only_cpp`, mu, L, env_occ)
 }
 
-loglik_niche_cpp <- function(mu, S, env_occ, env_m) {
-    .Call(`_nicher_loglik_niche_cpp`, mu, S, env_occ, env_m)
+loglik_niche_weighted_integrated_cpp <- function(mu, L, env_occ, env_m, den_idx = NULL, kde_idx = NULL, neg = TRUE) {
+    .Call(`_nicher_loglik_niche_weighted_integrated_cpp`, mu, L, env_occ, env_m, den_idx, kde_idx, neg)
 }
 

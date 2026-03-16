@@ -2,7 +2,7 @@
 % Please edit documentation in R/kde_gaussian.R
 \name{kde_gaussian}
 \alias{kde_gaussian}
-\title{Multivariate Gaussian KDE with fixed Scott bandwidth (C++ backend only)}
+\title{Multivariate Gaussian KDE with fixed Scott bandwidth}
 \usage{
 kde_gaussian(x, data)
 }
@@ -17,6 +17,6 @@ Numeric vector of length `n_eval` with the density estimates.
 \description{
 Computes a multivariate Gaussian kernel density estimate at the rows of `x`,
 using `data` as the reference sample. Bandwidths are set internally via
-Scott's rule-of-thumb (diagonal), and the computation is performed entirely
-in C++ (Rcpp).
+Scott's rule-of-thumb (diagonal). For 2D, a manually optimized version is used;
+for higher dimensions, an Eigen-based vectorized version is used.
 }

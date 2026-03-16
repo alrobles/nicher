@@ -73,24 +73,25 @@ double loglik_niche_chol_cpp(NumericVector mu,
   
   // Calcular diferencias: (cada columna = punto - mu)
   // Usamos arrays para broadcasting y luego convertimos a matriz para resolver
-  Eigen::ArrayXXd occ_arr = occ_eig.array(); // no copia, es un Map<ArrayXd>
-  Eigen::ArrayXXd diff_occ = occ_arr.colwise() - mu_eig.array();
+  Eigen::MatrixXd diff_occ(p, n_occ);
+  for (int j = 0; j < n_occ; ++j) {
+    diff_occ.col(j) = occ_eig.row(j).transpose() - mu_eig;
+  }
   
-  // Resolver sistema triangular para todas las ocurrencias a la vez
-  // Convertimos a matriz (Eigen::MatrixXd) para usar solve()
-  Eigen::MatrixXd y_occ = L_eig.triangularView<Eigen::Lower>()
-                               .solve(diff_occ.matrix());
+  Eigen::MatrixXd diff_m(p, n_m);
+  for (int j = 0; j < n_m; ++j) {
+    diff_m.col(j) = m_eig.row(j).transpose() - mu_eig;
+  }
+  
+  // Resolver sistemas triangulares para todas las columnas a la vez
+  Eigen::MatrixXd y_occ = L_eig.triangularView<Eigen::Lower>().solve(diff_occ);
+  Eigen::MatrixXd y_m   = L_eig.triangularView<Eigen::Lower>().solve(diff_m);
+  
+  // Suma de normas al cuadrado de las columnas
   double sum_q1 = y_occ.colwise().squaredNorm().sum();
   
-  // Mismo para puntos de M
-  Eigen::ArrayXXd m_arr = m_eig.array();
-  Eigen::ArrayXXd diff_m = m_arr.colwise() - mu_eig.array();
-  Eigen::MatrixXd y_m = L_eig.triangularView<Eigen::Lower>()
-                             .solve(diff_m.matrix());
-  
-  // a_j = -0.5 * ||y_j||^2  (como array)
+  // a_j = -0.5 * ||y_j||^2  (como array, 1 x n_m)
   Eigen::ArrayXd a = -0.5 * y_m.colwise().squaredNorm().array();
-  
   // Log-sum-exp estable
   double max_a = a.maxCoeff();
   double sum_exp = (a - max_a).exp().sum();
