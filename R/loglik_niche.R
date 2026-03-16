@@ -37,9 +37,12 @@ loglik_niche <- function(mu, s_mat, env_occ, env_m, neg = TRUE){
                            cov = s_mat,
                            inverted = FALSE) 
   
-  # negative log-likelihood value
+  # negative log-likelihood value (using log-sum-exp for numerical stability)
   n <- length(q1)
-  neg_log <- 0.5 * sum(q1) + n * log(sum(exp(-0.5 * q2)))
+  a <- -0.5 * q2
+  max_a <- max(a)
+  log_sum_exp <- max_a + log(sum(exp(a - max_a)))
+  neg_log <- 0.5 * sum(q1) + n * log_sum_exp
   if(neg){
     neg_log
   } else {

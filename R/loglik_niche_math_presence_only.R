@@ -17,7 +17,7 @@
 #' theta <- start_theta(example_env_occ_2d)
 #' ll <- loglik_niche_math_presence_only(theta, example_env_occ_2d)
 #' }
-loglik_niche_math_presence_only <- function(theta, env_occ, eta = 1, neg = TRUE) {
+loglik_niche_math_presence_only <- function(theta, env_occ, eta = 1, neg = TRUE, ...) {
   p <- ncol(env_occ)
   mu <- theta[1:p]
   log_sigma <- theta[(p + 1):(2 * p)]

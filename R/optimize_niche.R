@@ -82,7 +82,7 @@ optimize_niche <- function(env_occ, env_m,
   
   # Validate inputs based on likelihood
   if (likelihood != "presence_only") {
-    if (missing(env_m)) stop("env_m must be provided for likelihood '", likelihood, "'")
+    if (missing(env_m) || is.null(env_m)) stop("env_m must be provided for likelihood '", likelihood, "'")
     if (!identical(sort(colnames(env_occ)), sort(colnames(env_m)))) {
       stop("env_occ and env_m must have the same variables (column names)")
     }

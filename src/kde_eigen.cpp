@@ -19,7 +19,7 @@ Eigen::VectorXd kde_eigen(const Eigen::MatrixXd& x, const Eigen::MatrixXd& data)
   
   double nf = std::pow(static_cast<double>(n_data), -1.0 / (p + 4.0));
   Eigen::VectorXd bw = s * nf;
-  Eigen::VectorXd inv_bw2 = (bw.array() * bw.array()).inverse();
+  Eigen::VectorXd inv_bw = bw.array().inverse();
   double prod_bw = bw.prod();
   if (prod_bw <= 0) prod_bw = 1e-32;
   
@@ -27,8 +27,8 @@ Eigen::VectorXd kde_eigen(const Eigen::MatrixXd& x, const Eigen::MatrixXd& data)
   double log_const = -0.5 * p * log2pi - std::log(prod_bw);
   double const_kernel = std::exp(log_const);
   
-  Eigen::MatrixXd X_scaled = x * inv_bw2.asDiagonal();
-  Eigen::MatrixXd D_scaled = data * inv_bw2.asDiagonal();
+  Eigen::MatrixXd X_scaled = x * inv_bw.asDiagonal();
+  Eigen::MatrixXd D_scaled = data * inv_bw.asDiagonal();
   
   Eigen::VectorXd norm_X = X_scaled.rowwise().squaredNorm();
   Eigen::VectorXd norm_D = D_scaled.rowwise().squaredNorm();
