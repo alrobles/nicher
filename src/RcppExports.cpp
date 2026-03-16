@@ -50,6 +50,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// loglik_niche_chol_cpp_2d
+double loglik_niche_chol_cpp_2d(NumericVector mu, NumericMatrix L, NumericMatrix env_occ, NumericMatrix env_m);
+RcppExport SEXP _nicher_loglik_niche_chol_cpp_2d(SEXP muSEXP, SEXP LSEXP, SEXP env_occSEXP, SEXP env_mSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type L(LSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type env_occ(env_occSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type env_m(env_mSEXP);
+    rcpp_result_gen = Rcpp::wrap(loglik_niche_chol_cpp_2d(mu, L, env_occ, env_m));
+    return rcpp_result_gen;
+END_RCPP
+}
 // loglik_niche_cpp
 double loglik_niche_cpp(NumericVector mu, NumericMatrix S, NumericMatrix env_occ, NumericMatrix env_m);
 RcppExport SEXP _nicher_loglik_niche_cpp(SEXP muSEXP, SEXP SSEXP, SEXP env_occSEXP, SEXP env_mSEXP) {
@@ -69,6 +83,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_nicher_cvine_cholesky", (DL_FUNC) &_nicher_cvine_cholesky, 3},
     {"_nicher_kde_gaussian_rcpp", (DL_FUNC) &_nicher_kde_gaussian_rcpp, 2},
     {"_nicher_loglik_niche_chol_cpp", (DL_FUNC) &_nicher_loglik_niche_chol_cpp, 4},
+    {"_nicher_loglik_niche_chol_cpp_2d", (DL_FUNC) &_nicher_loglik_niche_chol_cpp_2d, 4},
     {"_nicher_loglik_niche_cpp", (DL_FUNC) &_nicher_loglik_niche_cpp, 4},
     {NULL, NULL, 0}
 };

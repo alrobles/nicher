@@ -13,6 +13,10 @@ loglik_niche_chol_cpp <- function(mu, L, env_occ, env_m) {
     .Call(`_nicher_loglik_niche_chol_cpp`, mu, L, env_occ, env_m)
 }
 
+loglik_niche_chol_cpp_2d <- function(mu, L, env_occ, env_m) {
+    .Call(`_nicher_loglik_niche_chol_cpp_2d`, mu, L, env_occ, env_m)
+}
+
 loglik_niche_cpp <- function(mu, S, env_occ, env_m) {
     .Call(`_nicher_loglik_niche_cpp`, mu, S, env_occ, env_m)
 }

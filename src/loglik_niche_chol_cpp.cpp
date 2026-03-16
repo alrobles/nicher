@@ -1,5 +1,7 @@
 #include <Rcpp.h>
 #include <RcppEigen.h>
+#include <vector>
+#include <limits>
 
 // [[Rcpp::depends(RcppEigen)]]
 using namespace Rcpp;
@@ -26,32 +28,72 @@ double loglik_niche_chol_cpp(NumericVector mu,
   Eigen::Map<Eigen::MatrixXd> occ_eig(Rcpp::as<Eigen::Map<Eigen::MatrixXd> >(env_occ));
   Eigen::Map<Eigen::MatrixXd> m_eig(Rcpp::as<Eigen::Map<Eigen::MatrixXd> >(env_m));
   
-  // Función para distancia de Mahalanobis al cuadrado usando L
-  auto mahalanobis_sq = [&](const Eigen::VectorXd& x) -> double {
-    Eigen::VectorXd d = x - mu_eig;
-    // Resolver L * y = d (sustitución hacia adelante)
-    Eigen::VectorXd y = L_eig.triangularView<Eigen::Lower>().solve(d);
-    return y.squaredNorm();
-  };
-  
-  double sum_q1 = 0.0;
-  for (int i = 0; i < n_occ; ++i) {
-    sum_q1 += mahalanobis_sq(occ_eig.row(i).transpose());
+  // --- Especialización para 2 dimensiones (máximo rendimiento) ---
+  if (p == 2) {
+    double L11 = L_eig(0,0);
+    double L21 = L_eig(1,0);
+    double L22 = L_eig(1,1);
+    double mu1 = mu_eig(0);
+    double mu2 = mu_eig(1);
+    double invL11 = 1.0 / L11;
+    double invL22 = 1.0 / L22;
+    
+    double sum_q1 = 0.0;
+    for (int i = 0; i < n_occ; ++i) {
+      double d1 = occ_eig(i,0) - mu1;
+      double d2 = occ_eig(i,1) - mu2;
+      double y1 = d1 * invL11;
+      double y2 = (d2 - L21 * y1) * invL22;
+      sum_q1 += y1 * y1 + y2 * y2;
+    }
+    
+    std::vector<double> a(n_m);
+    double max_a = -std::numeric_limits<double>::infinity();
+    for (int j = 0; j < n_m; ++j) {
+      double d1 = m_eig(j,0) - mu1;
+      double d2 = m_eig(j,1) - mu2;
+      double y1 = d1 * invL11;
+      double y2 = (d2 - L21 * y1) * invL22;
+      double d2_val = y1 * y1 + y2 * y2;
+      double aj = -0.5 * d2_val;
+      a[j] = aj;
+      if (aj > max_a) max_a = aj;
+    }
+    
+    double sum_exp = 0.0;
+    for (int j = 0; j < n_m; ++j) {
+      sum_exp += std::exp(a[j] - max_a);
+    }
+    double log_sum_exp = max_a + std::log(sum_exp);
+    double neg_log = 0.5 * sum_q1 + static_cast<double>(n_occ) * log_sum_exp;
+    return neg_log;
   }
   
-  std::vector<double> a(n_m);
-  double max_a = -std::numeric_limits<double>::infinity();
-  for (int j = 0; j < n_m; ++j) {
-    double d2 = mahalanobis_sq(m_eig.row(j).transpose());
-    double aj = -0.5 * d2;
-    a[j] = aj;
-    if (aj > max_a) max_a = aj;
-  }
+  // --- Versión genérica para p > 2 (vectorizada con Eigen) ---
   
-  double sum_exp = 0.0;
-  for (int j = 0; j < n_m; ++j) {
-    sum_exp += std::exp(a[j] - max_a);
-  }
+  // Calcular diferencias: (cada columna = punto - mu)
+  // Usamos arrays para broadcasting y luego convertimos a matriz para resolver
+  Eigen::ArrayXXd occ_arr = occ_eig.array(); // no copia, es un Map<ArrayXd>
+  Eigen::ArrayXXd diff_occ = occ_arr.colwise() - mu_eig.array();
+  
+  // Resolver sistema triangular para todas las ocurrencias a la vez
+  // Convertimos a matriz (Eigen::MatrixXd) para usar solve()
+  Eigen::MatrixXd y_occ = L_eig.triangularView<Eigen::Lower>()
+                               .solve(diff_occ.matrix());
+  double sum_q1 = y_occ.colwise().squaredNorm().sum();
+  
+  // Mismo para puntos de M
+  Eigen::ArrayXXd m_arr = m_eig.array();
+  Eigen::ArrayXXd diff_m = m_arr.colwise() - mu_eig.array();
+  Eigen::MatrixXd y_m = L_eig.triangularView<Eigen::Lower>()
+                             .solve(diff_m.matrix());
+  
+  // a_j = -0.5 * ||y_j||^2  (como array)
+  Eigen::ArrayXd a = -0.5 * y_m.colwise().squaredNorm().array();
+  
+  // Log-sum-exp estable
+  double max_a = a.maxCoeff();
+  double sum_exp = (a - max_a).exp().sum();
   double log_sum_exp = max_a + std::log(sum_exp);
   
   double neg_log = 0.5 * sum_q1 + static_cast<double>(n_occ) * log_sum_exp;
