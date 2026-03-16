@@ -11,7 +11,8 @@ loglik_niche_math_weighted_integrated(
   eta = 1,
   neg = TRUE,
   den_idx = NULL,
-  kde_idx = NULL
+  kde_idx = NULL,
+  precomp_w_den = NULL
 )
 }
 \arguments{
@@ -30,6 +31,10 @@ If NULL (default), uses all rows of env_m.}
 
 \item{kde_idx}{Integer vector of indices for KDE reference subsample.
 If NULL, uses all rows of env_m.}
+
+\item{precomp_w_den}{Numeric vector of precomputed KDE weights for the
+denominator points (corresponding to den_idx). If provided, the function
+will not recompute them.}
 }
 \value{
 Scalar numeric: (negative) log-likelihood.
@@ -37,16 +42,6 @@ Scalar numeric: (negative) log-likelihood.
 \description{
 Computes the weighted-normal log-likelihood (Jiménez & Soberón 2022) entirely
 in C++, including KDE calculation and Mahalanobis distances, to minimize
-R overhead. Handles optional subsampling via integer indices.
-}
-\examples{
-\dontrun{
-theta <- start_theta(example_env_occ_2d)
-# Use all M
-ll <- loglik_niche_math_weighted_integrated(theta, example_env_occ_2d, example_env_m_2d)
-# Subsample
-idx <- sample(1:nrow(example_env_m_2d), 2000)
-ll2 <- loglik_niche_math_weighted_integrated(theta, example_env_occ_2d, example_env_m_2d,
-                                             den_idx = idx, kde_idx = idx[1:500])
-}
+R overhead. Handles optional subsampling via integer indices. Optionally
+accepts precomputed denominator weights to avoid recomputing KDE.
 }

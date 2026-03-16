@@ -21,7 +21,7 @@ loglik_niche_presence_only_cpp <- function(mu, L, env_occ) {
     .Call(`_nicher_loglik_niche_presence_only_cpp`, mu, L, env_occ)
 }
 
-loglik_niche_weighted_integrated_cpp <- function(mu, L, env_occ, env_m, den_idx = NULL, kde_idx = NULL, neg = TRUE) {
-    .Call(`_nicher_loglik_niche_weighted_integrated_cpp`, mu, L, env_occ, env_m, den_idx, kde_idx, neg)
+loglik_niche_weighted_integrated_cpp <- function(mu, L, env_occ, env_m, den_idx = NULL, kde_idx = NULL, precomp_w_den = NULL, neg = TRUE) {
+    .Call(`_nicher_loglik_niche_weighted_integrated_cpp`, mu, L, env_occ, env_m, den_idx, kde_idx, precomp_w_den, neg)
 }
 

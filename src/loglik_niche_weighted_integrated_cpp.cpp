@@ -1,3 +1,4 @@
+// src/loglik_niche_weighted_integrated.cpp
 #include "nicher_types.h"
 
 using namespace Rcpp;
@@ -11,6 +12,7 @@ double loglik_niche_weighted_integrated_cpp(
     NumericMatrix env_m,
     Nullable<IntegerVector> den_idx = R_NilValue,
     Nullable<IntegerVector> kde_idx = R_NilValue,
+    Nullable<NumericVector> precomp_w_den = R_NilValue,   // nuevo: pesos precalculados para el denominador
     bool neg = true) {
   
   int p = L.nrow();
@@ -61,14 +63,32 @@ double loglik_niche_weighted_integrated_cpp(
     M_kde = m_eig;
   }
   
-  // --- Calcular pesos KDE usando nuestras funciones del namespace nicher ---
+  // --- Calcular pesos KDE ---
   Eigen::VectorXd w_occ, w_den;
+  
+  // Pesos para las presencias (siempre se calculan)
   if (p == 2) {
     w_occ = nicher::kde_2d(occ_eig, M_kde);
-    w_den = nicher::kde_2d(M_den, M_kde);
   } else {
     w_occ = nicher::kde_eigen(occ_eig, M_kde);
-    w_den = nicher::kde_eigen(M_den, M_kde);
+  }
+  
+  // Pesos para el denominador: usar precomputado si se proporciona, sino calcular
+  if (precomp_w_den.isNotNull()) {
+    // Convertir el vector Numeric a Eigen::VectorXd
+    w_den = Rcpp::as<Eigen::Map<Eigen::VectorXd> >(precomp_w_den);
+    // Verificar que la longitud coincide con el número de filas de M_den
+    if (w_den.size() != M_den.rows()) {
+      stop("Length of precomp_w_den (%d) does not match number of denominator rows (%d)",
+           w_den.size(), M_den.rows());
+    }
+  } else {
+    // Calcular pesos normalmente
+    if (p == 2) {
+      w_den = nicher::kde_2d(M_den, M_kde);
+    } else {
+      w_den = nicher::kde_eigen(M_den, M_kde);
+    }
   }
   
   // --- Distancias de Mahalanobis usando factor L ---

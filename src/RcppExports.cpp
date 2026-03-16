@@ -77,8 +77,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // loglik_niche_weighted_integrated_cpp
-double loglik_niche_weighted_integrated_cpp(NumericVector mu, NumericMatrix L, NumericMatrix env_occ, NumericMatrix env_m, Nullable<IntegerVector> den_idx, Nullable<IntegerVector> kde_idx, bool neg);
-RcppExport SEXP _nicher_loglik_niche_weighted_integrated_cpp(SEXP muSEXP, SEXP LSEXP, SEXP env_occSEXP, SEXP env_mSEXP, SEXP den_idxSEXP, SEXP kde_idxSEXP, SEXP negSEXP) {
+double loglik_niche_weighted_integrated_cpp(NumericVector mu, NumericMatrix L, NumericMatrix env_occ, NumericMatrix env_m, Nullable<IntegerVector> den_idx, Nullable<IntegerVector> kde_idx, Nullable<NumericVector> precomp_w_den, bool neg);
+RcppExport SEXP _nicher_loglik_niche_weighted_integrated_cpp(SEXP muSEXP, SEXP LSEXP, SEXP env_occSEXP, SEXP env_mSEXP, SEXP den_idxSEXP, SEXP kde_idxSEXP, SEXP precomp_w_denSEXP, SEXP negSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -88,8 +88,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< NumericMatrix >::type env_m(env_mSEXP);
     Rcpp::traits::input_parameter< Nullable<IntegerVector> >::type den_idx(den_idxSEXP);
     Rcpp::traits::input_parameter< Nullable<IntegerVector> >::type kde_idx(kde_idxSEXP);
+    Rcpp::traits::input_parameter< Nullable<NumericVector> >::type precomp_w_den(precomp_w_denSEXP);
     Rcpp::traits::input_parameter< bool >::type neg(negSEXP);
-    rcpp_result_gen = Rcpp::wrap(loglik_niche_weighted_integrated_cpp(mu, L, env_occ, env_m, den_idx, kde_idx, neg));
+    rcpp_result_gen = Rcpp::wrap(loglik_niche_weighted_integrated_cpp(mu, L, env_occ, env_m, den_idx, kde_idx, precomp_w_den, neg));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -100,7 +101,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_nicher_kde_gaussian_eigen_cpp", (DL_FUNC) &_nicher_kde_gaussian_eigen_cpp, 2},
     {"_nicher_loglik_niche_chol_cpp", (DL_FUNC) &_nicher_loglik_niche_chol_cpp, 4},
     {"_nicher_loglik_niche_presence_only_cpp", (DL_FUNC) &_nicher_loglik_niche_presence_only_cpp, 3},
-    {"_nicher_loglik_niche_weighted_integrated_cpp", (DL_FUNC) &_nicher_loglik_niche_weighted_integrated_cpp, 7},
+    {"_nicher_loglik_niche_weighted_integrated_cpp", (DL_FUNC) &_nicher_loglik_niche_weighted_integrated_cpp, 8},
     {NULL, NULL, 0}
 };
 
