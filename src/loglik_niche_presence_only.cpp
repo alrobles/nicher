@@ -1,6 +1,8 @@
 // src/loglik_niche_presence_only.cpp
 #include "nicher_types.h"
 
+using namespace Rcpp;  // <-- AÑADIR ESTA LÍNEA
+
 // [[Rcpp::export]]
 double loglik_niche_presence_only_cpp(NumericVector mu,
                                       NumericMatrix L,

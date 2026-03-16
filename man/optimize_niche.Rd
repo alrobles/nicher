@@ -10,7 +10,7 @@ optimize_niche(
   num_starts = 100,
   quant_vec = c(0.1, 0.5, 0.9),
   start_method = "sobol",
-  likelihood = c("unweighted", "weighted"),
+  likelihood = c("unweighted", "weighted", "presence_only"),
   control = list(),
   verbose = FALSE,
   ...
@@ -20,7 +20,7 @@ optimize_niche(
 \item{env_occ}{Data frame with environmental values at presence points.}
 
 \item{env_m}{Data frame with environmental values from the accessibility
-area M (background).}
+area M (background). Ignored if `likelihood = "presence_only"`.}
 
 \item{num_starts}{Integer. Number of starting points.}
 
@@ -30,9 +30,8 @@ area M (background).}
 \item{start_method}{Method for generating starting points:
 `"sobol"` (requires \pkg{pomp}) or `"uniform"`.}
 
-\item{likelihood}{Character. Either `"unweighted"` (default; uses
-[loglik_niche_math()]) or `"weighted"` (uses
-[loglik_niche_math_weighted()]).}
+\item{likelihood}{Character. One of `"unweighted"` (default), `"weighted"`,
+or `"presence_only"`.}
 
 \item{control}{List of control parameters passed to [ucminf::ucminf()].
 Default values (if not supplied) are:
@@ -47,8 +46,9 @@ Default values (if not supplied) are:
 
 \item{verbose}{Logical. If `TRUE`, print progress messages.}
 
-\item{...}{Additional arguments passed to the chosen objective function
-([loglik_niche_math()] or [loglik_niche_math_weighted()]), e.g., `eta`.}
+\item{...}{Additional arguments passed to the chosen objective function,
+e.g., `eta` for the LKJ prior, or subsampling parameters for the weighted
+model (`m_subsample`, `m_kde_subsample`, `seed`).}
 }
 \value{
 A list with two components:
@@ -64,9 +64,15 @@ A list with two components:
 \description{
 Runs multiple optimizations using [ucminf::ucminf()] from different starting
 points to maximize the likelihood of the ellipsoid niche model on the math
-scale. The objective function can be either the unweighted likelihood
-[loglik_niche_math()] (Jiménez & Soberón 2019) or the weighted-normal
-likelihood [loglik_niche_math_weighted()] (Jiménez & Soberón 2022).
+scale. The objective function can be:
+\itemize{
+  \item `"unweighted"`: the basic ellipsoid model with background correction
+        (Jiménez & Soberón 2019) – uses [loglik_niche_math_cpp()].
+  \item `"weighted"`: the weighted‑normal model with integrated KDE
+        (Jiménez & Soberón 2022) – uses [loglik_niche_math_weighted()].
+  \item `"presence_only"`: the simplest model using only presence points
+        (no background correction) – uses [loglik_niche_math_presence_only()].
+}
 }
 \examples{
 \dontrun{
@@ -76,11 +82,17 @@ res1 <- optimize_niche(example_env_occ_2d, example_env_m_2d,
                        likelihood = "unweighted", eta = 1)
 res1$best
 
-# Weighted-normal (2022) with 5 starting points
-# (requires loglik_niche_math_weighted to be defined)
+# Weighted (2022) with 5 starting points
 res2 <- optimize_niche(example_env_occ_2d, example_env_m_2d,
                        num_starts = 5, start_method = "uniform",
-                       likelihood = "weighted", eta = 1)
+                       likelihood = "weighted", eta = 1,
+                       m_subsample = 2000, m_kde_subsample = 5000, seed = 123)
 res2$best
+
+# Presence‑only (ultra‑light) with 5 starting points
+res3 <- optimize_niche(example_env_occ_2d, env_m = NULL,
+                       num_starts = 5, start_method = "uniform",
+                       likelihood = "presence_only", eta = 1)
+res3$best
 }
 }

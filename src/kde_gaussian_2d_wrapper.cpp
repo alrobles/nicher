@@ -1,5 +1,10 @@
 #include "nicher_types.h"
 
+// Declaración explícita (opcional, pero ayuda a diagnosticar)
+namespace nicher {
+Eigen::VectorXd kde_2d(const Eigen::MatrixXd& x, const Eigen::MatrixXd& data);
+}
+
 // [[Rcpp::export]]
 Rcpp::NumericVector kde_gaussian_2d_cpp(const Rcpp::NumericMatrix& x,
                                         const Rcpp::NumericMatrix& data) {

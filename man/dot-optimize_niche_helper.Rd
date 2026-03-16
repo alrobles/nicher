@@ -9,14 +9,14 @@
 \arguments{
 \item{param}{Numeric vector of starting parameters (named).}
 
-\item{obj_fun}{Objective function pointer: either [loglik_niche_math] or
-[loglik_niche_math_weighted].}
+\item{obj_fun}{Objective function pointer: either [loglik_niche_math_cpp],
+[loglik_niche_math_weighted], or [loglik_niche_math_presence_only].}
 
-\item{env_occ, env_m}{Data frames as in [loglik_niche_math()].}
+\item{env_occ, env_m}{Data frames as in [optimize_niche].}
 
 \item{control}{List of control parameters for ucminf.}
 
-\item{...}{Additional arguments passed to `obj_fun` (e.g., eta).}
+\item{...}{Additional arguments passed to `obj_fun` (e.g., eta, subsampling).}
 }
 \value{
 A list with components: par, value, convergence, invhessian.lt (if computed).
