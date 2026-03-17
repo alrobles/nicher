@@ -1,60 +1,67 @@
-#' Log-verosimilitud para modelo de nicho gaussiano en escala matemática
+#' Log-likelihood for the unweighted Gaussian niche model (math-scale parameterization)
 #'
-#' @param param_vector Vector nombrado con parámetros en escala matemática.
-#'                     Debe contener mu1..mup y L1..Lk en el orden de la triangular inferior por columnas.
-#'                     Las diagonales de L deben estar en escala logarítmica.
-#' @param sam1 Data.frame de puntos de presencia.
-#' @param sam2 Data.frame de puntos de fondo.
-#' @param mask Vector nombrado con valores fijos (opcional). Los nombres deben coincidir con los de param_vector.
-#' @param negative Lógico; si TRUE devuelve el negativo de la log-verosimilitud.
-#' @return Log-verosimilitud (o su negativo).
+#' Optimizer-facing wrapper that accepts parameters in mathematical scale
+#' (log-scale Cholesky diagonals) and delegates to \code{loglik_unweighted_math}.
+#'
+#' @param param_vector Named numeric vector of parameters in mathematical scale.
+#'   Must contain \code{mu1..mup} and \code{L1..Lk} (k = p*(p+1)/2) in
+#'   column-major lower-triangular order. Diagonal entries of L are on the log scale.
+#' @param sam1 Data frame of presence points.
+#' @param sam2 Data frame of background points.
+#' @param mask Optional named numeric vector of fixed parameter values. Names must
+#'   match those in \code{param_vector}. Masked parameters are held constant.
+#' @param negative Logical; if \code{TRUE} (default) the negative log-likelihood is returned.
+#' @return (Negative) log-likelihood value (scalar).
+#' @export
+#'
+#' @examples
+#' par <- get_ellip_par(spOccPnts)
+#' L <- t(chol(par$S))
+#' p <- length(par$mu)
+#' k <- p * (p + 1) / 2
+#' param_vector <- c(par$mu, log(diag(L)), L[lower.tri(L)])
+#' names(param_vector) <- c(paste0("mu", 1:p), paste0("L", 1:k))
+#' loglik_math_niche(param_vector, spOccPnts, samMPts)
 loglik_math_niche <- function(param_vector, sam1, sam2, mask = NULL, negative = TRUE) {
-  # Determinar p a partir de los nombres de mu
   mu_names <- grep("^mu", names(param_vector), value = TRUE)
-  if (length(mu_names) == 0) stop("No se encontraron parámetros mu en param_vector")
+  if (length(mu_names) == 0) stop("No mu parameters found in param_vector")
   p <- length(mu_names)
 
-  # Número de elementos de L esperados
   k <- p * (p + 1) / 2
-  nombres_completos <- c(paste0("mu", 1:p), paste0("L", 1:k))
+  full_names <- c(paste0("mu", 1:p), paste0("L", 1:k))
 
-  # Si hay máscara, completar el vector
   if (!is.null(mask)) {
-    # Crear vector completo con NAs
-    full <- stats::setNames(rep(NA_real_, length(nombres_completos)), nombres_completos)
-    # Insertar valores de mask
-    if (any(!names(mask) %in% nombres_completos)) {
-      stop("Nombres en mask no válidos: ",
-           paste(setdiff(names(mask), nombres_completos), collapse = ", "))
+    full <- stats::setNames(rep(NA_real_, length(full_names)), full_names)
+    if (any(!names(mask) %in% full_names)) {
+      stop("Invalid names in mask: ",
+           paste(setdiff(names(mask), full_names), collapse = ", "),
+           ". Expected names are: ", paste(full_names, collapse = ", "))
     }
     full[names(mask)] <- mask
-    # Insertar valores de param_vector (que deben ser los libres)
-    if (any(!names(param_vector) %in% nombres_completos)) {
-      stop("Nombres en param_vector no válidos: ",
-           paste(setdiff(names(param_vector), nombres_completos), collapse = ", "))
+    if (any(!names(param_vector) %in% full_names)) {
+      stop("Invalid names in param_vector: ",
+           paste(setdiff(names(param_vector), full_names), collapse = ", "),
+           ". Expected names are: ", paste(full_names, collapse = ", "))
     }
     overlap <- intersect(names(param_vector), names(mask))
     if (length(overlap) > 0) {
-      stop("Los nombres en param_vector y mask no pueden solaparse: ",
+      stop("param_vector and mask names must not overlap: ",
            paste(overlap, collapse = ", "))
     }
     full[names(param_vector)] <- param_vector
     if (anyNA(full)) {
-      stop("Faltan parámetros: ", paste(names(full)[is.na(full)], collapse = ", "))
+      stop("Missing parameters: ", paste(names(full)[is.na(full)], collapse = ", "))
     }
     param_vector <- full
   }
 
-  # Verificar que todos los nombres están presentes
-  if (!all(nombres_completos %in% names(param_vector))) {
-    stop("El vector de parámetros no contiene todos los nombres requeridos")
+  if (!all(full_names %in% names(param_vector))) {
+    stop("param_vector does not contain all required parameter names")
   }
 
-  # Convertir a escala biológica
   bio <- math_to_bio_niche(param_vector)
 
-  # Calcular log-verosimilitud
-  logL <- loglik_bio_niche(sam1, sam2, bio$mu, bio$L)
+  logL <- loglik_unweighted_math(sam1, sam2, bio$mu, bio$L)
 
   if (negative) return(-logL) else return(logL)
 }

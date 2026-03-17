@@ -1,6 +1,7 @@
-#' get_negloglike_optim_par
-#' Function  to optime negloglike function given parameters from presence points and a sample
-#' of environmental points from a M hypothesis. Internally runs Returns a list of parameters
+#' get_negloglike_optimr_par
+#' Function to optimize the presence-only log-likelihood given parameters from presence points
+#' and a sample of environmental points from an M hypothesis. Internally uses multiple
+#' optimization methods and returns a list of parameters.
 #'
 #' @param M_pts A dataframe with a sample of environmental values inside an M hypothesis region.
 #' @param env_pts A dataframe with environmental variables extracted from presence points
@@ -24,7 +25,7 @@ get_negloglike_optimr_par <- function(env_pts, M_pts, lower = FALSE, itnmax = 10
   like.fn <- function(param.vector)
   {
     param <- relist(param.vector, skeleton = par)
-    negloglike_multivariable(param$mu, param$S, sam1 = env_pts, sam2 = M_pts)
+    loglik_presenceonly_math(sam1 = env_pts, sam2 = M_pts, mu = param$mu, S = param$S)
   }
 
   suppressWarnings({
