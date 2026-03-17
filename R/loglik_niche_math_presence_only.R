@@ -8,6 +8,7 @@
 #' @param env_occ Data frame with environmental values at presence points.
 #' @param eta Numeric, shape parameter for LKJ‑C‑vine prior (default 1).
 #' @param neg Logical, return negative log-likelihood? (default TRUE)
+#' @param ... pass arguments
 #'
 #' @return Scalar numeric: (negative) log-likelihood.
 #' @export
