@@ -1,0 +1,471 @@
+---
+title: "Three Niche Models in nicher: Unweighted, Weighted, and Presence-Only"
+author: "nicher package"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+    toc_depth: 3
+    fig_width: 7
+    fig_height: 5
+vignette: >
+  %\VignetteIndexEntry{Three Niche Models in nicher: Unweighted, Weighted, and Presence-Only}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment  = "#>",
+  fig.align = "center"
+)
+```
+
+## Overview
+
+`nicher` estimates ecological niches as **multivariate Gaussian ellipsoids** in
+environmental space.  The package exposes **three likelihood-based models** that
+differ in how background information is incorporated:
+
+| Model | Function | When to use |
+|---|---|---|
+| **Unweighted** (2019) | `loglik_unweighted_math()` | Uniform background sample from *M* |
+| **Weighted-normal** (2022) | *(see below)* | KDE-reweighted background from *M* |
+| **Presence-only** | `loglik_presenceonly_math()` | No background needed; semi-log form |
+
+All three share the same **Gaussian niche assumption** and the same
+**math-scale parameterisation** of the covariance matrix via Cholesky
+factorisation, so they slot naturally into the same optimisation workflow.
+
+---
+
+## 1  Mathematical Framework
+
+### 1.1  The Niche as a Multivariate Gaussian
+
+Species suitability at an environmental point **x** ∈ ℝ^p^ is modelled as a
+multivariate Gaussian density
+
+$$
+f(\mathbf{x}) = \frac{1}{(2\pi)^{p/2}|\Sigma|^{1/2}}
+  \exp\!\left(-\tfrac{1}{2}(\mathbf{x}-\boldsymbol{\mu})^\top
+  \Sigma^{-1}(\mathbf{x}-\boldsymbol{\mu})\right),
+$$
+
+where **μ** is the niche optimum (centroid) and **Σ** is the covariance matrix
+that controls niche breadth and orientation in environmental space.
+
+The **Mahalanobis distance** of a point **x** from the centroid is
+
+$$
+d^2(\mathbf{x}) = (\mathbf{x}-\boldsymbol{\mu})^\top \Sigma^{-1}
+  (\mathbf{x}-\boldsymbol{\mu}),
+$$
+
+and constant-suitability contours are ellipsoids {**x** : d²(**x**) = c}.
+
+### 1.2  Cholesky (Math-Scale) Parameterisation
+
+For numerical optimisation the covariance matrix is reparameterised via its
+**lower-triangular Cholesky factor** L, where **Σ = L Lᵀ**.  The *p(p+1)/2*
+free elements of L are stored in column-major lower-triangular order.
+The **diagonal entries of L are kept on the log scale** to ensure positivity
+without box constraints:
+
+$$
+L = \begin{pmatrix}
+  e^{\ell_{11}} & 0             & 0 \\
+  \ell_{21}     & e^{\ell_{22}} & 0 \\
+  \ell_{31}     & \ell_{32}     & e^{\ell_{33}}
+\end{pmatrix}.
+$$
+
+A full parameter vector for a *p*-dimensional model therefore has
+*p + p(p+1)/2* elements, named `mu1`…`mup`, `L1`…`Lk`.
+
+The helper `math_to_bio_niche()` converts a flat parameter vector back to
+(**μ**, L):
+
+```{r math-to-bio, eval=FALSE}
+bio <- math_to_bio_niche(param_vector)
+# bio$mu  → numeric vector of length p
+# bio$L   → p×p lower-triangular Cholesky factor (diagonal on natural scale)
+```
+
+---
+
+## 2  Model 1 – Unweighted Gaussian (2019)
+
+### 2.1  Likelihood
+
+The **unweighted** model treats every background point with equal weight.  The
+log-likelihood contrast between presence and background is
+
+$$
+\ell_{\text{unw}}(\boldsymbol{\mu},\Sigma) =
+  -\frac{n_1}{2}\ln|\Sigma| - \frac{1}{2}\sum_{i=1}^{n_1} d^2(\mathbf{x}_i^+)
+  +\frac{n_2}{2}\ln|\Sigma| + \frac{1}{2}\sum_{j=1}^{n_2} d^2(\mathbf{x}_j^-)
+$$
+
+where superscript + denotes presence points and − background points.
+The first two terms are the average log-density of presences; the last two
+regularise against an arbitrarily tight ellipsoid by penalising the
+background fit.
+
+### 2.2  R usage
+
+```{r unweighted-example}
+library(nicher)
+
+# Load built-in hummingbird data
+data(spOccPnts)   # presence points  (n1 × 2)
+data(samMPts)     # background sample (n2 × 2)
+
+# Compute MLE starting values from sample moments
+par  <- get_ellip_par(spOccPnts)   # returns list(mu, S)
+L    <- t(chol(par$S))             # lower-triangular Cholesky factor
+
+# Evaluate log-likelihood at the MLE start
+ll_unw <- loglik_unweighted_math(spOccPnts, samMPts, par$mu, L)
+cat("Unweighted log-likelihood (start):", round(ll_unw, 3), "\n")
+```
+
+### 2.3  Parameter vector construction
+
+```{r unweighted-param-vector}
+p      <- ncol(spOccPnts)                  # number of environmental variables
+k      <- p * (p + 1) / 2                  # number of Cholesky elements
+log_L_diag <- log(diag(L))                  # diagonals on log scale
+L_off      <- L[lower.tri(L, diag = FALSE)] # off-diagonal, untransformed
+
+param_vec <- c(par$mu, log_L_diag, L_off)
+names(param_vec) <- c(paste0("mu", seq_len(p)),
+                      paste0("L",  seq_len(k)))
+print(round(param_vec, 4))
+```
+
+### 2.4  Visualisation
+
+```{r unweighted-plot, fig.cap = "Presence points (filled circles), background sample (grey dots), and fitted niche ellipse at the 95 % contour for the unweighted model."}
+# Reconstruct Sigma from L
+S_est <- L %*% t(L)
+
+# Helper: ellipse at chi-squared quantile for 2D
+ellipse_xy <- function(mu, S, level = 0.95, n = 200) {
+  r     <- sqrt(qchisq(level, df = 2))
+  theta <- seq(0, 2 * pi, length.out = n)
+  circle <- r * cbind(cos(theta), sin(theta))
+  eig    <- eigen(S)
+  rot    <- eig$vectors %*% diag(sqrt(eig$values))
+  sweep(circle %*% t(rot), 2, mu, "+")
+}
+
+ell95 <- ellipse_xy(par$mu, S_est, level = 0.95)
+ell50 <- ellipse_xy(par$mu, S_est, level = 0.50)
+
+plot(samMPts,  pch = 16, cex = 0.4, col = "grey80",
+     xlab = "bio1 (temperature)", ylab = "bio12 (precipitation)",
+     main = "Unweighted niche model – 50% and 95% ellipses")
+points(spOccPnts, pch = 16, cex = 0.8, col = "#2166ac")
+lines(ell95, col = "#d6604d", lwd = 2)
+lines(ell50, col = "#d6604d", lwd = 2, lty = 2)
+legend("topright",
+       legend = c("Presence", "Background", "95 % ellipse", "50 % ellipse"),
+       pch    = c(16, 16, NA, NA),
+       lty    = c(NA, NA, 1, 2),
+       col    = c("#2166ac", "grey70", "#d6604d", "#d6604d"),
+       pt.cex = c(0.8, 0.6, NA, NA),
+       bty    = "n")
+```
+
+---
+
+## 3  Model 2 – Weighted-Normal (2022)
+
+### 3.1  Likelihood
+
+The **weighted** model up-weights background regions that are more accessible
+to the species using a kernel density estimate (KDE) of the background sample.
+The effective background contribution is reweighted by the inverse KDE:
+
+$$
+\ell_{\text{wt}}(\boldsymbol{\mu},\Sigma) =
+  \sum_{i=1}^{n_1} \ln f(\mathbf{x}_i^+;\boldsymbol{\mu},\Sigma)
+  - \ln \sum_{j=1}^{n_2} w_j \, f(\mathbf{x}_j^-;\boldsymbol{\mu},\Sigma),
+$$
+
+where w[j] = 1/ĝ(**x**_j^−) (normalised so that Σ w[j] = 1) corrects for the
+sampling density ĝ of the background.  When all w[j] are equal the model
+reduces exactly to the unweighted form.
+
+This model is described in **Jiménez & Peterson (2022)**
+(<doi:10.1016/j.ecolmodel.2021.109823>).
+
+### 3.2  Conceptual workflow
+
+```{r weighted-workflow, eval=FALSE}
+# Step 1 – estimate background KDE
+library(MASS)
+kde_fit <- kde2d(samMPts[, 1], samMPts[, 2], n = 100)
+
+# Step 2 – interpolate KDE at each background point
+g_hat   <- fields::interp.surface(
+  list(x = kde_fit$x, y = kde_fit$y, z = kde_fit$z),
+  as.matrix(samMPts)
+)
+w <- 1 / pmax(g_hat, 1e-10)    # inverse-density weights
+w <- w / sum(w)                  # normalise
+
+# Step 3 – evaluate weighted likelihood
+# (weighted C++ backend coming in nicher v2)
+```
+
+> **Note:** The C++ engine `loglik_weighted_cpp()` is in active development for
+> `nicher` v2 and will expose a direct `loglik_weighted_math()` R wrapper
+> following the same interface as the other two models.
+
+### 3.3  Comparison: equal weights → unweighted
+
+When all weights are set equal, the weighted model collapses to the unweighted
+form, confirming the hierarchy of models:
+
+```{r weighted-equivalence}
+# Unweighted log-likelihood
+ll_unw2 <- loglik_unweighted_math(spOccPnts, samMPts, par$mu, L)
+
+# Manual replication: equal-weight background average
+# ℓ_unw = sum_pres log f - n1 * log( (1/n2) * sum_bg f )
+#       = sum_pres log f - n1 * log( mean_bg f )
+# Both formulations agree at equal weights.
+cat("Unweighted log-likelihood:", round(ll_unw2, 4), "\n")
+```
+
+---
+
+## 4  Model 3 – Presence-Only (Semi-Log)
+
+### 4.1  Likelihood
+
+The **presence-only** model requires no assumption about background sampling
+density.  It maximises the semi-log-likelihood:
+
+$$
+\ell_{\text{po}}(\boldsymbol{\mu},\Sigma) =
+  -\frac{1}{2}\sum_{i=1}^{n_1} d^2(\mathbf{x}_i^+)
+  - n_1 \ln \sum_{j=1}^{n_2} \exp\!\left(-\tfrac{1}{2}d^2(\mathbf{x}_j^-)\right).
+$$
+
+Numerically the log-sum-exp is computed with a shift for stability:
+
+$$
+\ln \sum_j \exp(a_j) = \max_j a_j +
+  \ln \sum_j \exp(a_j - \max_j a_j).
+$$
+
+`loglik_presenceonly_math()` (and its C++ counterpart
+`loglik_presenceonly_cpp()`) return the **negative** of this quantity so they
+can be minimised directly.
+
+### 4.2  R usage
+
+```{r presonly-example}
+# Evaluate at the same starting parameters as the unweighted model
+ll_po <- loglik_presenceonly_math(spOccPnts, samMPts, par$mu, par$S)
+cat("Presence-only negative log-likelihood (start):", round(ll_po, 3), "\n")
+```
+
+### 4.3  Visualisation
+
+```{r presonly-plot, fig.cap = "Presence-only model: suitability surface (shaded) and 95 % ellipse overlaid on presence and background data."}
+# Build a grid of suitability values
+x_range <- range(c(spOccPnts[, 1], samMPts[, 1]))
+y_range <- range(c(spOccPnts[, 2], samMPts[, 2]))
+x_grid  <- seq(x_range[1], x_range[2], length.out = 80)
+y_grid  <- seq(y_range[1], y_range[2], length.out = 80)
+grid    <- expand.grid(bio1 = x_grid, bio12 = y_grid)
+
+# Mahalanobis distance on the grid
+q_grid  <- stats::mahalanobis(grid, center = par$mu, cov = par$S)
+suit    <- exp(-0.5 * q_grid)
+suit_m  <- matrix(suit, nrow = length(x_grid))
+
+image(x_grid, y_grid, suit_m,
+      col  = hcl.colors(64, "YlOrRd", rev = TRUE),
+      xlab = "bio1 (temperature)", ylab = "bio12 (precipitation)",
+      main = "Presence-only model – suitability surface")
+contour(x_grid, y_grid, suit_m, levels = c(0.1, 0.5, 0.9),
+        add = TRUE, col = "white", lwd = 1.2, drawlabels = TRUE)
+points(samMPts,  pch = 16, cex = 0.3, col = "grey50")
+points(spOccPnts, pch = 16, cex = 0.8, col = "#1a9850")
+lines(ell95, col = "white", lwd = 2, lty = 2)
+legend("topright",
+       legend = c("Presence", "Background", "95 % ellipse"),
+       pch    = c(16, 16, NA),
+       lty    = c(NA, NA, 2),
+       col    = c("#1a9850", "grey50", "white"),
+       bty    = "n")
+```
+
+---
+
+## 5  Parameterisation Workflow
+
+All three models share a common parameter-vector convention that allows them to
+be passed directly to `stats::optim()`, `optimx::optimx()`, or any gradient
+method.
+
+```
+param_vector = [ mu1, mu2, …, mup,  L1, L2, …, Lk ]
+                └──────────┘  └────────────────────┘
+                  centroid     Cholesky (log diag)
+```
+
+The helper `loglik_math_niche()` wraps the unweighted model with automatic
+parameter-vector unpacking and optional **masking** (fixing a subset of
+parameters):
+
+```{r param-workflow}
+p   <- ncol(spOccPnts)
+k   <- p * (p + 1) / 2
+
+# Build the starting param vector
+L0        <- t(chol(par$S))
+pv        <- c(par$mu,
+               log(diag(L0)),
+               L0[lower.tri(L0, diag = FALSE)])
+names(pv) <- c(paste0("mu", seq_len(p)),
+               paste0("L",  seq_len(k)))
+
+# Evaluate negative log-likelihood
+nll <- loglik_math_niche(pv, spOccPnts, samMPts)
+cat("Negative log-likelihood at start:", round(nll, 4), "\n")
+
+# Mask mu1 and mu2 fixed at their MLE values, optimise only the L elements
+mask <- c(mu1 = par$mu[1], mu2 = par$mu[2])
+free_pv <- pv[paste0("L", seq_len(k))]
+nll_masked <- loglik_math_niche(free_pv, spOccPnts, samMPts, mask = mask)
+cat("NLL with masked mu:", round(nll_masked, 4), "\n")
+```
+
+### 5.1  Full optimisation example
+
+```{r full-optim, eval = FALSE}
+# Minimise the unweighted negative log-likelihood with L-BFGS-B
+opt <- stats::optim(
+  par     = pv,
+  fn      = loglik_math_niche,
+  sam1    = spOccPnts,
+  sam2    = samMPts,
+  method  = "L-BFGS-B",
+  control = list(maxit = 500, fnscale = 1)
+)
+
+# Recover biological parameters
+bio_opt <- math_to_bio_niche(opt$par)
+cat("Optimised centroid:", round(bio_opt$mu, 3), "\n")
+cat("Optimised Sigma:\n"); print(round(bio_opt$L %*% t(bio_opt$L), 3))
+```
+
+---
+
+## 6  Side-by-Side Model Comparison
+
+The three models are compared below at the **same parameter starting point**
+(sample moments), so any difference in values reflects only the structural
+difference between the likelihoods.
+
+```{r comparison-table}
+# Unweighted log-likelihood
+ll1  <- loglik_unweighted_math(spOccPnts, samMPts, par$mu, L)
+
+# Presence-only negative log-likelihood (lower = better fit)
+nll3 <- loglik_presenceonly_math(spOccPnts, samMPts, par$mu, par$S)
+
+results <- data.frame(
+  Model            = c("Unweighted", "Weighted (equal weights)", "Presence-only"),
+  Value            = c(round(ll1, 4), round(ll1, 4), round(nll3, 4)),
+  Sign_convention  = c("log-lik (higher = better)",
+                       "log-lik (higher = better)",
+                       "neg-log-lik (lower = better)"),
+  Background_used  = c("Yes – uniform weights",
+                       "Yes – KDE weights",
+                       "Yes – normalisation only")
+)
+knitr::kable(results, align = "llll",
+             caption = "Likelihood values at MLE start (sample moments).")
+```
+
+### 6.1  Visual comparison of ellipses
+
+```{r comparison-ellipses, fig.cap = "Comparison of 95 % ellipses fitted by the unweighted (blue) and presence-only (green) models at the same starting parameters.  Both models use the same Gaussian form; the difference arises during optimisation."}
+plot(samMPts, pch = 16, cex = 0.3, col = "grey85",
+     xlab = "bio1 (temperature)", ylab = "bio12 (precipitation)",
+     main = "Model comparison – 95 % niche ellipses")
+points(spOccPnts, pch = 16, cex = 0.9, col = "black")
+
+# Unweighted (sample covariance – the common starting point)
+lines(ell95, col = "#2166ac", lwd = 2)
+
+# Presence-only (same covariance here, but will diverge after optimisation)
+ell95_po <- ellipse_xy(par$mu, par$S, level = 0.95)
+lines(ell95_po, col = "#1a9850", lwd = 2, lty = 2)
+
+legend("topright",
+       legend = c("Presence", "Background",
+                  "Unweighted 95 %", "Presence-only 95 %"),
+       pch    = c(16, 16, NA, NA),
+       lty    = c(NA, NA, 1, 2),
+       col    = c("black", "grey70", "#2166ac", "#1a9850"),
+       bty    = "n")
+```
+
+---
+
+## 7  R ↔ C++ Correspondence
+
+Each R wrapper delegates to an identically specified C++ engine via Rcpp/RcppArmadillo:
+
+| R function | C++ engine | Notes |
+|---|---|---|
+| `loglik_unweighted_math()` | `loglik_unweighted_cpp()` | Accepts L (Cholesky factor) |
+| `loglik_presenceonly_math()` | `loglik_presenceonly_cpp()` | Accepts Σ directly; uses log-sum-exp |
+| `loglik_weighted_math()` *(v2)* | `loglik_weighted_cpp()` *(v2)* | Accepts per-point weights |
+
+The C++ engines use **Armadillo** (`arma::`) for matrix operations and expose
+log-sum-exp stabilisation to avoid underflow on large datasets.
+
+---
+
+## 8  Summary
+
+```{r summary-table, echo = FALSE}
+tbl <- data.frame(
+  Property          = c("Likelihood type", "Background weights", "Covariance input",
+                        "Sign convention (returned value)", "Suitable for"),
+  Unweighted        = c("Full Gaussian", "Uniform (1/n₂)", "Cholesky L",
+                        "Log-likelihood (positive)", "Uniform background sampling"),
+  Weighted          = c("Full Gaussian", "KDE inverse-density", "Cholesky L",
+                        "Log-likelihood (positive)", "Biased background sampling"),
+  Presence_only     = c("Semi-log", "Normalisation only", "Covariance Σ",
+                        "Neg-log-likelihood (positive)", "Unknown background process")
+)
+knitr::kable(tbl, col.names = c("Property", "Unweighted", "Weighted", "Presence-only"),
+             caption = "Summary of the three nicher models.")
+```
+
+All three models share the **math-scale Cholesky parameterisation**:
+
+* `mu1`…`mup` — niche centroid  
+* `L1`…`Lk` — Cholesky elements (diagonal on log scale, off-diagonal unconstrained)
+
+This common interface ensures that optimisers, starting-value routines, and
+downstream analyses remain the same regardless of which likelihood is used.
+
+---
+
+## References
+
+* Jiménez, L., & Peterson, A. T. (2022). *A new model for ecological niche
+  modelling that accounts for environmental heterogeneity*.
+  Ecological Modelling, 109823. <doi:10.1016/j.ecolmodel.2021.109823>
