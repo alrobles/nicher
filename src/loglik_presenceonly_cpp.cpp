@@ -1,5 +1,9 @@
 // [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::plugins(openmp)]]
 #include <RcppArmadillo.h>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 //' Log-likelihood for the presence-only niche model (C++ engine)
 //'
@@ -26,12 +30,18 @@ double loglik_presenceonly_cpp(
   int n2 = sam2.n_rows;
 
   double sum_q1 = 0.0;
+#ifdef _OPENMP
+#pragma omp parallel for reduction(+:sum_q1) schedule(static)
+#endif
   for (int i = 0; i < n1; i++) {
     arma::vec d = sam1.row(i).t() - mu;
     sum_q1 += arma::as_scalar(d.t() * S_inv * d);
   }
 
   arma::vec q2(n2);
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
   for (int i = 0; i < n2; i++) {
     arma::vec d = sam2.row(i).t() - mu;
     q2(i) = arma::as_scalar(d.t() * S_inv * d);
