@@ -1,3 +1,6 @@
+# ARCHIVED LEGACY FUNCTION — not loaded by the package.
+# See inst/legacy/README.md for migration guidance.
+#
 #' Negative log-likelihood (presence-only model)
 #'
 #' Backward-compatible wrapper around \code{\link{loglik_presenceonly_math}}.
@@ -7,7 +10,6 @@
 #' @param sam1 Data frame of presence points.
 #' @param sam2 Data frame of background (M) environmental points.
 #' @return Negative log-likelihood value (scalar).
-#' @export
 #'
 #' @examples
 #' par <- get_ellip_par(spOccPnts)

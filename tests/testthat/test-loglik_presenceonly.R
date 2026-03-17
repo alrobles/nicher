@@ -13,14 +13,6 @@ test_that("loglik_presenceonly_math result is numeric", {
   expect_type(val, "double")
 })
 
-test_that("negloglike_multivariable delegates to loglik_presenceonly_math", {
-  par  <- get_ellip_par(spOccPnts)
-  new  <- loglik_presenceonly_math(spOccPnts, samMPts, par$mu, par$S)
-  old  <- negloglike_multivariable(par$mu, par$S, spOccPnts, samMPts)
-
-  expect_equal(old, new, tolerance = 1e-12)
-})
-
 test_that("loglik_presenceonly_math returns a positive value (negative log-likelihood is non-negative)", {
   par <- get_ellip_par(spOccPnts)
   val <- loglik_presenceonly_math(spOccPnts, samMPts, par$mu, par$S)
