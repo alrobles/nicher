@@ -13,6 +13,7 @@
 #'     \item{mu}{Numeric vector of optimized environmental optima.}
 #'     \item{L}{Lower-triangular Cholesky factor matrix.}
 #'     \item{S}{Covariance matrix (S = L \%*\% t(L)).}
+#'     \item{R}{Correlation matrix derived from S.}
 #'     \item{variances}{Numeric vector of marginal variances (diagonal of S).}
 #'   }
 #' @param optimx_table Data frame of optimization results (all starting
@@ -80,7 +81,8 @@ new_nicher <- function(loglik, math_params, bioscale_params,
 #'       in mathematical (log-Cholesky) scale.}
 #'     \item{\code{bioscale_params}}{List with biological-scale parameters:
 #'       \code{mu} (optima), \code{L} (Cholesky factor), \code{S} (covariance
-#'       matrix), and \code{variances} (marginal variances).}
+#'       matrix), \code{R} (correlation matrix), and \code{variances} (marginal
+#'       variances).}
 #'     \item{\code{optimx_table}}{Data frame of all optimization runs.}
 #'     \item{\code{model}}{Model variant used.}
 #'     \item{\code{method}}{Optimization method used.}
@@ -157,11 +159,14 @@ nicher <- function(env_occ, env_m,
 
   bio   <- math_to_bio_niche(best_vec)
   S_bio <- bio$L %*% t(bio$L)
+  D_inv <- diag(1 / sqrt(diag(S_bio)), nrow = nrow(S_bio))
+  R_bio <- D_inv %*% S_bio %*% D_inv
 
   bioscale_params <- list(
     mu        = bio$mu,
     L         = bio$L,
     S         = S_bio,
+    R         = R_bio,
     variances = diag(S_bio)
   )
 
@@ -172,6 +177,8 @@ nicher <- function(env_occ, env_m,
     colnames(bioscale_params$L)      <- env_names
     rownames(bioscale_params$S)      <- env_names
     colnames(bioscale_params$S)      <- env_names
+    rownames(bioscale_params$R)      <- env_names
+    colnames(bioscale_params$R)      <- env_names
   }
 
   new_nicher(

@@ -136,10 +136,13 @@ cat("Unweighted log-likelihood (start):", round(ll_unw, 3), "\n")
 ```{r unweighted-param-vector}
 p      <- ncol(spOccPnts)                  # number of environmental variables
 k      <- p * (p + 1) / 2                  # number of Cholesky elements
-log_L_diag <- log(diag(L))                  # diagonals on log scale
-L_off      <- L[lower.tri(L, diag = FALSE)] # off-diagonal, untransformed
 
-param_vec <- c(par$mu, log_L_diag, L_off)
+# Place diagonal entries on log scale; off-diagonal entries are unconstrained.
+# Elements must be stored in column-major lower-triangular order so that
+# math_to_bio_niche() can reconstruct L correctly.
+L_log        <- L
+diag(L_log)  <- log(diag(L))
+param_vec <- c(par$mu, L_log[lower.tri(L_log, diag = TRUE)])
 names(param_vec) <- c(paste0("mu", seq_len(p)),
                       paste0("L",  seq_len(k)))
 print(round(param_vec, 4))
@@ -329,13 +332,14 @@ parameters):
 p   <- ncol(spOccPnts)
 k   <- p * (p + 1) / 2
 
-# Build the starting param vector
-L0        <- t(chol(par$S))
-pv        <- c(par$mu,
-               log(diag(L0)),
-               L0[lower.tri(L0, diag = FALSE)])
-names(pv) <- c(paste0("mu", seq_len(p)),
-               paste0("L",  seq_len(k)))
+# Build the starting param vector using column-major lower-triangular order.
+# Diagonal entries of L are stored on the log scale; off-diagonal are raw.
+L0           <- t(chol(par$S))
+L0_log       <- L0
+diag(L0_log) <- log(diag(L0))
+pv           <- c(par$mu, L0_log[lower.tri(L0_log, diag = TRUE)])
+names(pv)    <- c(paste0("mu", seq_len(p)),
+                  paste0("L",  seq_len(k)))
 
 # Evaluate negative log-likelihood
 nll <- loglik_math_niche(pv, spOccPnts, samMPts)

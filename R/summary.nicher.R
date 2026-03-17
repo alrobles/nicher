@@ -43,8 +43,7 @@ summary.nicher <- function(object, digits = 4, ...) {
 
   # --- Correlation matrix ---
   cat("Correlation matrix (R):\n")
-  D_inv <- diag(1 / sqrt(diag(S)), nrow = nrow(S))
-  R <- D_inv %*% S %*% D_inv
+  R <- object$bioscale_params$R
   rownames(R) <- env_names
   colnames(R) <- env_names
   print(round(R, digits))
