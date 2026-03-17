@@ -4,7 +4,7 @@
 //' Log-likelihood for the presence-only niche model (C++ engine)
 //'
 //' Computes the presence-only (semi-log-likelihood) for a Gaussian niche model
-//' using Mahalanobis quadratic forms.  Equivalent to \code{loglik_presenceonly_math}
+//' using Mahalanobis quadratic forms.  Equivalent to \code{loglik_presence_math}
 //' but implemented in C++ for performance.
 //'
 //' @param sam1 Numeric matrix of presence points (rows = observations, columns = variables).
@@ -14,7 +14,7 @@
 //' @return Negative log-likelihood value (scalar double).
 //' @export
 // [[Rcpp::export]]
-double loglik_presenceonly_cpp(
+double loglik_presence_cpp(
     const arma::mat& sam1,
     const arma::mat& sam2,
     const arma::vec& mu,

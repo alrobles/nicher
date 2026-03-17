@@ -1,6 +1,6 @@
 #' Negative log-likelihood (presence-only model)
 #'
-#' Backward-compatible wrapper around \code{\link{loglik_presenceonly_math}}.
+#' Backward-compatible wrapper around \code{\link{loglik_presence_math}}.
 #'
 #' @param mu Numeric vector of means.
 #' @param S Covariance matrix.
@@ -13,5 +13,5 @@
 #' par <- get_ellip_par(spOccPnts)
 #' negloglike_multivariable(par$mu, par$S, spOccPnts, samMPts)
 negloglike_multivariable <- function(mu, S, sam1, sam2) {
-  loglik_presenceonly_math(sam1, sam2, mu, S)
+  loglik_presence_math(sam1, sam2, mu, S)
 }

@@ -25,7 +25,7 @@ get_negloglike_optimr_par <- function(env_pts, M_pts, lower = FALSE, itnmax = 10
   like.fn <- function(param.vector)
   {
     param <- relist(param.vector, skeleton = par)
-    loglik_presenceonly_math(sam1 = env_pts, sam2 = M_pts, mu = param$mu, S = param$S)
+    loglik_presence_math(sam1 = env_pts, sam2 = M_pts, mu = param$mu, S = param$S)
   }
 
   suppressWarnings({
