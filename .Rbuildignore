@@ -2,6 +2,7 @@
 ^\.Rproj\.user$
 ^LICENSE\.md$
 ^data-raw$
+^data-raw*
 ^.github$
 ^.gitignore$
 ^.Rhistory$
@@ -12,3 +13,4 @@
 ^docs$
 ^pkgdown$
 ^\.github$
+^sandbox$

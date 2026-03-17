@@ -12,7 +12,6 @@ knitr::opts_chunk$set(
   out.width = "100%"
 )
 ```
-![](man/figures/nicher-logo.png)
 
 # nicher
 
@@ -33,61 +32,33 @@ devtools::install_github("alrobles/nicher")
 
 ## Example
 
-First we get the shapefile of an accesibility area (M):
-
-```{r example}
-library(nicher)
+``` r
 library(terra)
+library(nicher)
 
+# Load raster data from extdata
+stack_path <- system.file("extdata", "stack_1_12_crop.rds", package = "nicher")
+example_rasters <- terra::unwrap(readRDS(stack_path))
 
-M_path <- system.file("extdata", "Mshp_test.rds", package="nicher")
-Mshp <- terra::unwrap(readr::read_rds(M_path))
-plot(Mshp)
-```
+# Extract occurrence points
+data(example_occ_df)
+env_occ <- terra::extract(example_rasters, example_occ_df[, c("long", "lat")])
+env_occ <- env_occ[complete.cases(env_occ), -1]
 
+# Randomly sample background points from rasters
+set.seed(123) # For reproducibility
+env_m <- terra::spatSample(example_rasters, size = 1000, method = "regular", na.rm = TRUE)
 
-Then we get environmental variables to model:
-```{r}
+# Test the presence-only algorithm using optimize_niche
+result <- optimize_niche(
+  env_occ = env_occ,
+  env_m = env_m,
+  num_starts = 5,
+  start_method = "uniform",
+  likelihood = "presence_only"
+)
 
-stack_path <- system.file("extdata", "stack_1_12_crop.rds", package="nicher")
-# 2 variables
-stack_1_12 <- terra::unwrap(readr::read_rds(stack_path))
-plot(stack_1_12)
-# 3 variables
-stack_1_12_19 <- get_example_data("stack_1_12_19")
-plot(stack_1_12_19)
-```
-
-We get the parameters of the ellipse:
-
-```{r}
-pars_2var <-  get_ENM_par(rawSpOccPnts, stack_1_12, Mshp, method = "mahalanobis")
-
-pars_3var <-  get_ENM_par(rawSpOccPnts, stack_1_12_19, Mshp, method = "mahalanobis")
-```
-
-
-Then we plot the ellipse (2 vars case):
-```{r 2varsPars,  echo = FALSE}
-plot(pars_2var)
-```
-
-Then we plot the ellipse (3 vars case):
-```{r 3varsPars,  echo = FALSE}
-plot(pars_3var)
-```
-
-We predict the suitability given environmental data (2 vars case):
-```{r predict2vars, echo = FALSE}
-outputRast_2vars <- predict(pars_2var, stack_1_12)
-plot(outputRast_2vars)
-
-```
-
-Finally we predict the suitability given environmental data (3 vars case All world):
-```{r predict3vars, echo = FALSE}
-outputRast_3vars <- predict(pars_3var, stack_1_12_19)
-plot(outputRast_3vars)
-
+# View result
+print(result$best)
 ```
 

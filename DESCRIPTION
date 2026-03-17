@@ -1,7 +1,7 @@
 Package: nicher
 Type: Package
 Title: Estimates Ecological Niche Models Using Ellipses
-Version: 1.0.0
+Version: 2.0.0
 Authors@R: 
   c(person(given = "Angel",
            family = "Robles",
@@ -16,35 +16,21 @@ Authors@R:
 Description: Ecological niche model estimation using elipses under an M hypothesis.
     Methods for the optimization of ellipses parameter are as described in :
     Jimenez et al. (2022) <doi:10.1016/j.ecolmodel.2021.109823>.
-    Critical C++ loops (Mahalanobis distance accumulation and KDE evaluation)
-    are parallelised with OpenMP when available, and a simple in-memory cache
-    avoids recomputing KDE bandwidths for a fixed background sample during
-    likelihood optimisation.
 License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
-SystemRequirements: OpenMP (optional; used for parallel Mahalanobis and KDE
-    loops in the C++ back-end)
 Depends: 
-    R (>= 2.10)
+    R (>= 3.5)
 RoxygenNote: 7.3.3
 Imports: 
-    graphics,
-    httr,
-    mvnfast,
-    optimx,
     Rcpp,
-    readr,
-    stringr,
-    terra,
+    RcppEigen,
+    stats,
+    ucminf,
     utils
-LinkingTo:
-    Rcpp,
-    RcppArmadillo
 Suggests:
-    knitr,
-    rmarkdown,
-    testthat (>= 3.0.0)
-VignetteBuilder: knitr
-Config/testthat/edition: 3
+    pomp
 URL: https://alrobles.github.io/nicher, https://github.com/alrobles/nicher, https://alrobles.github.io/nicher/
+LinkingTo: 
+    Rcpp,
+    RcppEigen
