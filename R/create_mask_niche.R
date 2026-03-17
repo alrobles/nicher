@@ -1,7 +1,7 @@
-#' Crear una máscara para parámetros de modelo de nicho gaussiano
+#' Create a parameter mask for the Gaussian niche model
 #'
-#' @param p Número de variables ambientales.
-#' @return Vector nombrado con NAs para los parámetros mu y los elementos de la triangular inferior de L.
+#' @param p Number of environmental variables.
+#' @return Named numeric vector of NAs for mu and lower-triangular L parameters.
 create_mask_niche <- function(p) {
   k <- p * (p + 1) / 2
   names_mu <- paste0("mu", 1:p)
