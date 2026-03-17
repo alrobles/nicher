@@ -14,6 +14,8 @@ loglik_niche_math_presence_only(theta, env_occ, eta = 1, neg = TRUE, ...)
 \item{eta}{Numeric, shape parameter for LKJ‑C‑vine prior (default 1).}
 
 \item{neg}{Logical, return negative log-likelihood? (default TRUE)}
+
+\item{...}{pass arguments}
 }
 \value{
 Scalar numeric: (negative) log-likelihood.
