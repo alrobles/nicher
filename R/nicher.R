@@ -1,227 +1,184 @@
-#' Build a nicher object from optimization results
-#'
-#' Internal constructor that wraps optimization output into an S3 object of
-#' class \code{"nicher"}.  Users typically obtain a \code{nicher} object via
-#' the high-level \code{\link{nicher}} function rather than calling this
-#' constructor directly.
-#'
-#' @param loglik Scalar numeric; the maximized log-likelihood value.
-#' @param math_params Named numeric vector of optimized parameters in
-#'   mathematical (log-Cholesky) scale.
-#' @param bioscale_params List with biological-scale parameters:
-#'   \describe{
-#'     \item{mu}{Numeric vector of optimized environmental optima.}
-#'     \item{L}{Lower-triangular Cholesky factor matrix.}
-#'     \item{S}{Covariance matrix (S = L \%*\% t(L)).}
-#'     \item{R}{Correlation matrix derived from S.}
-#'     \item{variances}{Numeric vector of marginal variances (diagonal of S).}
-#'   }
-#' @param optimx_table Data frame of optimization results (all starting
-#'   conditions and methods tried).
-#' @param model Character string; one of \code{"unweighted"},
-#'   \code{"weighted"}, or \code{"presence_only"}.
-#' @param method Character string; optimization method used (e.g.,
-#'   \code{"mle"}).
-#' @param env_names Optional character vector of variable names for the
-#'   environmental axes.
-#' @return An object of class \code{"nicher"}.
-#' @keywords internal
-new_nicher <- function(loglik, math_params, bioscale_params,
-                       optimx_table, model, method, env_names = NULL) {
-  obj <- structure(
-    list(
-      loglik         = loglik,
-      math_params    = math_params,
-      bioscale_params = bioscale_params,
-      optimx_table   = optimx_table,
-      model          = model,
-      method         = method,
-      env_names      = env_names
-    ),
-    class = "nicher"
-  )
-  check_nicher(obj)
-  obj
-}
-
 #' Fit an ecological niche model
 #'
 #' High-level wrapper that fits a Gaussian ellipsoidal niche model to presence
-#' and background environmental data using maximum likelihood estimation.
-#' Returns a \code{nicher} object that encapsulates the optimized parameters in
-#' both mathematical and biological scale, the log-likelihood, and the full
-#' optimization table.
+#' and background environmental data.  Currently only Maximum Likelihood
+#' Estimation (\code{"mle"}) is supported; a Bayesian backend (via Stan /
+#' cmdstanr) is planned for a future release.
 #'
-#' @param env_occ Data frame or matrix of environmental values at presence
-#'   points (rows = observations, columns = environmental variables).
-#' @param env_m Data frame or matrix of environmental values at background
-#'   (M-region) points.
-#' @param method Optimization framework.  Currently only \code{"mle"} is
-#'   supported; a Bayesian backend is planned for a future release.
-#' @param model Niche model variant.  One of:
+#' @param env_occ Data frame or matrix of environmental variables at presence
+#'   locations (rows = observations, columns = variables).
+#' @param env_m   Data frame or matrix of environmental variables at background
+#'   (M-hypothesis) locations.
+#' @param method  Character.  Estimation method.  Currently only \code{"mle"}
+#'   is accepted.
+#' @param model   Character.  Niche model type.  One of:
 #'   \describe{
-#'     \item{\code{"unweighted"}}{Full Gaussian model with uniform background
-#'       weights; maximises a log-likelihood difference between presence and
-#'       background.}
-#'     \item{\code{"weighted"}}{Full Gaussian model with KDE-derived background
-#'       weights; corrects for environmental sampling bias.}
-#'     \item{\code{"presence_only"}}{Semi-log (Poisson process) model that
-#'       requires only presence and background points without assuming a known
-#'       prevalence.}
+#'     \item{\code{"unweighted"}}{Full Gaussian model fitted to both presence
+#'       and background (Cholesky-parameterised MLE).}
+#'     \item{\code{"weighted"}}{Presence-only model where the background sample
+#'       is weighted by a Gaussian KDE of environmental space.}
+#'     \item{\code{"presence_only"}}{Presence-only semi-log-likelihood (equal
+#'       background weights).}
 #'   }
-#' @param itnmax Integer; maximum number of optimizer iterations (passed to
-#'   \code{\link[optimx]{optimx}}).
-#' @param ... Additional arguments (currently unused; reserved for future
-#'   extensions).
+#' @param ... Additional arguments passed to \code{\link[optimx]{optimx}}, for
+#'   example \code{itnmax = 200} to increase the iteration budget.
 #'
-#' @return An object of class \code{"nicher"} containing:
+#' @return A \code{\link{nicher_object}} of class \code{"nicher"} with
+#'   components:
 #'   \describe{
-#'     \item{\code{loglik}}{Maximized log-likelihood (scalar numeric).}
-#'     \item{\code{math_params}}{Named numeric vector of optimized parameters
-#'       in mathematical (log-Cholesky) scale.}
-#'     \item{\code{bioscale_params}}{List with biological-scale parameters:
-#'       \code{mu} (optima), \code{L} (Cholesky factor), \code{S} (covariance
-#'       matrix), \code{R} (correlation matrix), and \code{variances} (marginal
-#'       variances).}
-#'     \item{\code{optimx_table}}{Data frame of all optimization runs.}
-#'     \item{\code{model}}{Model variant used.}
-#'     \item{\code{method}}{Optimization method used.}
-#'     \item{\code{env_names}}{Environmental variable names.}
+#'     \item{\code{loglik}}{Log-likelihood at the optimum.}
+#'     \item{\code{math_params}}{Named numeric vector of parameters in
+#'       mathematical scale (\code{mu1..mup}, \code{L1..Lk}).}
+#'     \item{\code{bio_params}}{List with biological-scale parameters:
+#'       \code{mu}, \code{S}, \code{sigma}, \code{R}.}
+#'     \item{\code{optim_table}}{Data frame with all optimizer runs and their
+#'       results.}
+#'     \item{\code{model}}{Model type used.}
+#'     \item{\code{method}}{Estimation method used.}
 #'   }
+#'
+#' @seealso \code{\link{nicher_object}}, \code{\link{print.nicher}},
+#'   \code{\link{summary.nicher}}
 #'
 #' @export
 #'
 #' @examples
 #' fit <- nicher(spOccPnts, samMPts, model = "presence_only")
 #' print(fit)
-#' summary(fit)
+#'
+#' fit_unw <- nicher(spOccPnts, samMPts, model = "unweighted")
+#' summary(fit_unw)
 nicher <- function(env_occ, env_m,
                    method = "mle",
-                   model  = c("presence_only", "unweighted", "weighted"),
-                   itnmax = 200,
+                   model  = c("unweighted", "weighted", "presence_only"),
                    ...) {
   method <- match.arg(method, choices = "mle")
   model  <- match.arg(model)
 
-  env_occ <- as.data.frame(env_occ)
-  env_m   <- as.data.frame(env_m)
-
-  env_names <- colnames(env_occ)
-  p         <- ncol(env_occ)
-
-  if (ncol(env_m) != p) {
-    stop("'env_occ' and 'env_m' must have the same number of columns")
-  }
-
   if (method == "mle") {
-    result <- .nicher_mle(env_occ, env_m, model, itnmax, env_names)
+    .nicher_mle(env_occ, env_m, model = model, ...)
   } else {
-    stop("method '", method, "' is not yet implemented")
+    stop("Method '", method, "' is not yet implemented.")
   }
-
-  result
 }
 
 # ---------------------------------------------------------------------------
-# Internal MLE fitting dispatcher
+# Internal: MLE dispatcher
 # ---------------------------------------------------------------------------
 
-.nicher_mle <- function(env_occ, env_m, model, itnmax, env_names) {
-  par_init <- get_ellip_par(env_occ)
-  p        <- length(par_init$mu)
-  k        <- p * (p + 1) / 2
+.nicher_mle <- function(env_occ, env_m, model = "unweighted", ...) {
+  env_occ <- as.matrix(env_occ)
+  env_m   <- as.matrix(env_m)
 
-  L_init       <- t(chol(par_init$S))
-  L_log        <- L_init
-  diag(L_log)  <- log(diag(L_init))
-  param_init   <- c(par_init$mu, L_log[lower.tri(L_log, diag = TRUE)])
-  param_names  <- c(paste0("mu", seq_len(p)), paste0("L", seq_len(k)))
-  names(param_init) <- param_names
+  # Starting values: sample moments from presence data
+  par0 <- get_ellip_par(env_occ)
+  p    <- length(par0$mu)
+  k    <- p * (p + 1L) / 2L
 
-  like_fn <- .make_like_fn(model, env_occ, env_m, p, param_names)
+  # Lower-triangular Cholesky factor  L  s.t.  S = L %*% t(L)
+  L0           <- t(chol(par0$S))
+  L0_log       <- L0
+  diag(L0_log) <- log(diag(L0))   # log-scale diagonal (math parameterisation)
 
-  methods_try <- c("Nelder-Mead", "BFGS", "L-BFGS-B")
-  suppressWarnings({
-    opt_table <- optimx::optimx(
-      par    = param_init,
-      fn     = like_fn,
-      method = methods_try,
-      itnmax = itnmax
+  # Canonical math-scale parameter names
+  mu_names <- paste0("mu", seq_len(p))
+  L_names  <- paste0("L",  seq_len(k))
+
+  start        <- c(par0$mu, L0_log[lower.tri(L0_log, diag = TRUE)])
+  names(start) <- c(mu_names, L_names)
+
+  # Build model-specific objective function (minimises negative log-likelihood)
+  obj_fn <- .nicher_obj_fn(model, env_occ, env_m, mu_names, L_names)
+
+  # Run multi-method optimisation
+  opt_result <- suppressWarnings(
+    optimx::optimx(
+      par    = start,
+      fn     = obj_fn,
+      method = c("Nelder-Mead", "BFGS", "L-BFGS-B"),
+      ...
     )
-  })
-
-  best_idx   <- which.min(opt_table$value)
-  best_row   <- opt_table[best_idx, , drop = FALSE]
-  best_vec   <- as.numeric(best_row[, seq_len(length(param_init))])
-  names(best_vec) <- param_names
-
-  loglik <- -best_row$value
-
-  bio   <- math_to_bio_niche(best_vec)
-  S_bio <- bio$L %*% t(bio$L)
-  D_inv <- diag(1 / sqrt(diag(S_bio)), nrow = nrow(S_bio))
-  R_bio <- D_inv %*% S_bio %*% D_inv
-
-  bioscale_params <- list(
-    mu        = bio$mu,
-    L         = bio$L,
-    S         = S_bio,
-    R         = R_bio,
-    variances = diag(S_bio)
   )
 
-  if (!is.null(env_names)) {
-    names(bioscale_params$mu)        <- env_names
-    names(bioscale_params$variances) <- env_names
-    rownames(bioscale_params$L)      <- env_names
-    colnames(bioscale_params$L)      <- env_names
-    rownames(bioscale_params$S)      <- env_names
-    colnames(bioscale_params$S)      <- env_names
-    rownames(bioscale_params$R)      <- env_names
-    colnames(bioscale_params$R)      <- env_names
-  }
+  # Select best (lowest NLL)
+  best_idx <- which.min(opt_result$value)
+  best_row <- opt_result[best_idx, , drop = FALSE]
 
-  new_nicher(
-    loglik          = loglik,
-    math_params     = best_vec,
-    bioscale_params = bioscale_params,
-    optimx_table    = opt_table,
-    model           = model,
-    method          = "mle",
-    env_names       = env_names
+  # Extract optimal math-scale parameters
+  n_par        <- length(start)
+  math_vec     <- as.numeric(best_row[1L, seq_len(n_par)])
+  names(math_vec) <- names(start)
+
+  # Convert to biological scale
+  bio <- .nicher_math_to_bio(math_vec, p, k)
+
+  # Log-likelihood (not negated)
+  loglik <- as.numeric(-best_row$value)
+
+  nicher_object(
+    loglik      = loglik,
+    math_params = math_vec,
+    bio_params  = bio,
+    optim_table = as.data.frame(opt_result),
+    model       = model,
+    method      = "mle"
   )
 }
 
 # ---------------------------------------------------------------------------
-# Internal helper: build the objective function for a given model
+# Internal: build model-specific objective (returns NLL to be minimised)
 # ---------------------------------------------------------------------------
 
-.make_like_fn <- function(model, env_occ, env_m, p, param_names) {
-  k <- p * (p + 1) / 2
+.nicher_obj_fn <- function(model, env_occ, env_m, mu_names, L_names) {
+  all_names <- c(mu_names, L_names)
 
   if (model == "unweighted") {
-    function(param_vec) {
-      names(param_vec) <- param_names
-      bio <- math_to_bio_niche(param_vec)
+    function(pv) {
+      names(pv) <- all_names
+      bio <- math_to_bio_niche(pv)
       -loglik_unweighted_math(env_occ, env_m, bio$mu, bio$L)
     }
-  } else if (model == "presence_only") {
-    function(param_vec) {
-      names(param_vec) <- param_names
-      bio <- math_to_bio_niche(param_vec)
-      S   <- bio$L %*% t(bio$L)
-      loglik_presenceonly_math(env_occ, env_m, bio$mu, S)
-    }
   } else if (model == "weighted") {
-    weights <- exp(kde_eval_cached(env_m, env_m))
-    weights <- weights / sum(weights)
-    function(param_vec) {
-      names(param_vec) <- param_names
-      bio <- math_to_bio_niche(param_vec)
+    # Pre-compute KDE weights once; the background sample is fixed during optimisation
+    log_weights <- kde_eval_cached(env_m, env_m)
+    weights     <- exp(log_weights)
+    function(pv) {
+      names(pv) <- all_names
+      bio <- math_to_bio_niche(pv)
       S   <- bio$L %*% t(bio$L)
       loglik_weighted_math(env_occ, env_m, bio$mu, S, weights = weights)
     }
-  } else {
-    stop("Unknown model: ", model)
+  } else {   # "presence_only"
+    function(pv) {
+      names(pv) <- all_names
+      bio <- math_to_bio_niche(pv)
+      S   <- bio$L %*% t(bio$L)
+      loglik_presenceonly_math(env_occ, env_m, bio$mu, S)
+    }
   }
+}
+
+# ---------------------------------------------------------------------------
+# Internal: math-scale -> full biological-scale parameter list
+# ---------------------------------------------------------------------------
+
+.nicher_math_to_bio <- function(math_vec, p, k) {
+  bio <- math_to_bio_niche(math_vec)
+  mu  <- bio$mu
+  L   <- bio$L
+  S   <- L %*% t(L)
+
+  # Standard deviations and correlation matrix
+  sigma <- sqrt(diag(S))
+  D_inv <- diag(1 / sigma, nrow = p)
+  R     <- D_inv %*% S %*% D_inv
+  R     <- (R + t(R)) / 2   # enforce symmetry numerically
+
+  # Propagate variable names from mu
+  var_names        <- names(mu)
+  dimnames(S)      <- list(var_names, var_names)
+  dimnames(R)      <- list(var_names, var_names)
+  names(sigma)     <- var_names
+
+  list(mu = mu, S = S, sigma = sigma, R = R)
 }

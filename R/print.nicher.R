@@ -1,47 +1,37 @@
-#' Print method for nicher objects
+#' Print method for \code{nicher} objects
 #'
-#' Prints a concise, human-readable summary of a fitted \code{nicher} object.
-#' Shows the model type, optimization method, log-likelihood, and the
-#' biological-scale optimized parameters (environmental optima and marginal
-#' standard deviations).
+#' Displays the key results of a fitted \code{nicher} model in a concise,
+#' human-readable format using biological-scale parameters.  The full
+#' mathematical-scale parameter vector and the optimizer comparison table are
+#' accessible via \code{\link{summary.nicher}} or by direct list access (e.g.
+#' \code{fit$math_params}).
 #'
-#' @param x An object of class \code{"nicher"}.
-#' @param digits Integer; number of significant digits to print (default 4).
-#' @param ... Further arguments passed to or from other methods (currently
-#'   unused).
-#' @return \code{x} invisibly.
+#' @param x   An object of class \code{"nicher"}.
+#' @param ... Currently unused; present for S3 method consistency.
+#'
+#' @return Returns \code{x} invisibly.
+#'
+#' @seealso \code{\link{nicher}}, \code{\link{summary.nicher}}
+#'
 #' @export
-#' @method print nicher
 #'
 #' @examples
 #' fit <- nicher(spOccPnts, samMPts, model = "presence_only")
 #' print(fit)
-print.nicher <- function(x, digits = 4, ...) {
-  check_nicher(x)
-  cat("Ecological niche model (nicher)\n")
-  cat("  Model  :", x$model, "\n")
+print.nicher <- function(x, ...) {
+  cat("Nicher model\n")
   cat("  Method :", x$method, "\n")
-  cat("  Log-likelihood:", round(x$loglik, digits), "\n\n")
+  cat("  Model  :", x$model,  "\n")
+  cat("  Log-likelihood:", round(x$loglik, 4), "\n\n")
 
-  cat("Biological-scale parameters:\n")
+  cat("Optimum (mu):\n")
+  print(round(x$bio_params$mu, 4))
 
-  mu        <- x$bioscale_params$mu
-  variances <- x$bioscale_params$variances
-  sds       <- sqrt(variances)
+  cat("\nStd. deviations (sigma):\n")
+  print(round(x$bio_params$sigma, 4))
 
-  env_names <- if (!is.null(x$env_names)) x$env_names else names(mu)
-  if (is.null(env_names)) {
-    env_names <- paste0("var", seq_along(mu))
-  }
-
-  tbl <- data.frame(
-    variable = env_names,
-    optimum  = round(mu, digits),
-    sd       = round(sds, digits),
-    row.names = NULL,
-    stringsAsFactors = FALSE
-  )
-  print(tbl, row.names = FALSE)
+  cat("\nCorrelation matrix (R):\n")
+  print(round(x$bio_params$R, 4))
 
   invisible(x)
 }

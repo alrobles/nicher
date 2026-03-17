@@ -1,78 +1,47 @@
-#' Summary method for nicher objects
+#' Summary method for \code{nicher} objects
 #'
-#' Prints a detailed summary of a fitted \code{nicher} object, including
-#' the model type, maximized log-likelihood, the full covariance matrix in
-#' biological scale, and the complete optimization results table.
+#' Prints a comprehensive summary of a fitted \code{nicher} model, including
+#' biological-scale parameters (niche optimum, covariance matrix, standard
+#' deviations, correlation matrix), the full mathematical-scale parameter
+#' vector, and the optimizer comparison table.
 #'
 #' @param object An object of class \code{"nicher"}.
-#' @param digits Integer; number of significant digits (default 4).
-#' @param ... Further arguments passed to or from other methods (currently
-#'   unused).
-#' @return An object of class \code{"summary.nicher"} (a list) containing
-#'   the processed summary information, returned invisibly.
+#' @param ...    Currently unused; present for S3 method consistency.
+#'
+#' @return Returns \code{object} invisibly.
+#'
+#' @seealso \code{\link{nicher}}, \code{\link{print.nicher}}
+#'
 #' @export
-#' @method summary nicher
 #'
 #' @examples
 #' fit <- nicher(spOccPnts, samMPts, model = "presence_only")
 #' summary(fit)
-summary.nicher <- function(object, digits = 4, ...) {
-  check_nicher(object)
-
+summary.nicher <- function(object, ...) {
   cat("=== nicher model summary ===\n\n")
-  cat("Model   :", object$model, "\n")
-  cat("Method  :", object$method, "\n")
-  cat("Log-likelihood:", round(object$loglik, digits), "\n\n")
+  cat("Method         :", object$method, "\n")
+  cat("Model          :", object$model,  "\n")
+  cat("Log-likelihood :", round(object$loglik, 6), "\n\n")
 
-  # --- Environmental optima ---
-  cat("Environmental optima (mu):\n")
-  mu_named <- object$bioscale_params$mu
-  env_names <- if (!is.null(object$env_names)) object$env_names else names(mu_named)
-  if (is.null(env_names)) env_names <- paste0("var", seq_along(mu_named))
-  names(mu_named) <- env_names
-  print(round(mu_named, digits))
-  cat("\n")
+  cat("--- Biological-scale parameters ---\n\n")
 
-  # --- Covariance matrix ---
-  cat("Covariance matrix (S):\n")
-  S <- object$bioscale_params$S
-  rownames(S) <- env_names
-  colnames(S) <- env_names
-  print(round(S, digits))
-  cat("\n")
+  cat("Optimum (mu):\n")
+  print(round(object$bio_params$mu, 6))
 
-  # --- Correlation matrix ---
-  cat("Correlation matrix (R):\n")
-  R <- object$bioscale_params$R
-  rownames(R) <- env_names
-  colnames(R) <- env_names
-  print(round(R, digits))
-  cat("\n")
+  cat("\nCovariance matrix (S):\n")
+  print(round(object$bio_params$S, 6))
 
-  # --- Math-scale parameters ---
-  cat("Math-scale parameters (for reference):\n")
-  print(round(object$math_params, digits))
-  cat("\n")
+  cat("\nStd. deviations (sigma):\n")
+  print(round(object$bio_params$sigma, 6))
 
-  # --- Optimization table ---
-  cat("Optimization table (all methods tried):\n")
-  p <- length(object$bioscale_params$mu)
-  k <- p * (p + 1) / 2
-  n_par <- p + k
-  extra_cols <- setdiff(names(object$optimx_table), names(object$math_params))
-  tbl_display <- object$optimx_table[, extra_cols, drop = FALSE]
-  print(tbl_display)
+  cat("\nCorrelation matrix (R):\n")
+  print(round(object$bio_params$R, 6))
 
-  out <- list(
-    model          = object$model,
-    method         = object$method,
-    loglik         = object$loglik,
-    mu             = object$bioscale_params$mu,
-    S              = object$bioscale_params$S,
-    R              = R,
-    math_params    = object$math_params,
-    optimx_table   = object$optimx_table
-  )
-  class(out) <- "summary.nicher"
-  invisible(out)
+  cat("\n--- Mathematical-scale parameters ---\n\n")
+  print(round(object$math_params, 6))
+
+  cat("\n--- Optimization table ---\n\n")
+  print(object$optim_table)
+
+  invisible(object)
 }
