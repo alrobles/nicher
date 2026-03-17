@@ -32,7 +32,7 @@ check_nicher <- function(x) {
     stop("'bioscale_params' must be a list")
   }
 
-  bio_required <- c("mu", "L", "S", "variances")
+  bio_required <- c("mu", "L", "S", "R", "variances")
   missing_bio <- setdiff(bio_required, names(x$bioscale_params))
   if (length(missing_bio) > 0) {
     stop("'bioscale_params' is missing fields: ",

@@ -15,9 +15,17 @@ test_that("nicher model field is set correctly", {
   expect_equal(fit$method, "mle")
 })
 
-test_that("nicher bioscale_params has mu, L, S, variances", {
+test_that("nicher bioscale_params has mu, L, S, R, variances", {
   fit <- nicher(spOccPnts, samMPts, model = "presence_only", itnmax = 20)
-  expect_true(all(c("mu", "L", "S", "variances") %in% names(fit$bioscale_params)))
+  expect_true(all(c("mu", "L", "S", "R", "variances") %in% names(fit$bioscale_params)))
+})
+
+test_that("nicher bioscale_params: R is a correlation matrix", {
+  fit <- nicher(spOccPnts, samMPts, model = "presence_only", itnmax = 20)
+  R <- fit$bioscale_params$R
+  expect_equal(diag(R), rep(1, nrow(R)), tolerance = 1e-8)
+  expect_true(isSymmetric(R))
+  expect_true(all(R >= -1 - 1e-8 & R <= 1 + 1e-8))
 })
 
 test_that("nicher bioscale_params: S = L %*% t(L)", {

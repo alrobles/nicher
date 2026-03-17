@@ -2,23 +2,34 @@
 % Please edit documentation in R/loglik_bio_niche.R
 \name{loglik_bio_niche}
 \alias{loglik_bio_niche}
-\title{Log-verosimilitud para modelo de nicho gaussiano (escala biológica)}
+\title{Log-likelihood for the unweighted Gaussian niche model (biological-scale)}
 \usage{
 loglik_bio_niche(sam1, sam2, mu, L)
 }
 \arguments{
-\item{sam1}{Data.frame o matriz de puntos de presencia (filas = observaciones, columnas = variables).}
+\item{sam1}{Data frame or matrix of presence points
+(rows = observations, columns = variables).}
 
-\item{sam2}{Data.frame o matriz de puntos de fondo ambiental.}
+\item{sam2}{Data frame or matrix of background environmental points.}
 
-\item{mu}{Vector de medias (óptimo) de longitud p.}
+\item{mu}{Numeric vector of means (niche optimum) of length \code{p}.}
 
-\item{L}{Matriz triangular inferior de la descomposición de Cholesky de la matriz de covarianza S (S = L %*% t(L)).
-Las diagonales deben ser positivas.}
+\item{L}{Lower-triangular Cholesky factor of the covariance matrix
+(\eqn{\Sigma = L L^\top}{S = L \%*\% t(L)}).  Diagonal entries must be
+positive.}
 }
 \value{
-Log-verosimilitud (escalar).
+Log-likelihood (scalar double).
 }
 \description{
-Log-verosimilitud para modelo de nicho gaussiano (escala biológica)
+User-facing wrapper that accepts biological-scale parameters directly
+(niche centroid \code{mu} and lower-triangular Cholesky factor \code{L}) and
+delegates to \code{\link{loglik_unweighted_math}}.  This is the complement of
+\code{\link{loglik_math_niche}}, which accepts parameters in the flattened
+math-scale (log-Cholesky) parameterisation used by optimisers.
+}
+\examples{
+par <- get_ellip_par(spOccPnts)
+L <- t(chol(par$S))
+loglik_bio_niche(spOccPnts, samMPts, par$mu, L)
 }
