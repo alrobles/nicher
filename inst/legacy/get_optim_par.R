@@ -1,3 +1,6 @@
+# ARCHIVED LEGACY FUNCTION — not loaded by the package.
+# See inst/legacy/README.md for migration guidance.
+#
 #' get_optim_par Get the parameters for the optimization of
 #' the Mahalanobis ellipse
 #'
@@ -5,7 +8,6 @@
 #'
 #' @return A list with two objects. A vector with centers of ellipse and a
 #' matrix with the inverse of covariance matrix
-#' @export
 #'
 #' @examples
 #' get_optim_par(spOccPnts)

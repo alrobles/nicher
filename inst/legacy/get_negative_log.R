@@ -1,10 +1,12 @@
-#  negative log-likelihood value
-#' Get the negative log-likelihood value from quadratic forms of environmental information from presence points and a sample from an M hypothesis
+# ARCHIVED LEGACY FUNCTION — not loaded by the package.
+# See inst/legacy/README.md for migration guidance.
+#
+#' Get the negative log-likelihood value from quadratic forms of environmental
+#' information from presence points and a sample from an M hypothesis
 #' @param q1  quadratic terms of presence points
 #' @param q2 quadratic terms of M points
 #'
 #' @return A single value of the negative log-likelihood
-#' @export
 #'
 #' @examples
 #' par <- get_optim_par(spOccPnts)
