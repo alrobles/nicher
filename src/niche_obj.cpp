@@ -219,12 +219,22 @@ SEXP create_niche_obj_ptr(NumericMatrix env_occ,
     data->p        = env_occ.ncol();
     data->lik_type = lt;
 
+    // Basic dimension checks
+    if (data->p <= 0) {
+        Rcpp::stop("env_occ must have at least one column (p > 0).");
+    }
+
     // Deep-copy matrices into Eigen storage (safe from R's GC)
     data->env_occ = Eigen::Map<Eigen::MatrixXd>(
         env_occ.begin(), env_occ.nrow(), env_occ.ncol());
 
     if (lt != 2) {
         NumericMatrix m(env_m);
+        if (m.ncol() != data->p) {
+            Rcpp::stop("env_m must have the same number of columns as env_occ "
+                       "(expected %d, got %d).",
+                       data->p, m.ncol());
+        }
         data->env_m = Eigen::Map<Eigen::MatrixXd>(
             m.begin(), m.nrow(), m.ncol());
     }
