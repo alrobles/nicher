@@ -337,15 +337,19 @@ optimize_niche <- function(env_occ, env_m,
     gradstep      = gs
   )
   
-  # Build ucminfcpp control object
-  con <- do.call(ucminfcpp::ucminf_control, list(
-    grtol    = control$grtol,
-    xtol     = control$xtol,
-    stepmax  = control$stepmax,
-    maxeval  = as.integer(control$maxeval),
-    grad     = if (!is.null(control$grad))     control$grad     else "central",
-    gradstep = if (!is.null(control$gradstep)) control$gradstep else c(1e-6, 1e-8)
-  ))
+  # Build ucminfcpp control object by forwarding the (validated) control list.
+  # This preserves existing defaults while allowing additional ucminf options.
+  control_args <- control
+  if (is.null(control_args$grad)) {
+    control_args$grad <- "central"
+  }
+  if (is.null(control_args$gradstep)) {
+    control_args$gradstep <- gs
+  }
+  if (!is.null(control_args$maxeval)) {
+    control_args$maxeval <- as.integer(control_args$maxeval)
+  }
+  con <- do.call(ucminfcpp::ucminf_control, control_args)
   
   # Run optimization with error handling
   out <- tryCatch(
