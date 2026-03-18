@@ -108,8 +108,12 @@ struct NicheObjFunData {
             for (int k = 0; k <= j; ++k)
                 L_cov(j, k) = sigma[j] * L_corr(j, k);
 
-        // Wrap stored Eigen data as Rcpp matrices (zero-copy via Map)
-        NumericMatrix occ_m(env_occ.rows(), env_occ.cols());
+        // Wrap stored Eigen data as Rcpp matrices.
+        // Use static buffers to avoid repeated allocations on each evaluation.
+        static NumericMatrix occ_m;
+        if (occ_m.nrow() != env_occ.rows() || occ_m.ncol() != env_occ.cols()) {
+            occ_m = NumericMatrix(env_occ.rows(), env_occ.cols());
+        }
         Eigen::Map<Eigen::MatrixXd>(occ_m.begin(),
                                     env_occ.rows(),
                                     env_occ.cols()) = env_occ;
@@ -119,7 +123,10 @@ struct NicheObjFunData {
             return loglik_niche_presence_only_cpp(mu, L_cov, occ_m);
         }
 
-        NumericMatrix m_m(env_m.rows(), env_m.cols());
+        static NumericMatrix m_m;
+        if (m_m.nrow() != env_m.rows() || m_m.ncol() != env_m.cols()) {
+            m_m = NumericMatrix(env_m.rows(), env_m.cols());
+        }
         Eigen::Map<Eigen::MatrixXd>(m_m.begin(),
                                     env_m.rows(),
                                     env_m.cols()) = env_m;
