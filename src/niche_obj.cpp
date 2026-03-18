@@ -83,6 +83,11 @@ struct NicheObjFunData {
     // ------------------------------------------------------------------
     double compute(const std::vector<double>& x) const {
         int n = static_cast<int>(x.size());
+        int expected_n = 2 * p + p * (p - 1) / 2;
+        if (n != expected_n) {
+            stop("NicheObjFun::compute: parameter vector x has length %d but expected %d (2*p + p*(p-1)/2) for p = %d",
+                 n, expected_n, p);
+        }
 
         // Decode mu and sigma = exp(log_sigma)
         NumericVector mu(p), sigma(p);
