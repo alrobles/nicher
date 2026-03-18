@@ -29,7 +29,9 @@ Imports:
     ucminf,
     utils
 Suggests:
-    pomp
+    pomp,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
 URL: https://alrobles.github.io/nicher, https://github.com/alrobles/nicher, https://alrobles.github.io/nicher/
 LinkingTo: 
     Rcpp,
