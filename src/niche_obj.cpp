@@ -142,16 +142,13 @@ struct NicheObjFunData {
         Nullable<NumericVector> pw = R_NilValue;
 
         if (has_den_idx) {
-            IntegerVector dv(den_idx_vec.begin(), den_idx_vec.end());
-            di = dv;
+            di = Nullable<IntegerVector>(IntegerVector(den_idx_vec.begin(), den_idx_vec.end()));
         }
         if (has_kde_idx) {
-            IntegerVector kv(kde_idx_vec.begin(), kde_idx_vec.end());
-            ki = kv;
+            ki = Nullable<IntegerVector>(IntegerVector(kde_idx_vec.begin(), kde_idx_vec.end()));
         }
         if (has_precomp_w) {
-            NumericVector pv(precomp_w_den_vec.begin(), precomp_w_den_vec.end());
-            pw = pv;
+            pw = Nullable<NumericVector>(NumericVector(precomp_w_den_vec.begin(), precomp_w_den_vec.end()));
         }
 
         return loglik_niche_weighted_integrated_cpp(mu, L_cov, occ_m, m_m,
