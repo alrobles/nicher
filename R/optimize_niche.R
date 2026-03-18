@@ -283,7 +283,11 @@ optimize_niche <- function(env_occ, env_m,
 #' @keywords internal
 .optimize_niche_helper_cpp <- function(param, env_occ, env_m, control,
                                         likelihood, ...) {
+  param_names <- names(param)
   param <- as.numeric(param)
+  if (!is.null(param_names)) {
+    names(param) <- param_names
+  }
   if (any(!is.finite(param))) {
     stop("All starting parameters must be finite")
   }
