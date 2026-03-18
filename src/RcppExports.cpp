@@ -95,7 +95,27 @@ BEGIN_RCPP
 END_RCPP
 }
 
+// create_niche_obj_ptr
+SEXP create_niche_obj_ptr(NumericMatrix env_occ, Nullable<NumericMatrix> env_m, double eta, std::string likelihood, Nullable<IntegerVector> den_idx, Nullable<IntegerVector> kde_idx, Nullable<NumericVector> precomp_w_den, NumericVector gradstep);
+RcppExport SEXP _nicher_create_niche_obj_ptr(SEXP env_occSEXP, SEXP env_mSEXP, SEXP etaSEXP, SEXP likelihoodSEXP, SEXP den_idxSEXP, SEXP kde_idxSEXP, SEXP precomp_w_denSEXP, SEXP gradstepSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type env_occ(env_occSEXP);
+    Rcpp::traits::input_parameter< Nullable<NumericMatrix> >::type env_m(env_mSEXP);
+    Rcpp::traits::input_parameter< double >::type eta(etaSEXP);
+    Rcpp::traits::input_parameter< std::string >::type likelihood(likelihoodSEXP);
+    Rcpp::traits::input_parameter< Nullable<IntegerVector> >::type den_idx(den_idxSEXP);
+    Rcpp::traits::input_parameter< Nullable<IntegerVector> >::type kde_idx(kde_idxSEXP);
+    Rcpp::traits::input_parameter< Nullable<NumericVector> >::type precomp_w_den(precomp_w_denSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type gradstep(gradstepSEXP);
+    rcpp_result_gen = Rcpp::wrap(create_niche_obj_ptr(env_occ, env_m, eta, likelihood, den_idx, kde_idx, precomp_w_den, gradstep));
+    return rcpp_result_gen;
+END_RCPP
+}
+
 static const R_CallMethodDef CallEntries[] = {
+    {"_nicher_create_niche_obj_ptr", (DL_FUNC) &_nicher_create_niche_obj_ptr, 8},
     {"_nicher_cvine_cholesky", (DL_FUNC) &_nicher_cvine_cholesky, 3},
     {"_nicher_kde_gaussian_2d_cpp", (DL_FUNC) &_nicher_kde_gaussian_2d_cpp, 2},
     {"_nicher_kde_gaussian_eigen_cpp", (DL_FUNC) &_nicher_kde_gaussian_eigen_cpp, 2},

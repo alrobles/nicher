@@ -22,7 +22,12 @@
 #'   `"sobol"` (requires \pkg{pomp}) or `"uniform"`.
 #' @param likelihood Character. One of `"unweighted"` (default), `"weighted"`,
 #'   or `"presence_only"`.
-#' @param control List of control parameters passed to [ucminf::ucminf()].
+#' @param backend Character. Optimization backend: `"R"` (default) uses
+#'   [ucminf::ucminf()] with an R-level objective function;
+#'   `"cpp"` uses [ucminfcpp::ucminf_xptr()] with a compiled C++ objective
+#'   function for greater performance.
+#' @param control List of control parameters passed to [ucminf::ucminf()] or
+#'   [ucminfcpp::ucminf_xptr()].
 #'   Default values (if not supplied) are:
 #'   \describe{
 #'     \item{grad}{"central"}
@@ -50,11 +55,18 @@
 #' @export
 #' @examples
 #' \dontrun{
-#' # Unweighted (2019) with 5 starting points
+#' # Unweighted (2019) with 5 starting points, R backend
 #' res1 <- optimize_niche(example_env_occ_2d, example_env_m_2d,
 #'                        num_starts = 5, start_method = "uniform",
 #'                        likelihood = "unweighted", eta = 1)
 #' res1$best
+#'
+#' # Unweighted (2019) with 5 starting points, C++ backend (faster)
+#' res1_cpp <- optimize_niche(example_env_occ_2d, example_env_m_2d,
+#'                            num_starts = 5, start_method = "uniform",
+#'                            likelihood = "unweighted", eta = 1,
+#'                            backend = "cpp")
+#' res1_cpp$best
 #'
 #' # Weighted (2022) with 5 starting points
 #' res2 <- optimize_niche(example_env_occ_2d, example_env_m_2d,
@@ -74,11 +86,13 @@ optimize_niche <- function(env_occ, env_m,
                            quant_vec = c(0.1, 0.5, 0.9),
                            start_method = "sobol",
                            likelihood = c("unweighted", "weighted", "presence_only"),
+                           backend = c("R", "cpp"),
                            control = list(),
                            verbose = FALSE,
                            ...) {
-  # Match likelihood
+  # Match arguments
   likelihood <- match.arg(likelihood)
+  backend    <- match.arg(backend)
   
   # Validate inputs based on likelihood
   if (likelihood != "presence_only") {
@@ -105,7 +119,7 @@ optimize_niche <- function(env_occ, env_m,
     v
   })
   
-  # Default control for ucminf
+  # Default control for ucminf / ucminfcpp
   default_ctrl <- list(
     grad     = "central",
     gradstep = c(1e-6, 1e-8),
@@ -116,30 +130,51 @@ optimize_niche <- function(env_occ, env_m,
   )
   ctrl <- utils::modifyList(default_ctrl, control)
   
-  # Choose objective function pointer
-  obj_fun <- switch(likelihood,
-                    unweighted    = loglik_niche_math_cpp,
-                    weighted      = loglik_niche_math_weighted,
-                    presence_only = loglik_niche_math_presence_only)
-  
-  # Runner for a single start
-  runner <- function(start_vec, id) {
-    if (verbose) {
-      cat(sprintf("Starting point %d\n", id))
+  if (backend == "cpp") {
+    # -----------------------------------------------------------------------
+    # C++ backend: use ucminfcpp::ucminf_xptr() with a compiled objective
+    # function (NicheObjFun), bypassing the R interpreter on each evaluation.
+    # -----------------------------------------------------------------------
+    runner <- function(start_vec, id) {
+      if (verbose) {
+        cat(sprintf("Starting point %d [cpp backend]\n", id))
+      }
+      .optimize_niche_helper_cpp(
+        param      = start_vec,
+        env_occ    = env_occ,
+        env_m      = env_m,
+        control    = ctrl,
+        likelihood = likelihood,
+        ...
+      )
     }
-    res <- .optimize_niche_helper(
-      param    = start_vec,
-      obj_fun  = obj_fun,
-      env_occ  = env_occ,
-      env_m    = env_m,          # will be ignored inside presence_only if not used
-      control  = ctrl,
-      ...
-    )
-    list(
-      theta       = res$par,
-      loglik      = -res$value,
-      convergence = res$convergence
-    )
+  } else {
+    # -----------------------------------------------------------------------
+    # R backend (original): ucminf::ucminf with an R-level objective function
+    # -----------------------------------------------------------------------
+    obj_fun <- switch(likelihood,
+                      unweighted    = loglik_niche_math_cpp,
+                      weighted      = loglik_niche_math_weighted,
+                      presence_only = loglik_niche_math_presence_only)
+    
+    runner <- function(start_vec, id) {
+      if (verbose) {
+        cat(sprintf("Starting point %d\n", id))
+      }
+      res <- .optimize_niche_helper(
+        param    = start_vec,
+        obj_fun  = obj_fun,
+        env_occ  = env_occ,
+        env_m    = env_m,
+        control  = ctrl,
+        ...
+      )
+      list(
+        theta       = res$par,
+        loglik      = -res$value,
+        convergence = res$convergence
+      )
+    }
   }
   
   # Run sequentially
@@ -176,7 +211,7 @@ optimize_niche <- function(env_occ, env_m,
   list(solutions = solutions, best = best)
 }
 
-#' Internal helper: run ucminf for a single starting vector
+#' Internal helper: run ucminf for a single starting vector (R backend)
 #'
 #' @param param Numeric vector of starting parameters (named).
 #' @param obj_fun Objective function pointer: either [loglik_niche_math_cpp],
@@ -229,5 +264,112 @@ optimize_niche <- function(env_occ, env_m,
     value = out$value,
     convergence = out$convergence,
     invhessian.lt = if (!is.null(out$invhessian.lt)) out$invhessian.lt else NULL
+  )
+}
+
+#' Internal helper: run ucminfcpp::ucminf_xptr for a single starting vector
+#'
+#' Creates a compiled C++ objective function via [create_niche_obj_ptr()] and
+#' calls [ucminfcpp::ucminf_xptr()] to optimize from a single starting point.
+#' This bypasses the R interpreter on every function/gradient evaluation for
+#' maximum performance.
+#'
+#' @param param Numeric vector of starting parameters (named).
+#' @param env_occ,env_m Data frames as in [optimize_niche].
+#' @param control List of control parameters.
+#' @param likelihood Character. One of "unweighted", "weighted", "presence_only".
+#' @param ... Additional arguments (eta, m_subsample, m_kde_subsample, seed).
+#' @return A list with components: theta, loglik, convergence.
+#' @keywords internal
+.optimize_niche_helper_cpp <- function(param, env_occ, env_m, control,
+                                        likelihood, ...) {
+  param_names <- names(param)
+  param <- as.numeric(param)
+  if (!is.null(param_names)) {
+    names(param) <- param_names
+  }
+  if (any(!is.finite(param))) {
+    stop("All starting parameters must be finite")
+  }
+  
+  dots <- list(...)
+  eta  <- if (!is.null(dots$eta)) dots$eta else 1.0
+  
+  # Convert data frames to matrices
+  env_occ_mat <- as.matrix(env_occ)
+  env_m_mat   <- if (!is.null(env_m)) as.matrix(env_m) else NULL
+  
+  # For the weighted likelihood, resolve subsampling indices once before
+  # optimization (fixed indices ensure a smooth, consistent objective function)
+  den_idx      <- NULL
+  kde_idx      <- NULL
+  precomp_w_den <- NULL
+  
+  if (likelihood == "weighted" && !is.null(env_m_mat)) {
+    n_m <- nrow(env_m_mat)
+    if (!is.null(dots$seed)) set.seed(dots$seed)
+    
+    pick_size <- function(x, nmax) {
+      if (is.null(x)) return(NULL)
+      if (length(x) != 1L || !is.numeric(x) || !is.finite(x) || x <= 0)
+        stop("m_subsample/m_kde_subsample must be a single positive number.")
+      if (x < 1) max(1L, floor(x * nmax)) else min(nmax, as.integer(round(x)))
+    }
+    
+    n_den  <- pick_size(dots$m_subsample,     n_m)
+    den_idx <- if (!is.null(n_den)  && n_den  < n_m) sample.int(n_m, n_den)  else NULL
+    n_kde  <- pick_size(dots$m_kde_subsample, n_m)
+    kde_idx <- if (!is.null(n_kde)  && n_kde  < n_m) sample.int(n_m, n_kde)  else NULL
+  }
+  
+  # Create the compiled C++ objective function (external pointer).
+  # Pass gradstep from control so finite-difference steps match the user's
+  # configured values (defaults: c(1e-6, 1e-8), same as ucminf defaults).
+  gs <- if (!is.null(control$gradstep)) control$gradstep else c(1e-6, 1e-8)
+  xptr <- create_niche_obj_ptr(
+    env_occ       = env_occ_mat,
+    env_m         = env_m_mat,
+    eta           = eta,
+    likelihood    = likelihood,
+    den_idx       = den_idx,
+    kde_idx       = kde_idx,
+    precomp_w_den = precomp_w_den,
+    gradstep      = gs
+  )
+  
+  # Build ucminfcpp control object by forwarding the (validated) control list.
+  # This preserves existing defaults while allowing additional ucminf options.
+  control_args <- control
+  if (is.null(control_args$grad)) {
+    control_args$grad <- "central"
+  }
+  if (is.null(control_args$gradstep)) {
+    control_args$gradstep <- gs
+  }
+  if (!is.null(control_args$maxeval)) {
+    control_args$maxeval <- as.integer(control_args$maxeval)
+  }
+  con <- do.call(ucminfcpp::ucminf_control, control_args)
+  
+  # Run optimization with error handling
+  out <- tryCatch(
+    {
+      res <- ucminfcpp::ucminf_xptr(par = param, xptr = xptr, control = con)
+      if (is.null(names(res$par)) && !is.null(names(param))) {
+        names(res$par) <- names(param)
+      }
+      if (is.null(res$convergence)) res$convergence <- NA_integer_
+      res
+    },
+    error = function(e) {
+      list(par = param, value = Inf, convergence = NA_integer_,
+           error = conditionMessage(e))
+    }
+  )
+  
+  list(
+    theta       = out$par,
+    loglik      = -out$value,
+    convergence = out$convergence
   )
 }
