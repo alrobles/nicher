@@ -268,13 +268,24 @@ SEXP create_niche_obj_ptr(NumericMatrix env_occ,
             // Central finite differences for gradient
             int n = static_cast<int>(x.size());
             g.resize(n);
+            // Work vector for finite-difference evaluations; start from x once
+            std::vector<double> v = x;
             for (int i = 0; i < n; ++i) {
                 double xi = x[i];
                 double dx = std::abs(xi) * gs_rel + gs_abs;
-                std::vector<double> xp = x, xm = x;
-                xp[i] = xi + dx;
-                xm[i] = xi - dx;
-                g[i]  = (data->compute(xp) - data->compute(xm)) / (2.0 * dx);
+
+                // Forward perturbation
+                v[i] = xi + dx;
+                double fp = data->compute(v);
+
+                // Backward perturbation
+                v[i] = xi - dx;
+                double fm = data->compute(v);
+
+                // Restore original value
+                v[i] = xi;
+
+                g[i] = (fp - fm) / (2.0 * dx);
             }
         }
     );
