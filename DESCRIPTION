@@ -27,6 +27,7 @@ Imports:
     RcppEigen,
     stats,
     ucminf,
+    ucminfcpp,
     utils
 Suggests:
     pomp,
