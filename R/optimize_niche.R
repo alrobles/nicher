@@ -151,8 +151,8 @@ optimize_niche <- function(env_occ, env_m,
   # Compile results
   solutions <- data.frame(
     start_id   = seq_along(results),
-    loglik     = sapply(results, function(x) x$loglik),
-    convergence = sapply(results, function(x) x$convergence),
+    loglik     = vapply(results, function(x) as.numeric(x$loglik), numeric(1)),
+    convergence = vapply(results, function(x) as.integer(x$convergence), integer(1)),
     stringsAsFactors = FALSE
   )
   solutions$full_par <- lapply(results, function(x) x$theta)
@@ -226,8 +226,8 @@ optimize_niche <- function(env_occ, env_m,
   
   list(
     par = out$par,
-    value = out$value,
-    convergence = out$convergence,
+    value = as.numeric(out$value),
+    convergence = as.integer(out$convergence),
     invhessian.lt = if (!is.null(out$invhessian.lt)) out$invhessian.lt else NULL
   )
 }

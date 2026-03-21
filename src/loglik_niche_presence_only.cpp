@@ -38,5 +38,10 @@ double loglik_niche_presence_only_cpp(NumericVector mu,
   double n = static_cast<double>(n_occ);
   double neg_log = 0.5 * n * log_det + 0.5 * sum_q;
   
+  // Guard against NaN/Inf so the optimizer can recover
+  if (!std::isfinite(neg_log)) {
+    neg_log = 1e300;
+  }
+  
   return neg_log;
 }
