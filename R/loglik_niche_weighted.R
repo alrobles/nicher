@@ -51,5 +51,5 @@ loglik_niche_math_weighted <- function(theta, env_occ, env_m, eta = 1, neg = TRU
   
   # Llamar a la versión integrada
   loglik_niche_math_weighted_integrated(theta, env_occ, env_m, eta, neg,
-                                        den_idx, kde_idx)
+                                        den_idx, kde_idx, precomp_w_den = NULL)
 }
