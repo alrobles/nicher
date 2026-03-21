@@ -7,7 +7,7 @@
 from Abeillia abeillei presence points. This is a
 hummingbird example.
 A dataset with two variables containing points
-contains 2 bioclimatic variables.}
+contains 2 bioclimatic variables}
 \format{
 A data frame with 73 rows and 2 variables:
 \describe{
@@ -26,6 +26,6 @@ Species occurrence points to estimate negative log likelihood
 from Abeillia abeillei presence points. This is a
 hummingbird example.
 A dataset with two variables containing points
-contains 2 bioclimatic variables.
+contains 2 bioclimatic variables
 }
 \keyword{datasets}

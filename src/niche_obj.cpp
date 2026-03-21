@@ -1,302 +1,257 @@
-// src/niche_obj.cpp
-//
-// NicheObjFun: A C++ functor wrapping the nicher negative log-likelihood
-// in a format compatible with ucminfcpp's ucminf::ObjFun (std::function).
-//
-// The external pointer returned by create_niche_obj_ptr() can be passed
-// directly to ucminfcpp::ucminf_xptr() from R, eliminating R interpreter
-// overhead on every function/gradient evaluation.
-//
-// Supports all three likelihood types implemented in nicher:
-//   "unweighted"    — loglik_niche_chol_cpp
-//   "weighted"      — loglik_niche_weighted_integrated_cpp
-//   "presence_only" — loglik_niche_presence_only_cpp
-
-// [[Rcpp::depends(RcppEigen)]]
+// src/niche_obj.cpp — VERSION 2026-03-21
 #include "nicher_types.h"
 #include <functional>
 #include <vector>
 #include <cmath>
 #include <memory>
 #include <string>
-
 using namespace Rcpp;
 
-// ---------------------------------------------------------------------------
-// Forward declarations of C++ functions defined in other files of this package
-// ---------------------------------------------------------------------------
-
+// forward declarations
 NumericMatrix cvine_cholesky(NumericVector v, int d, double eta);
 
-double loglik_niche_chol_cpp(NumericVector mu,
-                              NumericMatrix L,
-                              NumericMatrix env_occ,
-                              NumericMatrix env_m);
+double loglik_niche_chol_cpp(
+    NumericVector mu,
+    NumericMatrix L,
+    NumericMatrix env_occ,
+    NumericMatrix env_m
+);
 
-double loglik_niche_presence_only_cpp(NumericVector mu,
-                                       NumericMatrix L,
-                                       NumericMatrix env_occ);
+double loglik_niche_presence_only_cpp(
+    NumericVector mu,
+    NumericMatrix L,
+    NumericMatrix env_occ
+);
 
-double loglik_niche_weighted_integrated_cpp(NumericVector mu,
-                                             NumericMatrix L,
-                                             NumericMatrix env_occ,
-                                             NumericMatrix env_m,
-                                             Nullable<IntegerVector> den_idx,
-                                             Nullable<IntegerVector> kde_idx,
-                                             Nullable<NumericVector> precomp_w_den,
-                                             bool neg);
+double loglik_niche_weighted_integrated_cpp(
+    NumericVector mu,
+    NumericMatrix L,
+    NumericMatrix env_occ,
+    NumericMatrix env_m,
+    Nullable<IntegerVector> den_idx,
+    Nullable<IntegerVector> kde_idx,
+    Nullable<NumericVector> precomp_w_den,
+    bool neg
+);
 
-// ---------------------------------------------------------------------------
-// Type alias compatible with ucminf::ObjFun in ucminfcpp
-// (ucminf::ObjFun is itself defined as this same std::function alias)
-// ---------------------------------------------------------------------------
-using NicheObjFunType = std::function<void(const std::vector<double>&,
-                                            std::vector<double>&,
-                                            double&)>;
 
-// ---------------------------------------------------------------------------
-// NicheObjFunData: stores all model data needed by the functor
-// Uses Eigen matrices for C++-heap storage (safe from R's garbage collector)
-// ---------------------------------------------------------------------------
+// ========================================================================
+// Functor container
+// ========================================================================
+
+using NicheObjFunType =
+  std::function<void(const std::vector<double>&,
+                     std::vector<double>&,
+                     double&)>;
+
 struct NicheObjFunData {
-    Eigen::MatrixXd env_occ;          // presence-point environmental matrix (n_occ x p)
-    Eigen::MatrixXd env_m;            // background environmental matrix    (n_m   x p)
-    double          eta;              // LKJ prior shape parameter
-    int             p;                // number of environmental dimensions
-    int             lik_type;         // 0=unweighted, 1=weighted, 2=presence_only
 
-    // Optional subsampling data for the weighted likelihood
-    std::vector<int>    den_idx_vec;       // 1-based denominator indices (R convention)
-    std::vector<int>    kde_idx_vec;       // 1-based KDE-reference indices
-    std::vector<double> precomp_w_den_vec; // precomputed denominator KDE weights
-    bool has_den_idx;
-    bool has_kde_idx;
-    bool has_precomp_w;
+  Eigen::MatrixXd env_occ;  // OWNED COPY
+  Eigen::MatrixXd env_m;    // OWNED COPY (except in presence-only)
+  double eta;
+  int p;
+  int lik_type; // 0=unweighted,1=weighted,2=presence_only
 
-    // ------------------------------------------------------------------
-    // Compute the negative log-likelihood at parameter vector x.
-    //
-    // Parameter encoding (same as in loglik_niche_math_cpp):
-    //   x[0 .. p-1]      : mu  (centroid)
-    //   x[p .. 2p-1]     : log_sigma  (log of standard deviations)
-    //   x[2p .. end]     : v  (C-vine partial correlation parameters)
-    // ------------------------------------------------------------------
-    double compute(const std::vector<double>& x) const {
-        int n = static_cast<int>(x.size());
-        int expected_n = 2 * p + p * (p - 1) / 2;
-        if (n != expected_n) {
-            stop("NicheObjFun::compute: parameter vector x has length %d but expected %d (2*p + p*(p-1)/2) for p = %d",
-                 n, expected_n, p);
-        }
+  std::vector<int> den_idx_vec;
+  std::vector<int> kde_idx_vec;
+  std::vector<double> precomp_w_den_vec;
 
-        // Decode mu and sigma = exp(log_sigma)
-        NumericVector mu(p), sigma(p);
-        for (int i = 0; i < p; ++i) {
-            mu[i]    = x[i];
-            sigma[i] = std::exp(x[p + i]);
-        }
+  bool has_den;
+  bool has_kde;
+  bool has_precomp;
 
-        // Decode C-vine parameters v
-        int nv = n - 2 * p;
-        NumericVector v(nv);
-        for (int i = 0; i < nv; ++i) v[i] = x[2 * p + i];
+  // =====================================================================
+  // Compute: negative log-likelihood evaluation
+  // =====================================================================
+  double compute(const std::vector<double>& x) const {
 
-        // Build Cholesky factor: L_cov = diag(sigma) * L_corr
-        NumericMatrix L_corr = cvine_cholesky(v, p, eta);
-        NumericMatrix L_cov(p, p);
-        for (int j = 0; j < p; ++j)
-            for (int k = 0; k <= j; ++k)
-                L_cov(j, k) = sigma[j] * L_corr(j, k);
+    // dimensional checks
+    int n = x.size();
+    int expected = 2*p + p*(p-1)/2;
+    if (n != expected)
+      stop("Parameter length mismatch in compute().");
 
-        // Wrap stored Eigen data as Rcpp matrices.
-        // Use static buffers to avoid repeated allocations on each evaluation.
-        static NumericMatrix occ_m;
-        if (occ_m.nrow() != env_occ.rows() || occ_m.ncol() != env_occ.cols()) {
-            occ_m = NumericMatrix(env_occ.rows(), env_occ.cols());
-        }
-        Eigen::Map<Eigen::MatrixXd>(occ_m.begin(),
-                                    env_occ.rows(),
-                                    env_occ.cols()) = env_occ;
-
-        if (lik_type == 2) {
-            // Presence-only: no background data needed
-            return loglik_niche_presence_only_cpp(mu, L_cov, occ_m);
-        }
-
-        static NumericMatrix m_m;
-        if (m_m.nrow() != env_m.rows() || m_m.ncol() != env_m.cols()) {
-            m_m = NumericMatrix(env_m.rows(), env_m.cols());
-        }
-        Eigen::Map<Eigen::MatrixXd>(m_m.begin(),
-                                    env_m.rows(),
-                                    env_m.cols()) = env_m;
-
-        if (lik_type == 0) {
-            // Unweighted
-            return loglik_niche_chol_cpp(mu, L_cov, occ_m, m_m);
-        }
-
-        // Weighted (lik_type == 1)
-        Nullable<IntegerVector> di = R_NilValue;
-        Nullable<IntegerVector> ki = R_NilValue;
-        Nullable<NumericVector> pw = R_NilValue;
-
-        if (has_den_idx) {
-            di = Nullable<IntegerVector>(IntegerVector(den_idx_vec.begin(), den_idx_vec.end()));
-        }
-        if (has_kde_idx) {
-            ki = Nullable<IntegerVector>(IntegerVector(kde_idx_vec.begin(), kde_idx_vec.end()));
-        }
-        if (has_precomp_w) {
-            pw = Nullable<NumericVector>(NumericVector(precomp_w_den_vec.begin(), precomp_w_den_vec.end()));
-        }
-
-        return loglik_niche_weighted_integrated_cpp(mu, L_cov, occ_m, m_m,
-                                                     di, ki, pw, true);
+    // unpack parameters
+    NumericVector mu(p), sigma(p);
+    for(int i=0;i<p;i++){
+      mu[i] = x[i];
+      sigma[i] = std::exp(x[p+i]);
     }
+    int nv = n - 2*p;
+    NumericVector v(nv);
+    for(int i=0;i<nv;i++)
+      v[i] = x[2*p + i];
+
+    // build covariance Cholesky
+    NumericMatrix Lcorr = cvine_cholesky(v, p, eta);
+    NumericMatrix Lcov(p,p);
+    for(int j=0;j<p;j++)
+      for(int k=0;k<=j;k++)
+        Lcov(j,k) = sigma[j] * Lcorr(j,k);
+
+    // build OWNED local copies for loglik calls
+    NumericMatrix occ_m(env_occ.rows(), env_occ.cols());
+    std::memcpy(occ_m.begin(),
+                env_occ.data(),
+                sizeof(double)*env_occ.size());
+
+    NumericMatrix m_m;
+    if(lik_type != 2){
+      m_m = NumericMatrix(env_m.rows(), env_m.cols());
+      std::memcpy(m_m.begin(),
+                  env_m.data(),
+                  sizeof(double)*env_m.size());
+    }
+
+    // route
+    if(lik_type == 2){
+      return loglik_niche_presence_only_cpp(mu, Lcov, occ_m);
+    }
+
+    if(lik_type == 0){
+      return loglik_niche_chol_cpp(mu, Lcov, occ_m, m_m);
+    }
+
+    // weighted
+    Nullable<IntegerVector> di = R_NilValue;
+    Nullable<IntegerVector> ki = R_NilValue;
+    Nullable<NumericVector> pw = R_NilValue;
+
+    if(has_den) {
+      di = wrap(IntegerVector(den_idx_vec.begin(), den_idx_vec.end()));
+    }
+    if(has_kde){
+      ki = wrap(IntegerVector(kde_idx_vec.begin(), kde_idx_vec.end()));
+    }
+    if(has_precomp){
+      pw = wrap(NumericVector(precomp_w_den_vec.begin(),
+                              precomp_w_den_vec.end()));
+    }
+
+    return loglik_niche_weighted_integrated_cpp(
+      mu, Lcov, occ_m, m_m,
+      di, ki, pw, true
+    );
+  }
+
 };
 
-// ---------------------------------------------------------------------------
-// create_niche_obj_ptr
-//
-// Creates a C++ objective function (wrapped in a std::function compatible
-// with ucminf::ObjFun) that evaluates the nicher negative log-likelihood
-// and its central-difference gradient entirely in C++, then returns it
-// as an Rcpp::XPtr for use with ucminfcpp::ucminf_xptr().
-//
-// @param env_occ        Numeric matrix of environmental values at presences.
-// @param env_m          Numeric matrix of background environmental values.
-//                       May be NULL when likelihood = "presence_only".
-// @param eta            LKJ prior shape parameter (default 1.0).
-// @param likelihood     One of "unweighted", "weighted", "presence_only".
-// @param den_idx        Integer vector of 1-based indices for denominator
-//                       subsample (weighted model only). NULL = use all.
-// @param kde_idx        Integer vector of 1-based indices for KDE reference
-//                       subsample (weighted model only). NULL = use all.
-// @param precomp_w_den  Precomputed denominator KDE weights (optional).
-// @param gradstep       Length-2 numeric vector: relative and absolute step
-//                       sizes for central finite differences.
-//                       Default c(1e-6, 1e-8) matches the ucminf default.
-//                       Step for parameter i: |x_i| * gradstep[0] + gradstep[1]
-//
-// @return An external pointer (externalptr) wrapping a heap-allocated
-//         NicheObjFunType (std::function).  Pass to ucminfcpp::ucminf_xptr().
-// ---------------------------------------------------------------------------
 
-// [[Rcpp::export]]
+// ========================================================================
+// create_niche_obj_ptr — FINAL VERSION
+// ========================================================================
+
+//[[Rcpp::export]]
 SEXP create_niche_obj_ptr(NumericMatrix env_occ,
-                           Nullable<NumericMatrix> env_m       = R_NilValue,
-                           double                  eta         = 1.0,
-                           std::string             likelihood  = "unweighted",
-                           Nullable<IntegerVector> den_idx     = R_NilValue,
-                           Nullable<IntegerVector> kde_idx     = R_NilValue,
-                           Nullable<NumericVector> precomp_w_den = R_NilValue,
-                           NumericVector           gradstep    = NumericVector::create(1e-6, 1e-8)) {
+                          Nullable<NumericMatrix> env_m = R_NilValue,
+                          double eta = 1.0,
+                          std::string likelihood = "unweighted",
+                          Nullable<IntegerVector> den_idx = R_NilValue,
+                          Nullable<IntegerVector> kde_idx = R_NilValue,
+                          Nullable<NumericVector> precomp_w_den = R_NilValue,
+                          NumericVector gradstep = NumericVector::create(1e-6,1e-8))
+{
+  if(gradstep.size() != 2)
+    stop("gradstep must have length 2");
 
-    if (gradstep.size() != 2)
-        Rcpp::stop("gradstep must have length 2");
+  int lt;
+  if(likelihood == "unweighted") lt = 0;
+  else if(likelihood == "weighted") lt = 1;
+  else if(likelihood == "presence_only") lt = 2;
+  else stop("Unknown likelihood type");
 
-    // Validate likelihood type
-    int lt;
-    if      (likelihood == "unweighted")    lt = 0;
-    else if (likelihood == "weighted")      lt = 1;
-    else if (likelihood == "presence_only") lt = 2;
-    else
-        Rcpp::stop("Unknown likelihood type '%s'. "
-                   "Use 'unweighted', 'weighted', or 'presence_only'.",
-                   likelihood.c_str());
+  if(lt != 2 && env_m.isNull())
+    stop("env_m must be provided for this likelihood.");
 
-    if (lt != 2 && env_m.isNull())
-        Rcpp::stop("env_m must be provided for likelihood '%s'.",
-                   likelihood.c_str());
+  // allocate container
+  auto data = std::make_shared<NicheObjFunData>();
+  data->eta = eta;
+  data->p   = env_occ.ncol();
+  data->lik_type = lt;
 
-    // Build data object on the heap (owned by the shared_ptr)
-    auto data = std::make_shared<NicheObjFunData>();
-    data->eta      = eta;
-    data->p        = env_occ.ncol();
-    data->lik_type = lt;
+  // --- DEEP COPY env_occ ---
+  data->env_occ = Eigen::MatrixXd(env_occ.nrow(), env_occ.ncol());
+  std::memcpy(
+    data->env_occ.data(),
+    env_occ.begin(),
+    sizeof(double) * env_occ.size()
+  );
 
-    // Basic dimension checks
-    if (data->p <= 0) {
-        Rcpp::stop("env_occ must have at least one column (p > 0).");
-    }
+  // --- DEEP COPY env_m (if exists) ---
+  if(lt != 2){
+    NumericMatrix M(env_m);
+    if(M.ncol() != data->p)
+      stop("env_m must have same columns as env_occ");
 
-    // Deep-copy matrices into Eigen storage (safe from R's GC)
-    data->env_occ = Eigen::Map<Eigen::MatrixXd>(
-        env_occ.begin(), env_occ.nrow(), env_occ.ncol());
-
-    if (lt != 2) {
-        NumericMatrix m(env_m);
-        if (m.ncol() != data->p) {
-            Rcpp::stop("env_m must have the same number of columns as env_occ "
-                       "(expected %d, got %d).",
-                       data->p, m.ncol());
-        }
-        data->env_m = Eigen::Map<Eigen::MatrixXd>(
-            m.begin(), m.nrow(), m.ncol());
-    }
-
-    // Store optional subsampling data
-    data->has_den_idx  = den_idx.isNotNull();
-    data->has_kde_idx  = kde_idx.isNotNull();
-    data->has_precomp_w = precomp_w_den.isNotNull();
-
-    if (data->has_den_idx) {
-        IntegerVector dv(den_idx);
-        data->den_idx_vec.assign(dv.begin(), dv.end());
-    }
-    if (data->has_kde_idx) {
-        IntegerVector kv(kde_idx);
-        data->kde_idx_vec.assign(kv.begin(), kv.end());
-    }
-    if (data->has_precomp_w) {
-        NumericVector pv(precomp_w_den);
-        data->precomp_w_den_vec.assign(pv.begin(), pv.end());
-    }
-
-    // Gradient finite-difference step sizes.
-    // Step for parameter i: |x_i| * gradstep_rel + gradstep_abs
-    // This matches the formula used by ucminf (same defaults: 1e-6, 1e-8).
-    const double gs_rel = gradstep[0];
-    const double gs_abs = gradstep[1];
-
-    // Allocate the std::function (NicheObjFunType) on the heap.
-    // The shared_ptr to data is captured so the data lives as long as the
-    // function object does.
-    NicheObjFunType* obj_fun = new NicheObjFunType(
-        [data, gs_rel, gs_abs]
-        (const std::vector<double>& x,
-         std::vector<double>&       g,
-         double&                    f)
-        {
-            // Evaluate objective
-            f = data->compute(x);
-
-            // Central finite differences for gradient
-            int n = static_cast<int>(x.size());
-            g.resize(n);
-            // Work vector for finite-difference evaluations; start from x once
-            std::vector<double> v = x;
-            for (int i = 0; i < n; ++i) {
-                double xi = x[i];
-                double dx = std::abs(xi) * gs_rel + gs_abs;
-
-                // Forward perturbation
-                v[i] = xi + dx;
-                double fp = data->compute(v);
-
-                // Backward perturbation
-                v[i] = xi - dx;
-                double fm = data->compute(v);
-
-                // Restore original value
-                v[i] = xi;
-
-                g[i] = (fp - fm) / (2.0 * dx);
-            }
-        }
+    data->env_m = Eigen::MatrixXd(M.nrow(), M.ncol());
+    std::memcpy(
+      data->env_m.data(),
+      M.begin(),
+      sizeof(double) * M.size()
     );
+  }
 
-    // Return as an external pointer with automatic deletion via finalizer
-    return Rcpp::XPtr<NicheObjFunType>(obj_fun, true);
+  // copy indices
+  data->has_den = den_idx.isNotNull();
+  data->has_kde = kde_idx.isNotNull();
+  data->has_precomp = precomp_w_den.isNotNull();
+
+  if(data->has_den){
+    IntegerVector dv(den_idx);
+    data->den_idx_vec.assign(dv.begin(), dv.end());
+  }
+
+  if(data->has_kde){
+    IntegerVector kv(kde_idx);
+    data->kde_idx_vec.assign(kv.begin(), kv.end());
+  }
+
+  if(data->has_precomp){
+    NumericVector pv(precomp_w_den);
+    data->precomp_w_den_vec.assign(pv.begin(), pv.end());
+  }
+
+  double gs_rel = gradstep[0];
+  double gs_abs = gradstep[1];
+
+  if(gs_rel < 0 || gs_abs < 0)
+    stop("gradstep components must be non-negative.");
+
+  if(gs_rel==0 && gs_abs==0)
+    stop("gradstep cannot be both zero");
+
+  // ===================================================
+  // FUNCTOR
+  // ===================================================
+  NicheObjFunType* obj_fun = new NicheObjFunType(
+    [data, gs_rel, gs_abs]
+    (const std::vector<double>& x,
+     std::vector<double>& g,
+     double& f)
+    {
+      f = data->compute(x);
+
+      int n = x.size();
+      g.resize(n);
+
+      std::vector<double> tmp = x;
+
+      for(int i=0;i<n;i++){
+        double xi = x[i];
+        double dx = std::abs(xi)*gs_rel + gs_abs;
+
+        tmp[i] = xi + dx;
+        double fp = data->compute(tmp);
+
+        tmp[i] = xi - dx;
+        double fm = data->compute(tmp);
+
+        tmp[i] = xi;
+
+        g[i] = (fp - fm) / (2.0 * dx);
+      }
+    }
+  );
+
+  return Rcpp::XPtr<NicheObjFunType>(obj_fun, true);
 }

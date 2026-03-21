@@ -7,15 +7,17 @@
 get_range_df_niche(env_data, quant_vec = c(0.1, 0.5, 0.9))
 }
 \arguments{
-\item{env_data}{Data frame of environmental values.}
+\item{env_data}{Numeric matrix or data frame of environmental values.}
 
-\item{quant_vec}{Numeric vector of length 3: lower, middle, upper quantiles.}
+\item{quant_vec}{Numeric vector of quantiles (length 3).}
 }
 \value{
-A data frame with rows corresponding to parameter names and columns
-lower, center, upper.
+A data frame with rows = parameter names and columns
+        lower, center, upper.
 }
 \description{
-Generate reasonable ranges for starting parameters (math scale)
+Ensures that env_data is strictly numeric before computing ranges.
+This prevents downstream issues in Sobol designs and multi-start
+optimization (e.g., character / factor leakage).
 }
 \keyword{internal}

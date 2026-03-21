@@ -94,7 +94,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-
 // create_niche_obj_ptr
 SEXP create_niche_obj_ptr(NumericMatrix env_occ, Nullable<NumericMatrix> env_m, double eta, std::string likelihood, Nullable<IntegerVector> den_idx, Nullable<IntegerVector> kde_idx, Nullable<NumericVector> precomp_w_den, NumericVector gradstep);
 RcppExport SEXP _nicher_create_niche_obj_ptr(SEXP env_occSEXP, SEXP env_mSEXP, SEXP etaSEXP, SEXP likelihoodSEXP, SEXP den_idxSEXP, SEXP kde_idxSEXP, SEXP precomp_w_denSEXP, SEXP gradstepSEXP) {
@@ -115,13 +114,13 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_nicher_create_niche_obj_ptr", (DL_FUNC) &_nicher_create_niche_obj_ptr, 8},
     {"_nicher_cvine_cholesky", (DL_FUNC) &_nicher_cvine_cholesky, 3},
     {"_nicher_kde_gaussian_2d_cpp", (DL_FUNC) &_nicher_kde_gaussian_2d_cpp, 2},
     {"_nicher_kde_gaussian_eigen_cpp", (DL_FUNC) &_nicher_kde_gaussian_eigen_cpp, 2},
     {"_nicher_loglik_niche_chol_cpp", (DL_FUNC) &_nicher_loglik_niche_chol_cpp, 4},
     {"_nicher_loglik_niche_presence_only_cpp", (DL_FUNC) &_nicher_loglik_niche_presence_only_cpp, 3},
     {"_nicher_loglik_niche_weighted_integrated_cpp", (DL_FUNC) &_nicher_loglik_niche_weighted_integrated_cpp, 8},
+    {"_nicher_create_niche_obj_ptr", (DL_FUNC) &_nicher_create_niche_obj_ptr, 8},
     {NULL, NULL, 0}
 };
 

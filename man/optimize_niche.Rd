@@ -21,29 +21,26 @@ optimize_niche(
 \item{env_occ}{Data frame with environmental values at presence points.}
 
 \item{env_m}{Data frame with environmental values from the accessibility
-area M (background). Ignored if \code{likelihood = "presence_only"}.}
+area M (background). Ignored if `likelihood = "presence_only"`.}
 
 \item{num_starts}{Integer. Number of starting points.}
 
-\item{quant_vec}{Quantiles used to define ranges for \code{mu} (passed to
-\code{\link[=start_theta_multiple]{start_theta_multiple()}}).}
+\item{quant_vec}{Quantiles used to define ranges for `mu` (passed to
+[start_theta_multiple()]).}
 
 \item{start_method}{Method for generating starting points:
-\code{"sobol"} (requires \pkg{pomp}) or \code{"uniform"}.}
+`"sobol"` (requires \pkg{pomp}) or `"uniform"`.}
 
-\item{likelihood}{Character. One of \code{"unweighted"} (default), \code{"weighted"},
-or \code{"presence_only"}.}
+\item{likelihood}{Character. One of `"unweighted"` (default), `"weighted"`,
+or `"presence_only"`.}
 
-\item{backend}{Character. Optimization backend:
-\code{"R"} (default) uses \code{\link[ucminf:ucminf]{ucminf::ucminf()}} with an R-level
-objective function;
-\code{"cpp"} uses \code{\link[ucminfcpp:ucminf_xptr]{ucminfcpp::ucminf_xptr()}} with a
-compiled C++ objective function (created via \code{create_niche_obj_ptr()}) for
-greater performance by eliminating R interpreter calls on each function
-evaluation.}
+\item{backend}{Character. Optimization backend: `"R"` (default) uses
+[ucminf::ucminf()] with an R-level objective function;
+`"cpp"` uses [ucminfcpp::ucminf_xptr()] with a compiled C++ objective
+function for greater performance.}
 
-\item{control}{List of control parameters passed to \code{\link[ucminf:ucminf]{ucminf::ucminf()}} or
-\code{\link[ucminfcpp:ucminf_xptr]{ucminfcpp::ucminf_xptr()}}.
+\item{control}{List of control parameters passed to [ucminf::ucminf()] or
+[ucminfcpp::ucminf_xptr()].
 Default values (if not supplied) are:
 \describe{
   \item{grad}{"central"}
@@ -54,35 +51,34 @@ Default values (if not supplied) are:
   \item{maxeval}{2000}
 }}
 
-\item{verbose}{Logical. If \code{TRUE}, print progress messages.}
+\item{verbose}{Logical. If `TRUE`, print progress messages.}
 
 \item{...}{Additional arguments passed to the chosen objective function,
-e.g., \code{eta} for the LKJ prior, or subsampling parameters for the weighted
-model (\code{m_subsample}, \code{m_kde_subsample}, \code{seed}).}
+e.g., `eta` for the LKJ prior, or subsampling parameters for the weighted
+model (`m_subsample`, `m_kde_subsample`, `seed`).}
 }
 \value{
 A list with two components:
   \item{solutions}{A data frame with columns:
     \itemize{
-      \item \code{start_id}: integer identifier of the starting point.
-      \item \code{loglik}: the maximized log-likelihood (not negative).
-      \item \code{convergence}: convergence code from \code{ucminf} (1 or 2 mean success).
-      \item \code{full_par}: list column with the full parameter vector at the optimum.
+      \item `start_id`: integer identifier of the starting point.
+      \item `loglik`: the maximized log-likelihood (not negative).
+      \item `convergence`: convergence code from `ucminf` (1 or 2 mean success).
+      \item `full_par`: list column with the full parameter vector at the optimum.
     }}
-  \item{best}{A list with the best solution: \code{theta}, \code{loglik}, \code{convergence}.}
+  \item{best}{A list with the best solution: `theta`, `loglik`, `convergence`.}
 }
 \description{
-Runs multiple optimizations using \code{\link[ucminf:ucminf]{ucminf::ucminf()}} (R backend) or
-\code{\link[ucminfcpp:ucminf_xptr]{ucminfcpp::ucminf_xptr()}} (C++ backend) from different starting
+Runs multiple optimizations using [ucminf::ucminf()] from different starting
 points to maximize the likelihood of the ellipsoid niche model on the math
 scale. The objective function can be:
 \itemize{
-  \item \code{"unweighted"}: the basic ellipsoid model with background correction
-        (Jiménez & Soberón 2019) – uses \code{\link{loglik_niche_math_cpp}}.
-  \item \code{"weighted"}: the weighted‑normal model with integrated KDE
-        (Jiménez & Soberón 2022) – uses \code{\link{loglik_niche_math_weighted}}.
-  \item \code{"presence_only"}: the simplest model using only presence points
-        (no background correction) – uses \code{\link{loglik_niche_math_presence_only}}.
+  \item `"unweighted"`: the basic ellipsoid model with background correction
+        (Jiménez & Soberón 2019) – uses [loglik_niche_math_cpp()].
+  \item `"weighted"`: the weighted‑normal model with integrated KDE
+        (Jiménez & Soberón 2022) – uses [loglik_niche_math_weighted()].
+  \item `"presence_only"`: the simplest model using only presence points
+        (no background correction) – uses [loglik_niche_math_presence_only()].
 }
 }
 \examples{

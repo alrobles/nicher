@@ -1,57 +1,88 @@
 #' Generate multiple starting points for niche model optimization
 #'
 #' Creates a set of starting parameter vectors on the math scale for use with
-#' [loglik_niche_math()]. Ranges for each parameter are derived from the
-#' environmental data of the accessibility area M using [get_range_df_niche()].
+#' the log-likelihood functions. Ensures all starting values are strictly
+#' numeric and finite, even if env_data is supplied as a data frame.
 #'
-#' @param env_data Data frame of environmental values from the accessibility
-#'   area M. Used to define plausible ranges for the parameters.
-#' @param num_starts Integer. Number of starting points to generate.
-#' @param quant_vec Numeric vector of length 3 giving the quantiles used to
-#'   define the lower, central and upper bounds for the `mu` parameters.
-#'   Default `c(0.1, 0.5, 0.9)`.
-#' @param method Character. Either `"sobol"` (requires the \pkg{pomp} package)
-#'   or `"uniform"` for simple random sampling.
+#' @param env_data Environmental data (matrix or data frame). Must be numeric.
+#' @param num_starts Integer, number of starting points.
+#' @param quant_vec Quantiles for mu ranges.
+#' @param method "sobol" (Sobol design) or "uniform".
 #'
-#' @return A data frame with `num_starts` rows and one column per parameter.
-#'   Column names follow the math‑scale convention: `mu1, mu2, ...`,
-#'   `log_sigma1, log_sigma2, ...`, `v1, v2, ...` (the latter only if
-#'   `p > 1`). Each row is a valid starting point.
-#'
+#' @return A data frame of dimension num_starts × num_parameters.
 #' @export
-#' @examples
-#' \dontrun{
-#' start_theta_multiple(example_env_m_2d, num_starts = 10, method = "uniform")
-#' }
 start_theta_multiple <- function(env_data, num_starts = 100,
                                  quant_vec = c(0.1, 0.5, 0.9),
                                  method = "sobol") {
-  # Obtain parameter ranges
+
+  # ------------------------------------------------------------------
+  # 1. COERCE TO NUMERIC MATRIX (THIS IS THE KEY FIX)
+  # ------------------------------------------------------------------
+  if (is.data.frame(env_data)) {
+    env_data <- as.matrix(env_data)
+  }
+
+  if (!is.numeric(env_data)) {
+    stop("env_data must be numeric. Convert your data before calling.")
+  }
+
+  storage.mode(env_data) <- "double"
+
+  # ------------------------------------------------------------------
+  # 2. Compute ranges (now always numeric)
+  # ------------------------------------------------------------------
   ranges <- get_range_df_niche(env_data, quant_vec)
-  lower <- ranges$lower
-  upper <- ranges$upper
-  names(lower) <- names(upper) <- rownames(ranges)
-  
+
+  lower <- as.numeric(ranges$lower)
+  upper <- as.numeric(ranges$upper)
+  param_names <- rownames(ranges)
+
+  names(lower) <- param_names
+  names(upper) <- param_names
+
+  # ------------------------------------------------------------------
+  # 3. Generate design
+  # ------------------------------------------------------------------
   if (method == "sobol") {
     if (!requireNamespace("pomp", quietly = TRUE)) {
-      stop("Package 'pomp' is required for Sobol design. ",
-           "Please install it or use method = 'uniform'.")
+      stop("Package 'pomp' is required for method='sobol'.")
     }
-    # pomp::sobol_design returns a matrix with rows as points
-    start_mat <- pomp::sobol_design(lower = lower, upper = upper, nseq = num_starts)
-    as.data.frame(start_mat)
+
+    start_mat <- pomp::sobol_design(
+      lower = lower,
+      upper = upper,
+      nseq  = num_starts
+    )
+
+    df <- as.data.frame(start_mat)
+
   } else if (method == "uniform") {
+
     n_par <- length(lower)
-    # Uniform random numbers in [0, 1]
-    mat <- matrix(stats::runif(num_starts * n_par), nrow = num_starts, ncol = n_par)
-    # Scale to [lower, upper] for each column
+    mat <- matrix(stats::runif(num_starts * n_par),
+                  nrow = num_starts, ncol = n_par)
+
     for (j in seq_len(n_par)) {
       mat[, j] <- lower[j] + mat[, j] * (upper[j] - lower[j])
     }
+
     df <- as.data.frame(mat)
-    names(df) <- names(lower)
-    df
+    names(df) <- param_names
+
   } else {
     stop("method must be either 'sobol' or 'uniform'")
   }
+
+  # ------------------------------------------------------------------
+  # 4. Final guarantee: all numeric, no NA, no Inf
+  # ------------------------------------------------------------------
+  df[] <- lapply(df, function(col) {
+    col <- as.numeric(col)
+    if (any(!is.finite(col))) {
+      stop("Non-finite values detected in generated start parameters.")
+    }
+    col
+  })
+
+  return(df)
 }
