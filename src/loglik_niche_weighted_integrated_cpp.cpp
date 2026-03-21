@@ -112,9 +112,8 @@ double loglik_niche_weighted_integrated_cpp(
   // --- Log-verosimilitud ---
   // Clamp KDE weights to a minimum positive value to prevent log(0) = -Inf
   // and subsequent NaN propagation through the optimizer
-  const double min_kde_weight = 1e-300;
-  Eigen::ArrayXd log_w_occ = w_occ.array().max(min_kde_weight).log();
-  Eigen::ArrayXd log_w_den = w_den.array().max(min_kde_weight).log();
+  Eigen::ArrayXd log_w_occ = w_occ.array().max(nicher::MIN_KDE_WEIGHT).log();
+  Eigen::ArrayXd log_w_den = w_den.array().max(nicher::MIN_KDE_WEIGHT).log();
   Eigen::ArrayXd a = log_w_den - 0.5 * q2;
   
   double max_a = a.maxCoeff();
@@ -126,7 +125,7 @@ double loglik_niche_weighted_integrated_cpp(
   // Guard against NaN/Inf: return a large finite penalty so the optimizer
   // can recover instead of crashing with a type conversion error
   if (!std::isfinite(neg_log)) {
-    neg_log = 1e300;
+    neg_log = nicher::OPTIM_PENALTY;
   }
   
   return neg ? neg_log : -neg_log;

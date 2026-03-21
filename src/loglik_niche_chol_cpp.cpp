@@ -1,9 +1,7 @@
-#include <Rcpp.h>
-#include <RcppEigen.h>
+#include "nicher_types.h"
 #include <vector>
 #include <limits>
 
-// [[Rcpp::depends(RcppEigen)]]
 using namespace Rcpp;
 
 // [[Rcpp::export]]
@@ -67,9 +65,8 @@ double loglik_niche_chol_cpp(NumericVector mu,
     double log_sum_exp = max_a + std::log(sum_exp);
     double neg_log = 0.5 * sum_q1 + static_cast<double>(n_occ) * log_sum_exp;
     
-    // Guard against NaN/Inf so the optimizer can recover
     if (!std::isfinite(neg_log)) {
-      neg_log = 1e300;
+      neg_log = nicher::OPTIM_PENALTY;
     }
     
     return neg_log;
@@ -105,9 +102,8 @@ double loglik_niche_chol_cpp(NumericVector mu,
   
   double neg_log = 0.5 * sum_q1 + static_cast<double>(n_occ) * log_sum_exp;
   
-  // Guard against NaN/Inf so the optimizer can recover
   if (!std::isfinite(neg_log)) {
-    neg_log = 1e300;
+    neg_log = nicher::OPTIM_PENALTY;
   }
   
   return neg_log;
