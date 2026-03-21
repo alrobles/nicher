@@ -20,6 +20,7 @@
 #'            correlation matrices). Passed to `cvine_cholesky`.
 #' @param neg Logical. If `TRUE` (default) returns the negative log‑likelihood
 #'            (suitable for minimization); if `FALSE` returns the positive log‑likelihood.
+#' @param ... Additional arguments (ignored, for compatibility).
 #'
 #' @return A scalar numeric value: the (negative) log‑likelihood.
 #'
@@ -34,7 +35,7 @@
 #' print(ll)
 #' }
 #' @export
-loglik_niche_math_cpp <- function(theta, env_occ, env_m, eta = 1, neg = TRUE) {
+loglik_niche_math_cpp <- function(theta, env_occ, env_m, eta = 1, neg = TRUE, ...) {
   p <- ncol(env_occ)
   mu <- theta[1:p]
   log_sigma <- theta[(p + 1):(2 * p)]

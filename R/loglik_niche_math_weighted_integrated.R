@@ -40,6 +40,11 @@ loglik_niche_math_weighted_integrated <- function(theta, env_occ, env_m, eta = 1
   env_occ <- as.matrix(env_occ)
   env_m   <- as.matrix(env_m)
   
+  # Coerce indices to integer to prevent Rcpp type mismatch errors
+  if (!is.null(den_idx)) den_idx <- as.integer(den_idx)
+  if (!is.null(kde_idx)) kde_idx <- as.integer(kde_idx)
+  if (!is.null(precomp_w_den)) precomp_w_den <- as.numeric(precomp_w_den)
+  
   # Llamada a C++ con el nuevo argumento
   loglik_niche_weighted_integrated_cpp(mu, L_cov, env_occ, env_m, den_idx, kde_idx, precomp_w_den, neg)
 }

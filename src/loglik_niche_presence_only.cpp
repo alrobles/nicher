@@ -38,5 +38,9 @@ double loglik_niche_presence_only_cpp(NumericVector mu,
   double n = static_cast<double>(n_occ);
   double neg_log = 0.5 * n * log_det + 0.5 * sum_q;
   
+  if (!std::isfinite(neg_log)) {
+    neg_log = nicher::OPTIM_PENALTY;
+  }
+  
   return neg_log;
 }
