@@ -11,6 +11,7 @@ optimize_niche(
   quant_vec = c(0.1, 0.5, 0.9),
   start_method = "sobol",
   likelihood = c("unweighted", "weighted", "presence_only"),
+  backend = c("R", "cpp"),
   control = list(),
   verbose = FALSE,
   ...
@@ -33,7 +34,13 @@ area M (background). Ignored if `likelihood = "presence_only"`.}
 \item{likelihood}{Character. One of `"unweighted"` (default), `"weighted"`,
 or `"presence_only"`.}
 
-\item{control}{List of control parameters passed to [ucminf::ucminf()].
+\item{backend}{Character. Optimization backend: `"R"` (default) uses
+[ucminf::ucminf()] with an R-level objective function;
+`"cpp"` uses [ucminfcpp::ucminf_xptr()] with a compiled C++ objective
+function for greater performance.}
+
+\item{control}{List of control parameters passed to [ucminf::ucminf()] or
+[ucminfcpp::ucminf_xptr()].
 Default values (if not supplied) are:
 \describe{
   \item{grad}{"central"}
@@ -76,11 +83,18 @@ scale. The objective function can be:
 }
 \examples{
 \dontrun{
-# Unweighted (2019) with 5 starting points
+# Unweighted (2019) with 5 starting points, R backend
 res1 <- optimize_niche(example_env_occ_2d, example_env_m_2d,
                        num_starts = 5, start_method = "uniform",
                        likelihood = "unweighted", eta = 1)
 res1$best
+
+# Unweighted (2019) with 5 starting points, C++ backend (faster)
+res1_cpp <- optimize_niche(example_env_occ_2d, example_env_m_2d,
+                           num_starts = 5, start_method = "uniform",
+                           likelihood = "unweighted", eta = 1,
+                           backend = "cpp")
+res1_cpp$best
 
 # Weighted (2022) with 5 starting points
 res2 <- optimize_niche(example_env_occ_2d, example_env_m_2d,

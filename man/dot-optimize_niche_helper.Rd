@@ -2,7 +2,7 @@
 % Please edit documentation in R/optimize_niche.R
 \name{.optimize_niche_helper}
 \alias{.optimize_niche_helper}
-\title{Internal helper: run ucminf for a single starting vector}
+\title{Internal helper: run ucminf for a single starting vector (R backend)}
 \usage{
 .optimize_niche_helper(param, obj_fun, env_occ, env_m, control, ...)
 }
@@ -22,6 +22,6 @@
 A list with components: par, value, convergence, invhessian.lt (if computed).
 }
 \description{
-Internal helper: run ucminf for a single starting vector
+Internal helper: run ucminf for a single starting vector (R backend)
 }
 \keyword{internal}

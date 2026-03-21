@@ -3,11 +3,11 @@
 \docType{data}
 \name{example_env_m_3d}
 \alias{example_env_m_3d}
-\title{Samples points from M hypothesis to estimate negative log likelihood
+\title{Samples points from M hypothesis  to estimate negative log likelihood
 from Abeillia abeillei presence points. This is a
 hummingbird example.
 A dataset with three columns containing extracted
-information from 3 bioclimatic variables.}
+information from 3 bioclimatic variables}
 \format{
 A data frame with 10000 rows and 3 variables:
 \describe{
@@ -23,10 +23,10 @@ A data frame with 10000 rows and 3 variables:
 example_env_m_3d
 }
 \description{
-Samples points from M hypothesis to estimate negative log likelihood
+Samples points from M hypothesis  to estimate negative log likelihood
 from Abeillia abeillei presence points. This is a
 hummingbird example.
 A dataset with three columns containing extracted
-information from 3 bioclimatic variables.
+information from 3 bioclimatic variables
 }
 \keyword{datasets}

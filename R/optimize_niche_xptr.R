@@ -1,246 +1,158 @@
-# R/optimize_niche_xptr.R
-# Single-start niche optimization wrappers
-#
-# These functions provide a simple interface for single-start optimization
-# of the three niche model likelihoods. Each function accepts a pre-specified
-# starting parameter vector and returns the optimized log-likelihood together
-# with the convergence code. They are designed for use in multi-start loops
-# where starting points are generated externally (e.g., via
-# start_theta_multiple() with the Sobol method).
-
-# Default ucminf control parameters shared across all wrappers.
-.default_ucminf_ctrl <- list(
-  grad     = "central",
-  gradstep = c(1e-6, 1e-8),
-  grtol    = 1e-4,
-  xtol     = 1e-8,
-  stepmax  = 5,
-  maxeval  = 2000
-)
-
-#' Single-start optimization: unweighted ellipsoid niche model
+#' Optimize niche model using a compiled XPtr backend
 #'
-#' Optimizes the unweighted log-likelihood (Jiménez & Soberón 2019) from a
-#' single user-supplied starting vector using [ucminf::ucminf()].
+#' Runs ucminfcpp::ucminf_xptr() over a compiled C++ objective function
+#' created by create_niche_obj_ptr(). Supports single-start and multi-start
+#' optimization. Ensures that all starting vectors are numeric doubles and finite.
 #'
-#' @param occ Numeric matrix (or data frame) of presence points
-#'   (\code{n_occ x p}).
-#' @param M Numeric matrix (or data frame) of background (accessibility area M)
-#'   points (\code{n_m x p}).
-#' @param start Numeric vector of starting parameters (math scale). Must have
-#'   length \eqn{p + p + p(p-1)/2}.
-#' @param eta Numeric. LKJ-C-vine prior shape parameter (default 1).
-#' @param control List of control parameters passed to [ucminf::ucminf()].
-#'   Missing entries are filled with package defaults.
+#' @param start Numeric vector (single start) or list of numeric vectors (multi-start).
+#' @param xptr External pointer created by create_niche_obj_ptr().
+#' @param control List of control parameters for ucminfcpp::ucminf_control().
+#' @param multi_start Logical; TRUE if multiple starts are supplied.
 #'
 #' @return A list with:
-#'   \item{value}{Maximized log-likelihood (positive, i.e., \code{-min}).}
-#'   \item{conv}{Convergence code from [ucminf::ucminf()] (1 or 2 = success).}
-#'   \item{theta}{Optimized parameter vector.}
+#'   \itemize{
+#'     \item par — best parameter vector
+#'     \item value — negative log-likelihood
+#'     \item conv — convergence code
+#'     \item all_results — (multi-start only) table of all runs
+#'   }
+#'
 #' @export
-#'
-#' @examples
-#' \dontrun{
-#' start <- start_theta(example_env_occ_3d)
-#' res   <- niche_unweighted(
-#'   occ   = as.matrix(example_env_occ_3d),
-#'   M     = as.matrix(example_env_m_3d),
-#'   start = start
-#' )
-#' cat("loglik =", res$value, "  conv =", res$conv, "\n")
-#' }
-niche_unweighted <- function(occ, M, start, eta = 1, control = list()) {
-  occ   <- as.matrix(occ)
-  M     <- as.matrix(M)
-  start <- as.numeric(start)
+optimize_niche_xptr <- function(start = NULL,
+                                xptr,
+                                control = ucminfcpp::ucminf_control(
+                                  grad = "central",
+                                  gradstep = c(1e-6, 1e-8),
+                                  maxeval = 200
+                                ),
+                                multi_start = FALSE) {
 
-  if (any(!is.finite(start))) {
-    stop("All elements of 'start' must be finite.")
+  # ----------------------------------------------------------
+  # Sanity check: start provided?
+  # ----------------------------------------------------------
+  if (is.null(start))
+    stop("Start vector must be provided.")
+
+  # ----------------------------------------------------------
+  # Helper to sanitize a single starting vector
+  # ----------------------------------------------------------
+  sanitize_start <- function(s) {
+    if (is.null(s))
+      stop("NULL start received.")
+
+    # Convert to numeric
+    s <- as.numeric(s)
+
+    # Must be finite doubles
+    if (!is.numeric(s))
+      stop("Start contains non-numeric values.")
+
+    if (any(!is.finite(s)))
+      stop("Start contains non-finite (NA/Inf) values.")
+
+    # Drop attributes
+    attributes(s) <- NULL
+
+    storage.mode(s) <- "double"
+    return(s)
   }
 
-  ctrl <- utils::modifyList(.default_ucminf_ctrl, control)
+  # ==========================================================
+  # SINGLE-START CASE
+  # ==========================================================
+  if (!multi_start) {
 
-  fn <- function(theta) {
-    loglik_niche_math_cpp(theta,
-                          env_occ = occ,
-                          env_m   = M,
-                          eta     = eta,
-                          neg     = TRUE)
+    s <- sanitize_start(start)
+
+    out <- tryCatch(
+      ucminfcpp:::ucminf_xptr(
+        par = s,
+        xptr = xptr,
+        control = control
+      ),
+      error = function(e) {
+        stop("Optimization failed in single-start mode: ", e$message)
+      }
+    )
+
+    # Ensure convergence code exists
+    if (is.null(out$convergence))
+      out$convergence <- NA_integer_
+
+    return(list(
+      par  = out$par,
+      value = out$value,
+      conv = out$convergence
+    ))
   }
 
-  out <- tryCatch(
-    ucminf::ucminf(par     = start,
-                   fn      = fn,
-                   control = ctrl,
-                   hessian = FALSE),
-    error = function(e) {
-      stop("Optimization failed in single-start mode: ", e$message)
-    }
-  )
+  # ==========================================================
+  # MULTI-START CASE
+  # ==========================================================
+  if (!is.list(start))
+    stop("multi_start = TRUE requires a list of numeric start vectors.")
 
-  list(
-    value = -as.numeric(out$value),
-    conv  = as.integer(out$convergence),
-    theta = out$par
-  )
-}
+  all_results <- vector("list", length(start))
 
-#' Single-start optimization: presence-only ellipsoid niche model
-#'
-#' Optimizes the presence-only log-likelihood (no background correction) from
-#' a single user-supplied starting vector using [ucminf::ucminf()].
-#'
-#' @param occ Numeric matrix (or data frame) of presence points
-#'   (\code{n_occ x p}).
-#' @param start Numeric vector of starting parameters (math scale). Must have
-#'   length \eqn{p + p + p(p-1)/2}.
-#' @param eta Numeric. LKJ-C-vine prior shape parameter (default 1).
-#' @param control List of control parameters passed to [ucminf::ucminf()].
-#'   Missing entries are filled with package defaults.
-#'
-#' @return A list with:
-#'   \item{value}{Maximized log-likelihood (positive, i.e., \code{-min}).}
-#'   \item{conv}{Convergence code from [ucminf::ucminf()] (1 or 2 = success).}
-#'   \item{theta}{Optimized parameter vector.}
-#' @export
-#'
-#' @examples
-#' \dontrun{
-#' start <- start_theta(example_env_occ_3d)
-#' res   <- niche_presence_only(
-#'   occ   = as.matrix(example_env_occ_3d),
-#'   start = start
-#' )
-#' cat("loglik =", res$value, "  conv =", res$conv, "\n")
-#' }
-niche_presence_only <- function(occ, start, eta = 1, control = list()) {
-  occ   <- as.matrix(occ)
-  start <- as.numeric(start)
+  for (i in seq_along(start)) {
 
-  if (any(!is.finite(start))) {
-    stop("All elements of 'start' must be finite.")
-  }
+    s <- tryCatch(
+      sanitize_start(start[[i]]),
+      error = function(e) {
+        # register invalid start cleanly
+        all_results[[i]] <<- list(start_id = i, value = NA, conv = NA)
+        return(NULL)
+      }
+    )
 
-  ctrl <- utils::modifyList(.default_ucminf_ctrl, control)
+    if (is.null(s))
+      next
 
-  fn <- function(theta) {
-    loglik_niche_math_presence_only(theta,
-                                    env_occ = occ,
-                                    eta     = eta,
-                                    neg     = TRUE)
-  }
+    res <- tryCatch(
+      ucminfcpp:::ucminf_xptr(
+        par = s,
+        xptr = xptr,
+        control = control
+      ),
+      error = function(e) {
+        all_results[[i]] <<- list(start_id = i, value = NA, conv = NA)
+        return(NULL)
+      }
+    )
 
-  out <- tryCatch(
-    ucminf::ucminf(par     = start,
-                   fn      = fn,
-                   control = ctrl,
-                   hessian = FALSE),
-    error = function(e) {
-      stop("Optimization failed in single-start mode: ", e$message)
-    }
-  )
+    if (is.null(res)) next
 
-  list(
-    value = -as.numeric(out$value),
-    conv  = as.integer(out$convergence),
-    theta = out$par
-  )
-}
+    if (is.null(res$convergence))
+      res$convergence <- NA_integer_
 
-#' Single-start optimization: weighted ellipsoid niche model
-#'
-#' Optimizes the weighted log-likelihood (Jiménez & Soberón 2022) from a
-#' single user-supplied starting vector using [ucminf::ucminf()]. Precomputed
-#' KDE denominator weights can be supplied to avoid recomputing them on every
-#' function evaluation, which significantly reduces runtime in multi-start
-#' scenarios.
-#'
-#' @param occ Numeric matrix (or data frame) of presence points
-#'   (\code{n_occ x p}).
-#' @param M Numeric matrix (or data frame) of background (accessibility area M)
-#'   points (\code{n_m x p}).
-#' @param den_idx Integer vector of 1-based row indices into \code{M} selecting
-#'   the denominator subsample.
-#' @param kde_idx Integer vector of 1-based row indices into \code{M} selecting
-#'   the KDE reference subsample.
-#' @param precomp_w_den Numeric vector of precomputed KDE weights for the
-#'   denominator points (i.e., \code{kde_gaussian(M[den_idx, ], M[kde_idx, ])}).
-#'   Must have the same length as \code{den_idx}.
-#' @param start Numeric vector of starting parameters (math scale). Must have
-#'   length \eqn{p + p + p(p-1)/2}.
-#' @param eta Numeric. LKJ-C-vine prior shape parameter (default 1).
-#' @param control List of control parameters passed to [ucminf::ucminf()].
-#'   Missing entries are filled with package defaults.
-#'
-#' @return A list with:
-#'   \item{value}{Maximized log-likelihood (positive, i.e., \code{-min}).}
-#'   \item{conv}{Convergence code from [ucminf::ucminf()] (1 or 2 = success).}
-#'   \item{theta}{Optimized parameter vector.}
-#' @export
-#'
-#' @examples
-#' \dontrun{
-#' occ3     <- as.matrix(example_env_occ_3d)
-#' M3       <- as.matrix(example_env_m_3d)
-#' set.seed(123)
-#' den_idx  <- sample.int(nrow(M3), 3000)
-#' kde_idx  <- sample.int(nrow(M3), 6000)
-#' pre      <- kde_gaussian(M3[den_idx, ], M3[kde_idx, ])
-#' start    <- start_theta(example_env_occ_3d)
-#' res      <- niche_weighted(
-#'   occ           = occ3,
-#'   M             = M3,
-#'   den_idx       = den_idx,
-#'   kde_idx       = kde_idx,
-#'   precomp_w_den = pre,
-#'   start         = start
-#' )
-#' cat("loglik =", res$value, "  conv =", res$conv, "\n")
-#' }
-niche_weighted <- function(occ, M, den_idx, kde_idx, precomp_w_den,
-                           start, eta = 1, control = list()) {
-  occ           <- as.matrix(occ)
-  M             <- as.matrix(M)
-  den_idx       <- as.integer(den_idx)
-  kde_idx       <- as.integer(kde_idx)
-  precomp_w_den <- as.numeric(precomp_w_den)
-  start         <- as.numeric(start)
-
-  if (any(!is.finite(start))) {
-    stop("All elements of 'start' must be finite.")
-  }
-  if (length(precomp_w_den) != length(den_idx)) {
-    stop("'precomp_w_den' must have the same length as 'den_idx'.")
-  }
-
-  ctrl <- utils::modifyList(.default_ucminf_ctrl, control)
-
-  fn <- function(theta) {
-    loglik_niche_math_weighted_integrated(
-      theta,
-      env_occ       = occ,
-      env_m         = M,
-      eta           = eta,
-      neg           = TRUE,
-      den_idx       = den_idx,
-      kde_idx       = kde_idx,
-      precomp_w_den = precomp_w_den
+    all_results[[i]] <- list(
+      start_id = i,
+      value    = res$value,
+      conv     = res$convergence,
+      par      = res$par
     )
   }
 
-  out <- tryCatch(
-    ucminf::ucminf(par     = start,
-                   fn      = fn,
-                   control = ctrl,
-                   hessian = FALSE),
-    error = function(e) {
-      stop("Optimization failed in single-start mode: ", e$message)
-    }
-  )
+  # Consolidate results
+  df <- do.call(rbind, lapply(all_results, function(r) {
+    data.frame(
+      start_id = r$start_id,
+      value    = r$value,
+      conv     = r$conv
+    )
+  }))
 
-  list(
-    value = -as.numeric(out$value),
-    conv  = as.integer(out$convergence),
-    theta = out$par
-  )
+  # Best finite result
+  idx <- which(is.finite(df$value))
+  if (length(idx) == 0)
+    stop("No valid start produced a finite objective value.")
+
+  best <- idx[which.min(df$value)]
+
+  return(list(
+    par         = all_results[[best]]$par,
+    value       = all_results[[best]]$value,
+    conv        = all_results[[best]]$conv,
+    all_results = df
+  ))
 }

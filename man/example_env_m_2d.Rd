@@ -3,10 +3,10 @@
 \docType{data}
 \name{example_env_m_2d}
 \alias{example_env_m_2d}
-\title{Samples of environmental data from M hypothesis to estimate negative log likelihood
+\title{Samples of environmental data from M hypothesis  to estimate negative log likelihood
 from Abeillia abeillei presence points. This is a hummingbird example.
 A dataset with two variables containing points
-contains 2 bioclimatic variables.}
+contains 2 bioclimatic variables}
 \format{
 A data frame with 10000 rows and 2 variables:
 \describe{
@@ -21,9 +21,9 @@ A data frame with 10000 rows and 2 variables:
 example_env_m_2d
 }
 \description{
-Samples of environmental data from M hypothesis to estimate negative log likelihood
+Samples of environmental data from M hypothesis  to estimate negative log likelihood
 from Abeillia abeillei presence points. This is a hummingbird example.
 A dataset with two variables containing points
-contains 2 bioclimatic variables.
+contains 2 bioclimatic variables
 }
 \keyword{datasets}

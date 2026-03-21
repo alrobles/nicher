@@ -13,6 +13,10 @@
 #      which passes the Cholesky factor directly to loglik_niche_chol_cpp().
 #      (Referred to below as the "ucminfcpp / C++ backend".)
 #
+#   3. ucminfcpp::ucminf_xptr() with a compiled C++ objective function created
+#      by create_niche_obj_ptr() — the new XPtr backend.
+#      (Referred to below as the "xptr backend".)
+#
 # The benchmarks run on the built-in 2-D hummingbird example datasets
 # (example_env_occ_2d / example_env_m_2d) so that they are fast enough
 # for R CMD check.  Heavier multi-start scenarios are guarded with
@@ -77,6 +81,31 @@
   }
 
   ucminf::ucminf(par = theta0, fn = fn_cpp, hessian = FALSE, control = control)
+}
+
+#' Run ucminfcpp::ucminf_xptr() with the compiled C++ NicheObjFun (xptr backend).
+#'
+#' Uses \code{\link{create_niche_obj_ptr}} to build a compiled C++ objective
+#' function and passes it directly to \code{ucminfcpp::ucminf_xptr()},
+#' eliminating all R interpreter round-trips during optimization.
+#'
+#' @param theta0 Numeric starting vector (math scale).
+#' @param env_occ,env_m Data frames for presences and background.
+#' @param control List of control parameters forwarded to
+#'   \code{ucminfcpp::ucminf_control}.
+#' @return The \code{ucminf} result list returned by \code{ucminfcpp::ucminf_xptr}.
+.run_xptr_backend <- function(theta0, env_occ, env_m,
+                               control = list(maxeval = 500)) {
+  gs <- if (!is.null(control$gradstep)) control$gradstep else c(1e-6, 1e-8)
+  xptr <- create_niche_obj_ptr(
+    env_occ    = as.matrix(env_occ),
+    env_m      = as.matrix(env_m),
+    eta        = 1.0,
+    likelihood = "unweighted",
+    gradstep   = gs
+  )
+  con <- do.call(ucminfcpp::ucminf_control, control)
+  ucminfcpp::ucminf_xptr(par = theta0, xptr = xptr, control = con)
 }
 
 # ---------------------------------------------------------------------------
@@ -273,3 +302,89 @@ test_that("Presence-only C++ backend matches R-level reconstruction (2D)", {
   expect_equal(val_cpp, val_r, tolerance = 1e-6,
                label = "Presence-only C++ and R values agree to 1e-6")
 })
+
+# ---------------------------------------------------------------------------
+# Test 7 – XPtr backend (ucminfcpp::ucminf_xptr) correctness (2D)
+# ---------------------------------------------------------------------------
+test_that("XPtr backend (create_niche_obj_ptr) produces consistent results (2D)", {
+  set.seed(42)
+  theta0 <- start_theta(example_env_occ_2d)
+
+  res_cpp  <- .run_ucminf_cpp_backend(theta0, example_env_occ_2d, example_env_m_2d)
+  res_xptr <- .run_xptr_backend(theta0, example_env_occ_2d, example_env_m_2d)
+
+  # Both must yield a finite objective value
+  expect_true(is.finite(res_cpp$value),
+              label = "C++ backend returns finite value")
+  expect_true(is.finite(res_xptr$value),
+              label = "XPtr backend returns finite value")
+
+  # Log-likelihoods must agree within tolerance
+  expect_equal(res_cpp$value, res_xptr$value, tolerance = 1e-3,
+               label = "C++ and XPtr backend log-likelihoods agree within 1e-3")
+
+  # Convergence must be successful for both
+  expect_true(res_xptr$convergence %in% c(1L, 2L),
+              label = "XPtr backend converges (code 1 or 2)")
+})
+
+# ---------------------------------------------------------------------------
+# Test 8 – XPtr backend via optimize_niche(backend="cpp") (2D)
+# ---------------------------------------------------------------------------
+test_that("optimize_niche(backend='cpp') matches optimize_niche(backend='R') (2D)", {
+  set.seed(42)
+
+  res_r <- optimize_niche(
+    env_occ      = example_env_occ_2d,
+    env_m        = example_env_m_2d,
+    num_starts   = 3L,
+    start_method = "uniform",
+    likelihood   = "unweighted",
+    backend      = "R",
+    eta          = 1
+  )
+
+  set.seed(42)
+  res_cpp <- optimize_niche(
+    env_occ      = example_env_occ_2d,
+    env_m        = example_env_m_2d,
+    num_starts   = 3L,
+    start_method = "uniform",
+    likelihood   = "unweighted",
+    backend      = "cpp",
+    eta          = 1
+  )
+
+  # Best log-likelihoods must agree within reasonable tolerance
+  expect_equal(res_r$best$loglik, res_cpp$best$loglik, tolerance = 1e-2,
+               label = "backend='R' and backend='cpp' best log-likelihoods agree")
+
+  # Both must return the expected structure
+  expect_true(is.list(res_cpp),                     label = "cpp result is a list")
+  expect_true(!is.null(res_cpp$best),               label = "cpp result has $best")
+  expect_true(!is.null(res_cpp$solutions),          label = "cpp result has $solutions")
+  expect_true(is.finite(res_cpp$best$loglik),       label = "cpp best$loglik is finite")
+  expect_true(res_cpp$best$convergence %in% c(1L, 2L),
+              label = "cpp best$convergence is successful")
+})
+
+# ---------------------------------------------------------------------------
+# Test 9 – Presence-only XPtr backend via optimize_niche(backend="cpp")
+# ---------------------------------------------------------------------------
+test_that("optimize_niche(backend='cpp', likelihood='presence_only') works (2D)", {
+  set.seed(42)
+
+  res_cpp <- optimize_niche(
+    env_occ      = example_env_occ_2d,
+    env_m        = NULL,
+    num_starts   = 3L,
+    start_method = "uniform",
+    likelihood   = "presence_only",
+    backend      = "cpp",
+    eta          = 1
+  )
+
+  expect_true(is.list(res_cpp),               label = "presence_only cpp result is a list")
+  expect_true(is.finite(res_cpp$best$loglik), label = "presence_only cpp loglik is finite")
+})
+

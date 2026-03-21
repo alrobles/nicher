@@ -25,3 +25,7 @@ loglik_niche_weighted_integrated_cpp <- function(mu, L, env_occ, env_m, den_idx 
     .Call(`_nicher_loglik_niche_weighted_integrated_cpp`, mu, L, env_occ, env_m, den_idx, kde_idx, precomp_w_den, neg)
 }
 
+create_niche_obj_ptr <- function(env_occ, env_m = NULL, eta = 1.0, likelihood = "unweighted", den_idx = NULL, kde_idx = NULL, precomp_w_den = NULL, gradstep = as.numeric( c(1e-6,1e-8))) {
+    .Call(`_nicher_create_niche_obj_ptr`, env_occ, env_m, eta, likelihood, den_idx, kde_idx, precomp_w_den, gradstep)
+}
+
