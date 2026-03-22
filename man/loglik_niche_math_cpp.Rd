@@ -4,7 +4,7 @@
 \alias{loglik_niche_math_cpp}
 \title{Negative log-likelihood (niche model, math scale, Cholesky version)}
 \usage{
-loglik_niche_math_cpp(theta, env_occ, env_m, eta = 1, neg = TRUE)
+loglik_niche_math_cpp(theta, env_occ, env_m, eta = 1, neg = TRUE, ...)
 }
 \arguments{
 \item{theta}{Numeric vector of unconstrained parameters:
@@ -25,6 +25,8 @@ correlation matrices). Passed to `cvine_cholesky`.}
 
 \item{neg}{Logical. If `TRUE` (default) returns the negative log‑likelihood
 (suitable for minimization); if `FALSE` returns the positive log‑likelihood.}
+
+\item{...}{Additional arguments (ignored, for compatibility).}
 }
 \value{
 A scalar numeric value: the (negative) log‑likelihood.

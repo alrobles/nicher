@@ -93,7 +93,7 @@ optimize_niche <- function(env_occ, env_m,
   # Match arguments
   likelihood <- match.arg(likelihood)
   backend    <- match.arg(backend)
-  
+
   # Validate inputs based on likelihood
   if (likelihood != "presence_only") {
     if (missing(env_m) || is.null(env_m)) stop("env_m must be provided for likelihood '", likelihood, "'")
@@ -101,16 +101,16 @@ optimize_niche <- function(env_occ, env_m,
       stop("env_occ and env_m must have the same variables (column names)")
     }
   }
-  
+
   # Determine which data to use for generating starting ranges
-  range_data <- if (likelihood == "presence_only") env_occ else env_m
-  
+  #range_data <- if (likelihood == "presence_only") env_occ else env_m
+
   # Generate starting points (using the appropriate data for ranges)
-  starts_df <- start_theta_multiple(env_data  = range_data,
+  starts_df <- start_theta_multiple(env_data  = env_occ,
                                     num_starts = num_starts,
                                     quant_vec  = quant_vec,
                                     method     = start_method)
-  
+
   # Convert each row to a named numeric vector
   starts_list <- split(starts_df, seq_len(nrow(starts_df)))
   starts_list <- lapply(starts_list, function(x) {
@@ -118,7 +118,7 @@ optimize_niche <- function(env_occ, env_m,
     names(v) <- colnames(starts_df)
     v
   })
-  
+
   # Default control for ucminf / ucminfcpp
   default_ctrl <- list(
     grad     = "central",
@@ -129,7 +129,7 @@ optimize_niche <- function(env_occ, env_m,
     maxeval  = 2000
   )
   ctrl <- utils::modifyList(default_ctrl, control)
-  
+
   if (backend == "cpp") {
     # -----------------------------------------------------------------------
     # C++ backend: use ucminfcpp::ucminf_xptr() with a compiled objective
@@ -156,7 +156,7 @@ optimize_niche <- function(env_occ, env_m,
                       unweighted    = loglik_niche_math_cpp,
                       weighted      = loglik_niche_math_weighted,
                       presence_only = loglik_niche_math_presence_only)
-    
+
     runner <- function(start_vec, id) {
       if (verbose) {
         cat(sprintf("Starting point %d\n", id))
@@ -176,13 +176,13 @@ optimize_niche <- function(env_occ, env_m,
       )
     }
   }
-  
+
   # Run sequentially
   results <- vector("list", length(starts_list))
   for (i in seq_along(starts_list)) {
     results[[i]] <- runner(starts_list[[i]], i)
   }
-  
+
   # Compile results
   solutions <- data.frame(
     start_id   = seq_along(results),
@@ -191,23 +191,23 @@ optimize_niche <- function(env_occ, env_m,
     stringsAsFactors = FALSE
   )
   solutions$full_par <- lapply(results, function(x) x$theta)
-  
+
   # Sort by decreasing log-likelihood
   ord <- order(solutions$loglik, decreasing = TRUE)
   solutions <- solutions[ord, ]
   rownames(solutions) <- NULL
-  
+
   best <- list(
     theta       = solutions$full_par[[1]],
     loglik      = solutions$loglik[1],
     convergence = solutions$convergence[1]
   )
-  
+
   if (verbose) {
     cat(sprintf("Best log-likelihood: %.6f (convergence = %d)\n",
                 best$loglik, best$convergence))
   }
-  
+
   list(solutions = solutions, best = best)
 }
 
@@ -227,7 +227,7 @@ optimize_niche <- function(env_occ, env_m,
   if (any(!is.finite(param))) {
     stop("All starting parameters must be finite")
   }
-  
+
   # Objective function (returns negative log-likelihood)
   fn <- function(theta) {
     obj_fun(theta,
@@ -236,7 +236,7 @@ optimize_niche <- function(env_occ, env_m,
             neg     = TRUE,
             ...)
   }
-  
+
   # Run ucminf with error handling
   out <- tryCatch(
     {
@@ -258,7 +258,7 @@ optimize_niche <- function(env_occ, env_m,
            error = conditionMessage(e))
     }
   )
-  
+
   list(
     par = out$par,
     value = as.numeric(out$value),
@@ -291,37 +291,37 @@ optimize_niche <- function(env_occ, env_m,
   if (any(!is.finite(param))) {
     stop("All starting parameters must be finite")
   }
-  
+
   dots <- list(...)
   eta  <- if (!is.null(dots$eta)) dots$eta else 1.0
-  
+
   # Convert data frames to matrices
   env_occ_mat <- as.matrix(env_occ)
   env_m_mat   <- if (!is.null(env_m)) as.matrix(env_m) else NULL
-  
+
   # For the weighted likelihood, resolve subsampling indices once before
   # optimization (fixed indices ensure a smooth, consistent objective function)
   den_idx      <- NULL
   kde_idx      <- NULL
   precomp_w_den <- NULL
-  
+
   if (likelihood == "weighted" && !is.null(env_m_mat)) {
     n_m <- nrow(env_m_mat)
     if (!is.null(dots$seed)) set.seed(dots$seed)
-    
+
     pick_size <- function(x, nmax) {
       if (is.null(x)) return(NULL)
       if (length(x) != 1L || !is.numeric(x) || !is.finite(x) || x <= 0)
         stop("m_subsample/m_kde_subsample must be a single positive number.")
       if (x < 1) max(1L, floor(x * nmax)) else min(nmax, as.integer(round(x)))
     }
-    
+
     n_den  <- pick_size(dots$m_subsample,     n_m)
     den_idx <- if (!is.null(n_den)  && n_den  < n_m) sample.int(n_m, n_den)  else NULL
     n_kde  <- pick_size(dots$m_kde_subsample, n_m)
     kde_idx <- if (!is.null(n_kde)  && n_kde  < n_m) sample.int(n_m, n_kde)  else NULL
   }
-  
+
   # Create the compiled C++ objective function (external pointer).
   # Pass gradstep from control so finite-difference steps match the user's
   # configured values (defaults: c(1e-6, 1e-8), same as ucminf defaults).
@@ -336,7 +336,7 @@ optimize_niche <- function(env_occ, env_m,
     precomp_w_den = precomp_w_den,
     gradstep      = gs
   )
-  
+
   # Build ucminfcpp control object by forwarding the (validated) control list.
   # This preserves existing defaults while allowing additional ucminf options.
   control_args <- control
@@ -350,7 +350,7 @@ optimize_niche <- function(env_occ, env_m,
     control_args$maxeval <- as.integer(control_args$maxeval)
   }
   con <- do.call(ucminfcpp::ucminf_control, control_args)
-  
+
   # Run optimization with error handling
   out <- tryCatch(
     {
@@ -366,7 +366,7 @@ optimize_niche <- function(env_occ, env_m,
            error = conditionMessage(e))
     }
   )
-  
+
   list(
     theta       = out$par,
     loglik      = -out$value,
