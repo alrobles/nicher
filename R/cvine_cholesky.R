@@ -56,7 +56,7 @@
 #' v <- c(0.1, -0.2, 0.8)
 #' L <- cvine_cholesky(v, d = 3)
 #' R <- tcrossprod(L)
-#' all.equal(diag(R), rep(1, 3))  # Should be TRUE
+#' all.equal(diag(R), rep(1, 3)) # Should be TRUE
 #'
 #' @export
 cvine_cholesky <- function(v, d, eta = 1) {
@@ -66,13 +66,17 @@ cvine_cholesky <- function(v, d, eta = 1) {
     "v must be numeric" = is.numeric(v)
   )
 
-  if (d == 1L) return(matrix(1, 1, 1))
+  if (d == 1L) {
+    return(matrix(1, 1, 1))
+  }
 
   # Need exactly one real per edge: m = d*(d-1)/2
   m_needed <- d * (d - 1L) / 2L
   if (length(v) != m_needed) {
-    stop(sprintf("v must have length %d for d=%d (got %d).",
-                 m_needed, d, length(v)))
+    stop(sprintf(
+      "v must have length %d for d=%d (got %d).",
+      m_needed, d, length(v)
+    ))
   }
 
   cvine_cholesky_cpp(v, d, eta)

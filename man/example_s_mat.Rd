@@ -5,7 +5,7 @@
 \alias{example_s_mat}
 \title{Example of a covariance matrix of an ellipsoid from two
 environmental variables.
-The 2 x 2 matrix corresponded to a positive 
+The 2 x 2 matrix corresponded to a positive
 semi-definite matrix.
 In two dimensions encodes the rotation (orientation) and scaling of an
 ellipse.}
@@ -21,7 +21,7 @@ example_s_mat
 \description{
 Example of a covariance matrix of an ellipsoid from two
 environmental variables.
-The 2 x 2 matrix corresponded to a positive 
+The 2 x 2 matrix corresponded to a positive
 semi-definite matrix.
 In two dimensions encodes the rotation (orientation) and scaling of an
 ellipse.

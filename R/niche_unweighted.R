@@ -20,7 +20,6 @@
 #'
 #' @export
 niche_unweighted <- function(occ, M, eta = 1, start = NULL, ...) {
-
   xptr <- create_niche_obj_ptr(
     env_occ    = as.matrix(occ),
     env_m      = as.matrix(M),

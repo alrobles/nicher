@@ -38,21 +38,23 @@
 #'   \code{\link[ucminf]{ucminf}}.
 #' @return The raw \code{ucminf} result list.
 .run_ucminf_r_backend <- function(theta0, env_occ, env_m,
-                                   control = list(maxeval = 500)) {
+                                  control = list(maxeval = 500)) {
   p <- ncol(env_occ)
 
   fn_r <- function(theta) {
-    mu        <- theta[seq_len(p)]
-    sigma     <- exp(theta[(p + 1L):(2L * p)])
-    v         <- if (p > 1L) theta[(2L * p + 1L):length(theta)] else numeric(0L)
-    L_corr    <- cvine_cholesky(v, d = p, eta = 1)
-    L_cov     <- diag(sigma) %*% L_corr
-    S         <- tcrossprod(L_cov)         # Sigma = L L'
-    loglik_niche(mu       = mu,
-                 s_mat    = S,
-                 env_occ  = env_occ,
-                 env_m    = env_m,
-                 neg      = TRUE)
+    mu <- theta[seq_len(p)]
+    sigma <- exp(theta[(p + 1L):(2L * p)])
+    v <- if (p > 1L) theta[(2L * p + 1L):length(theta)] else numeric(0L)
+    L_corr <- cvine_cholesky(v, d = p, eta = 1)
+    L_cov <- diag(sigma) %*% L_corr
+    S <- tcrossprod(L_cov) # Sigma = L L'
+    loglik_niche(
+      mu = mu,
+      s_mat = S,
+      env_occ = env_occ,
+      env_m = env_m,
+      neg = TRUE
+    )
   }
 
   ucminf::ucminf(par = theta0, fn = fn_r, hessian = FALSE, control = control)
@@ -71,13 +73,14 @@
 #'   \code{\link[ucminf]{ucminf}}.
 #' @return The raw \code{ucminf} result list.
 .run_ucminf_cpp_backend <- function(theta0, env_occ, env_m,
-                                     control = list(maxeval = 500)) {
+                                    control = list(maxeval = 500)) {
   fn_cpp <- function(theta) {
     loglik_niche_math_cpp(theta,
-                          env_occ = env_occ,
-                          env_m   = env_m,
-                          eta     = 1,
-                          neg     = TRUE)
+      env_occ = env_occ,
+      env_m   = env_m,
+      eta     = 1,
+      neg     = TRUE
+    )
   }
 
   ucminf::ucminf(par = theta0, fn = fn_cpp, hessian = FALSE, control = control)
@@ -95,7 +98,7 @@
 #'   \code{ucminfcpp::ucminf_control}.
 #' @return The \code{ucminf} result list returned by \code{ucminfcpp::ucminf_xptr}.
 .run_xptr_backend <- function(theta0, env_occ, env_m,
-                               control = list(maxeval = 500)) {
+                              control = list(maxeval = 500)) {
   gs <- if (!is.null(control$gradstep)) control$gradstep else c(1e-6, 1e-8)
   xptr <- create_niche_obj_ptr(
     env_occ    = as.matrix(env_occ),
@@ -115,25 +118,31 @@ test_that("R-backend and C++ backend produce numerically consistent log-likeliho
   set.seed(42)
   theta0 <- start_theta(example_env_occ_2d)
 
-  res_r   <- .run_ucminf_r_backend(theta0, example_env_occ_2d, example_env_m_2d)
+  res_r <- .run_ucminf_r_backend(theta0, example_env_occ_2d, example_env_m_2d)
   res_cpp <- .run_ucminf_cpp_backend(theta0, example_env_occ_2d, example_env_m_2d)
 
   # Both optimizations must reach a finite negative log-likelihood
   expect_true(is.finite(res_r$value),
-              label = "R-backend returns a finite objective value")
+    label = "R-backend returns a finite objective value"
+  )
   expect_true(is.finite(res_cpp$value),
-              label = "C++ backend returns a finite objective value")
+    label = "C++ backend returns a finite objective value"
+  )
 
   # Optimized log-likelihoods must agree within a generous tolerance
   # (both backends minimize the same mathematical function)
-  expect_equal(res_r$value, res_cpp$value, tolerance = 1e-3,
-               label = "R- and C++ backend log-likelihoods match within 1e-3")
+  expect_equal(res_r$value, res_cpp$value,
+    tolerance = 1e-3,
+    label = "R- and C++ backend log-likelihoods match within 1e-3"
+  )
 
   # Both must report convergence (ucminf code 1 or 2 = success)
   expect_true(res_r$convergence %in% c(1L, 2L),
-              label = "R-backend converges (code 1 or 2)")
+    label = "R-backend converges (code 1 or 2)"
+  )
   expect_true(res_cpp$convergence %in% c(1L, 2L),
-              label = "C++ backend converges (code 1 or 2)")
+    label = "C++ backend converges (code 1 or 2)"
+  )
 })
 
 # ---------------------------------------------------------------------------
@@ -143,16 +152,20 @@ test_that("R-backend and C++ backend produce numerically consistent log-likeliho
   set.seed(42)
   theta0 <- start_theta(example_env_occ_3d)
 
-  res_r   <- .run_ucminf_r_backend(theta0, example_env_occ_3d, example_env_m_3d)
+  res_r <- .run_ucminf_r_backend(theta0, example_env_occ_3d, example_env_m_3d)
   res_cpp <- .run_ucminf_cpp_backend(theta0, example_env_occ_3d, example_env_m_3d)
 
   expect_true(is.finite(res_r$value),
-              label = "R-backend 3D returns finite value")
+    label = "R-backend 3D returns finite value"
+  )
   expect_true(is.finite(res_cpp$value),
-              label = "C++ backend 3D returns finite value")
+    label = "C++ backend 3D returns finite value"
+  )
 
-  expect_equal(res_r$value, res_cpp$value, tolerance = 1e-3,
-               label = "R- and C++ backend 3D log-likelihoods match within 1e-3")
+  expect_equal(res_r$value, res_cpp$value,
+    tolerance = 1e-3,
+    label = "R- and C++ backend 3D log-likelihoods match within 1e-3"
+  )
 })
 
 # ---------------------------------------------------------------------------
@@ -162,12 +175,14 @@ test_that("R-backend and C++ backend converge to the same parameter vector (2D)"
   set.seed(42)
   theta0 <- start_theta(example_env_occ_2d)
 
-  res_r   <- .run_ucminf_r_backend(theta0, example_env_occ_2d, example_env_m_2d)
+  res_r <- .run_ucminf_r_backend(theta0, example_env_occ_2d, example_env_m_2d)
   res_cpp <- .run_ucminf_cpp_backend(theta0, example_env_occ_2d, example_env_m_2d)
 
   # Parameter estimates must coincide within a moderate tolerance
-  expect_equal(res_r$par, res_cpp$par, tolerance = 1e-2,
-               label = "Optimal parameter vectors agree within 1e-2")
+  expect_equal(res_r$par, res_cpp$par,
+    tolerance = 1e-2,
+    label = "Optimal parameter vectors agree within 1e-2"
+  )
 })
 
 # ---------------------------------------------------------------------------
@@ -196,7 +211,7 @@ test_that("C++ backend is not slower than R backend (2D, single start)", {
   message(sprintf(
     "\n--- Timing benchmark (2D, %d repetitions) ---\n  R backend:   %.4f s total (%.4f s/rep)\n  C++ backend: %.4f s total (%.4f s/rep)\n  Speedup:     %.2fx\n",
     n_reps,
-    time_r,   time_r   / n_reps,
+    time_r,   time_r / n_reps,
     time_cpp, time_cpp / n_reps,
     time_r / max(time_cpp, .Machine$double.eps)
   ))
@@ -232,11 +247,14 @@ test_that("optimize_niche (C++ backend) outperforms equivalent R-backend loop (2
   )["elapsed"]
 
   # --- R backend: replicate multi-start logic manually ------------------
-  starts_df   <- start_theta_multiple(example_env_m_2d, n_starts,
-                                      method = "uniform")
+  starts_df <- start_theta_multiple(example_env_m_2d, n_starts,
+    method = "uniform"
+  )
   starts_list <- split(starts_df, seq_len(nrow(starts_df)))
   starts_list <- lapply(starts_list, function(x) {
-    v <- as.numeric(x); names(v) <- colnames(starts_df); v
+    v <- as.numeric(x)
+    names(v) <- colnames(starts_df)
+    v
   })
 
   time_r <- system.time({
@@ -246,7 +264,7 @@ test_that("optimize_niche (C++ backend) outperforms equivalent R-backend loop (2
   })["elapsed"]
 
   best_loglik_cpp <- result_cpp$best$loglik
-  best_loglik_r   <- max(sapply(results_r, function(x) -x$value))
+  best_loglik_r <- max(sapply(results_r, function(x) -x$value))
 
   # Report for informational purposes
   message(sprintf(
@@ -258,8 +276,10 @@ test_that("optimize_niche (C++ backend) outperforms equivalent R-backend loop (2
   ))
 
   # Both approaches must reach comparable likelihoods
-  expect_equal(best_loglik_r, best_loglik_cpp, tolerance = 0.1,
-               label = "Multi-start best log-likelihoods agree within 0.1 units")
+  expect_equal(best_loglik_r, best_loglik_cpp,
+    tolerance = 0.1,
+    label = "Multi-start best log-likelihoods agree within 0.1 units"
+  )
 
   # The C++ backend must not be dramatically slower than the R backend
   expect_true(
@@ -277,30 +297,33 @@ test_that("Presence-only C++ backend matches R-level reconstruction (2D)", {
 
   # C++ backend via the exported wrapper
   val_cpp <- loglik_niche_math_presence_only(theta0, example_env_occ_2d,
-                                             eta = 1, neg = TRUE)
+    eta = 1, neg = TRUE
+  )
 
   # R-level reconstruction matching the C++ formula exactly:
   #   neg_log = 0.5 * n * log_det + 0.5 * sum_q
   # where log_det = 2 * sum(log(diag(L_cov))) and
   #       sum_q   = ||L_cov^{-1} (X - mu)||_F^2  (sum over rows of X)
-  p       <- ncol(example_env_occ_2d)
-  mu0     <- theta0[seq_len(p)]
-  sigma0  <- exp(theta0[(p + 1L):(2L * p)])
-  v0      <- theta0[(2L * p + 1L):length(theta0)]
+  p <- ncol(example_env_occ_2d)
+  mu0 <- theta0[seq_len(p)]
+  sigma0 <- exp(theta0[(p + 1L):(2L * p)])
+  v0 <- theta0[(2L * p + 1L):length(theta0)]
   L_corr0 <- cvine_cholesky(v0, d = p, eta = 1)
-  L_cov0  <- diag(sigma0) %*% L_corr0
+  L_cov0 <- diag(sigma0) %*% L_corr0
 
-  env_mat  <- as.matrix(example_env_occ_2d)
-  n        <- nrow(env_mat)
-  diff_occ <- t(sweep(env_mat, 2L, mu0))       # p x n matrix of (x_i - mu)
-  y_occ    <- forwardsolve(L_cov0, diff_occ)   # p x n: L^{-1} (x_i - mu)
-  sum_q    <- sum(y_occ^2)
-  log_det  <- 2 * sum(log(diag(L_cov0)))       # log|Sigma|
+  env_mat <- as.matrix(example_env_occ_2d)
+  n <- nrow(env_mat)
+  diff_occ <- t(sweep(env_mat, 2L, mu0)) # p x n matrix of (x_i - mu)
+  y_occ <- forwardsolve(L_cov0, diff_occ) # p x n: L^{-1} (x_i - mu)
+  sum_q <- sum(y_occ^2)
+  log_det <- 2 * sum(log(diag(L_cov0))) # log|Sigma|
 
   val_r <- 0.5 * n * log_det + 0.5 * sum_q
 
-  expect_equal(val_cpp, val_r, tolerance = 1e-6,
-               label = "Presence-only C++ and R values agree to 1e-6")
+  expect_equal(val_cpp, val_r,
+    tolerance = 1e-6,
+    label = "Presence-only C++ and R values agree to 1e-6"
+  )
 })
 
 # ---------------------------------------------------------------------------
@@ -310,22 +333,27 @@ test_that("XPtr backend (create_niche_obj_ptr) produces consistent results (2D)"
   set.seed(42)
   theta0 <- start_theta(example_env_occ_2d)
 
-  res_cpp  <- .run_ucminf_cpp_backend(theta0, example_env_occ_2d, example_env_m_2d)
+  res_cpp <- .run_ucminf_cpp_backend(theta0, example_env_occ_2d, example_env_m_2d)
   res_xptr <- .run_xptr_backend(theta0, example_env_occ_2d, example_env_m_2d)
 
   # Both must yield a finite objective value
   expect_true(is.finite(res_cpp$value),
-              label = "C++ backend returns finite value")
+    label = "C++ backend returns finite value"
+  )
   expect_true(is.finite(res_xptr$value),
-              label = "XPtr backend returns finite value")
+    label = "XPtr backend returns finite value"
+  )
 
   # Log-likelihoods must agree within tolerance
-  expect_equal(res_cpp$value, res_xptr$value, tolerance = 1e-3,
-               label = "C++ and XPtr backend log-likelihoods agree within 1e-3")
+  expect_equal(res_cpp$value, res_xptr$value,
+    tolerance = 1e-3,
+    label = "C++ and XPtr backend log-likelihoods agree within 1e-3"
+  )
 
   # Convergence must be successful for both
   expect_true(res_xptr$convergence %in% c(1L, 2L),
-              label = "XPtr backend converges (code 1 or 2)")
+    label = "XPtr backend converges (code 1 or 2)"
+  )
 })
 
 # ---------------------------------------------------------------------------
@@ -356,16 +384,19 @@ test_that("optimize_niche(backend='cpp') matches optimize_niche(backend='R') (2D
   )
 
   # Best log-likelihoods must agree within reasonable tolerance
-  expect_equal(res_r$best$loglik, res_cpp$best$loglik, tolerance = 1e-2,
-               label = "backend='R' and backend='cpp' best log-likelihoods agree")
+  expect_equal(res_r$best$loglik, res_cpp$best$loglik,
+    tolerance = 1e-2,
+    label = "backend='R' and backend='cpp' best log-likelihoods agree"
+  )
 
   # Both must return the expected structure
-  expect_true(is.list(res_cpp),                     label = "cpp result is a list")
-  expect_true(!is.null(res_cpp$best),               label = "cpp result has $best")
-  expect_true(!is.null(res_cpp$solutions),          label = "cpp result has $solutions")
-  expect_true(is.finite(res_cpp$best$loglik),       label = "cpp best$loglik is finite")
+  expect_true(is.list(res_cpp), label = "cpp result is a list")
+  expect_true(!is.null(res_cpp$best), label = "cpp result has $best")
+  expect_true(!is.null(res_cpp$solutions), label = "cpp result has $solutions")
+  expect_true(is.finite(res_cpp$best$loglik), label = "cpp best$loglik is finite")
   expect_true(res_cpp$best$convergence %in% c(1L, 2L),
-              label = "cpp best$convergence is successful")
+    label = "cpp best$convergence is successful"
+  )
 })
 
 # ---------------------------------------------------------------------------
@@ -384,7 +415,6 @@ test_that("optimize_niche(backend='cpp', likelihood='presence_only') works (2D)"
     eta          = 1
   )
 
-  expect_true(is.list(res_cpp),               label = "presence_only cpp result is a list")
+  expect_true(is.list(res_cpp), label = "presence_only cpp result is a list")
   expect_true(is.finite(res_cpp$best$loglik), label = "presence_only cpp loglik is finite")
 })
-

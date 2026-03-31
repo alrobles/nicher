@@ -43,9 +43,10 @@ performance with the original `loglik_niche_math`.
 theta <- start_theta(example_env_occ_2d)
 # Unweighted log-likelihood (math scale) using Cholesky version
 ll <- loglik_niche_math_cpp(theta,
-                            env_occ = example_env_occ_2d,
-                            env_m   = example_env_m_2d,
-                            eta = 1, neg = TRUE)
+  env_occ = example_env_occ_2d,
+  env_m = example_env_m_2d,
+  eta = 1, neg = TRUE
+)
 print(ll)
 }
 }

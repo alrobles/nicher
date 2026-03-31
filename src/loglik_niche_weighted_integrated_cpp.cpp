@@ -121,7 +121,7 @@ double loglik_niche_weighted_integrated_cpp(
   // and subsequent NaN propagation through the optimizer
   Eigen::ArrayXd log_w_occ = w_occ.array().max(nicher::MIN_KDE_WEIGHT).log();
   Eigen::ArrayXd log_w_den = w_den.array().max(nicher::MIN_KDE_WEIGHT).log();
-  Eigen::ArrayXd a = log_w_den - 0.5 * q2;
+  Eigen::ArrayXd a = -0.5 * q2 - log_w_den;
 
   double max_a = a.maxCoeff();
   double sum_exp = (a - max_a).exp().sum();

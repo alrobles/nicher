@@ -24,12 +24,12 @@ loglik_niche_math_presence_only <- function(theta, env_occ, eta = 1, neg = TRUE,
   log_sigma <- theta[(p + 1):(2 * p)]
   sigma <- exp(log_sigma)
   v <- if (p > 1) theta[(2 * p + 1):length(theta)] else numeric(0)
-  
+
   L_corr <- cvine_cholesky(v, d = p, eta = eta)
   L_cov <- diag(sigma) %*% L_corr
-  
+
   env_occ <- as.matrix(env_occ)
-  
+
   val <- loglik_niche_presence_only_cpp(mu, L_cov, env_occ)
   if (neg) val else -val
 }

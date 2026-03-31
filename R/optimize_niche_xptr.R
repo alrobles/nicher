@@ -26,29 +26,32 @@ optimize_niche_xptr <- function(start = NULL,
                                   maxeval = 200
                                 ),
                                 multi_start = FALSE) {
-
   # ----------------------------------------------------------
   # Sanity check: start provided?
   # ----------------------------------------------------------
-  if (is.null(start))
+  if (is.null(start)) {
     stop("Start vector must be provided.")
+  }
 
   # ----------------------------------------------------------
   # Helper to sanitize a single starting vector
   # ----------------------------------------------------------
   sanitize_start <- function(s) {
-    if (is.null(s))
+    if (is.null(s)) {
       stop("NULL start received.")
+    }
 
     # Convert to numeric
     s <- as.numeric(s)
 
     # Must be finite doubles
-    if (!is.numeric(s))
+    if (!is.numeric(s)) {
       stop("Start contains non-numeric values.")
+    }
 
-    if (any(!is.finite(s)))
+    if (any(!is.finite(s))) {
       stop("Start contains non-finite (NA/Inf) values.")
+    }
 
     # Drop attributes
     attributes(s) <- NULL
@@ -61,7 +64,6 @@ optimize_niche_xptr <- function(start = NULL,
   # SINGLE-START CASE
   # ==========================================================
   if (!multi_start) {
-
     s <- sanitize_start(start)
 
     out <- tryCatch(
@@ -76,11 +78,12 @@ optimize_niche_xptr <- function(start = NULL,
     )
 
     # Ensure convergence code exists
-    if (is.null(out$convergence))
+    if (is.null(out$convergence)) {
       out$convergence <- NA_integer_
+    }
 
     return(list(
-      par  = out$par,
+      par = out$par,
       value = out$value,
       conv = out$convergence
     ))
@@ -89,13 +92,13 @@ optimize_niche_xptr <- function(start = NULL,
   # ==========================================================
   # MULTI-START CASE
   # ==========================================================
-  if (!is.list(start))
+  if (!is.list(start)) {
     stop("multi_start = TRUE requires a list of numeric start vectors.")
+  }
 
   all_results <- vector("list", length(start))
 
   for (i in seq_along(start)) {
-
     s <- tryCatch(
       sanitize_start(start[[i]]),
       error = function(e) {
@@ -105,8 +108,9 @@ optimize_niche_xptr <- function(start = NULL,
       }
     )
 
-    if (is.null(s))
+    if (is.null(s)) {
       next
+    }
 
     res <- tryCatch(
       ucminfcpp:::ucminf_xptr(
@@ -122,8 +126,9 @@ optimize_niche_xptr <- function(start = NULL,
 
     if (is.null(res)) next
 
-    if (is.null(res$convergence))
+    if (is.null(res$convergence)) {
       res$convergence <- NA_integer_
+    }
 
     all_results[[i]] <- list(
       start_id = i,
@@ -144,8 +149,9 @@ optimize_niche_xptr <- function(start = NULL,
 
   # Best finite result
   idx <- which(is.finite(df$value))
-  if (length(idx) == 0)
+  if (length(idx) == 0) {
     stop("No valid start produced a finite objective value.")
+  }
 
   best <- idx[which.min(df$value)]
 

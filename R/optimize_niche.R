@@ -57,28 +57,33 @@
 #' \dontrun{
 #' # Unweighted (2019) with 5 starting points, R backend
 #' res1 <- optimize_niche(example_env_occ_2d, example_env_m_2d,
-#'                        num_starts = 5, start_method = "uniform",
-#'                        likelihood = "unweighted", eta = 1)
+#'   num_starts = 5, start_method = "uniform",
+#'   likelihood = "unweighted", eta = 1
+#' )
 #' res1$best
 #'
 #' # Unweighted (2019) with 5 starting points, C++ backend (faster)
 #' res1_cpp <- optimize_niche(example_env_occ_2d, example_env_m_2d,
-#'                            num_starts = 5, start_method = "uniform",
-#'                            likelihood = "unweighted", eta = 1,
-#'                            backend = "cpp")
+#'   num_starts = 5, start_method = "uniform",
+#'   likelihood = "unweighted", eta = 1,
+#'   backend = "cpp"
+#' )
 #' res1_cpp$best
 #'
 #' # Weighted (2022) with 5 starting points
 #' res2 <- optimize_niche(example_env_occ_2d, example_env_m_2d,
-#'                        num_starts = 5, start_method = "uniform",
-#'                        likelihood = "weighted", eta = 1,
-#'                        m_subsample = 2000, m_kde_subsample = 5000, seed = 123)
+#'   num_starts = 5, start_method = "uniform",
+#'   likelihood = "weighted", eta = 1,
+#'   m_subsample = 2000, m_kde_subsample = 5000, seed = 123
+#' )
 #' res2$best
 #'
 #' # Presence‑only (ultra‑light) with 5 starting points
-#' res3 <- optimize_niche(example_env_occ_2d, env_m = NULL,
-#'                        num_starts = 5, start_method = "uniform",
-#'                        likelihood = "presence_only", eta = 1)
+#' res3 <- optimize_niche(example_env_occ_2d,
+#'   env_m = NULL,
+#'   num_starts = 5, start_method = "uniform",
+#'   likelihood = "presence_only", eta = 1
+#' )
 #' res3$best
 #' }
 optimize_niche <- function(env_occ, env_m,
@@ -92,7 +97,7 @@ optimize_niche <- function(env_occ, env_m,
                            ...) {
   # Match arguments
   likelihood <- match.arg(likelihood)
-  backend    <- match.arg(backend)
+  backend <- match.arg(backend)
 
   # Validate inputs based on likelihood
   if (likelihood != "presence_only") {
@@ -103,13 +108,15 @@ optimize_niche <- function(env_occ, env_m,
   }
 
   # Determine which data to use for generating starting ranges
-  #range_data <- if (likelihood == "presence_only") env_occ else env_m
+  # range_data <- if (likelihood == "presence_only") env_occ else env_m
 
   # Generate starting points (using the appropriate data for ranges)
-  starts_df <- start_theta_multiple(env_data  = env_occ,
-                                    num_starts = num_starts,
-                                    quant_vec  = quant_vec,
-                                    method     = start_method)
+  starts_df <- start_theta_multiple(
+    env_data = env_occ,
+    num_starts = num_starts,
+    quant_vec = quant_vec,
+    method = start_method
+  )
 
   # Convert each row to a named numeric vector
   starts_list <- split(starts_df, seq_len(nrow(starts_df)))
@@ -153,9 +160,10 @@ optimize_niche <- function(env_occ, env_m,
     # R backend (original): ucminf::ucminf with an R-level objective function
     # -----------------------------------------------------------------------
     obj_fun <- switch(likelihood,
-                      unweighted    = loglik_niche_math_cpp,
-                      weighted      = loglik_niche_math_weighted,
-                      presence_only = loglik_niche_math_presence_only)
+      unweighted    = loglik_niche_math_cpp,
+      weighted      = loglik_niche_math_weighted,
+      presence_only = loglik_niche_math_presence_only
+    )
 
     runner <- function(start_vec, id) {
       if (verbose) {
@@ -185,8 +193,8 @@ optimize_niche <- function(env_occ, env_m,
 
   # Compile results
   solutions <- data.frame(
-    start_id   = seq_along(results),
-    loglik     = vapply(results, function(x) as.numeric(x$loglik), numeric(1)),
+    start_id = seq_along(results),
+    loglik = vapply(results, function(x) as.numeric(x$loglik), numeric(1)),
     convergence = vapply(results, function(x) as.integer(x$convergence), integer(1)),
     stringsAsFactors = FALSE
   )
@@ -204,8 +212,10 @@ optimize_niche <- function(env_occ, env_m,
   )
 
   if (verbose) {
-    cat(sprintf("Best log-likelihood: %.6f (convergence = %d)\n",
-                best$loglik, best$convergence))
+    cat(sprintf(
+      "Best log-likelihood: %.6f (convergence = %d)\n",
+      best$loglik, best$convergence
+    ))
   }
 
   list(solutions = solutions, best = best)
@@ -231,19 +241,22 @@ optimize_niche <- function(env_occ, env_m,
   # Objective function (returns negative log-likelihood)
   fn <- function(theta) {
     obj_fun(theta,
-            env_occ = env_occ,
-            env_m   = env_m,
-            neg     = TRUE,
-            ...)
+      env_occ = env_occ,
+      env_m   = env_m,
+      neg     = TRUE,
+      ...
+    )
   }
 
   # Run ucminf with error handling
   out <- tryCatch(
     {
-      res <- ucminf::ucminf(par = param,
-                            fn  = fn,
-                            control = control,
-                            hessian = FALSE)  # Hessian not needed for optimization
+      res <- ucminf::ucminf(
+        par = param,
+        fn = fn,
+        control = control,
+        hessian = FALSE
+      ) # Hessian not needed for optimization
       # Restore names if ucminf drops them
       if (is.null(names(res$par)) && !is.null(names(param))) {
         names(res$par) <- names(param)
@@ -252,10 +265,12 @@ optimize_niche <- function(env_occ, env_m,
       res
     },
     error = function(e) {
-      list(par = param,
-           value = Inf,
-           convergence = NA_integer_,
-           error = conditionMessage(e))
+      list(
+        par = param,
+        value = Inf,
+        convergence = NA_integer_,
+        error = conditionMessage(e)
+      )
     }
   )
 
@@ -282,7 +297,7 @@ optimize_niche <- function(env_occ, env_m,
 #' @return A list with components: theta, loglik, convergence.
 #' @keywords internal
 .optimize_niche_helper_cpp <- function(param, env_occ, env_m, control,
-                                        likelihood, ...) {
+                                       likelihood, ...) {
   param_names <- names(param)
   param <- as.numeric(param)
   if (!is.null(param_names)) {
@@ -293,16 +308,16 @@ optimize_niche <- function(env_occ, env_m,
   }
 
   dots <- list(...)
-  eta  <- if (!is.null(dots$eta)) dots$eta else 1.0
+  eta <- if (!is.null(dots$eta)) dots$eta else 1.0
 
   # Convert data frames to matrices
   env_occ_mat <- as.matrix(env_occ)
-  env_m_mat   <- if (!is.null(env_m)) as.matrix(env_m) else NULL
+  env_m_mat <- if (!is.null(env_m)) as.matrix(env_m) else NULL
 
   # For the weighted likelihood, resolve subsampling indices once before
   # optimization (fixed indices ensure a smooth, consistent objective function)
-  den_idx      <- NULL
-  kde_idx      <- NULL
+  den_idx <- NULL
+  kde_idx <- NULL
   precomp_w_den <- NULL
 
   if (likelihood == "weighted" && !is.null(env_m_mat)) {
@@ -310,16 +325,19 @@ optimize_niche <- function(env_occ, env_m,
     if (!is.null(dots$seed)) set.seed(dots$seed)
 
     pick_size <- function(x, nmax) {
-      if (is.null(x)) return(NULL)
-      if (length(x) != 1L || !is.numeric(x) || !is.finite(x) || x <= 0)
+      if (is.null(x)) {
+        return(NULL)
+      }
+      if (length(x) != 1L || !is.numeric(x) || !is.finite(x) || x <= 0) {
         stop("m_subsample/m_kde_subsample must be a single positive number.")
+      }
       if (x < 1) max(1L, floor(x * nmax)) else min(nmax, as.integer(round(x)))
     }
 
-    n_den  <- pick_size(dots$m_subsample,     n_m)
-    den_idx <- if (!is.null(n_den)  && n_den  < n_m) sample.int(n_m, n_den)  else NULL
-    n_kde  <- pick_size(dots$m_kde_subsample, n_m)
-    kde_idx <- if (!is.null(n_kde)  && n_kde  < n_m) sample.int(n_m, n_kde)  else NULL
+    n_den <- pick_size(dots$m_subsample, n_m)
+    den_idx <- if (!is.null(n_den) && n_den < n_m) sample.int(n_m, n_den) else NULL
+    n_kde <- pick_size(dots$m_kde_subsample, n_m)
+    kde_idx <- if (!is.null(n_kde) && n_kde < n_m) sample.int(n_m, n_kde) else NULL
   }
 
   # Create the compiled C++ objective function (external pointer).
@@ -362,8 +380,10 @@ optimize_niche <- function(env_occ, env_m,
       res
     },
     error = function(e) {
-      list(par = param, value = Inf, convergence = NA_integer_,
-           error = conditionMessage(e))
+      list(
+        par = param, value = Inf, convergence = NA_integer_,
+        error = conditionMessage(e)
+      )
     }
   )
 

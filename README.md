@@ -4,6 +4,7 @@
 # nicher
 
 <!-- badges: start -->
+
 <!-- badges: end -->
 
 The goal of nicher is to create ecological niche models based on an

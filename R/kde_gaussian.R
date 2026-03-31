@@ -11,7 +11,7 @@
 #' @return Numeric vector of length `n_eval` with the density estimates.
 #' @export
 kde_gaussian <- function(x, data) {
-  x    <- as.matrix(x)
+  x <- as.matrix(x)
   data <- as.matrix(data)
   if (ncol(x) != ncol(data)) {
     stop("x and data must have the same number of columns")

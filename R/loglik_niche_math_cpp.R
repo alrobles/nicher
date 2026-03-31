@@ -29,9 +29,10 @@
 #' theta <- start_theta(example_env_occ_2d)
 #' # Unweighted log-likelihood (math scale) using Cholesky version
 #' ll <- loglik_niche_math_cpp(theta,
-#'                             env_occ = example_env_occ_2d,
-#'                             env_m   = example_env_m_2d,
-#'                             eta = 1, neg = TRUE)
+#'   env_occ = example_env_occ_2d,
+#'   env_m = example_env_m_2d,
+#'   eta = 1, neg = TRUE
+#' )
 #' print(ll)
 #' }
 #' @export
@@ -41,16 +42,16 @@ loglik_niche_math_cpp <- function(theta, env_occ, env_m, eta = 1, neg = TRUE, ..
   log_sigma <- theta[(p + 1):(2 * p)]
   sigma <- exp(log_sigma)
   v <- if (p > 1) theta[(2 * p + 1):length(theta)] else numeric(0)
-  
+
   # Build correlation Cholesky factor (lower triangular)
   L_corr <- cvine_cholesky(v, d = p, eta = eta)
   # Build covariance Cholesky factor (lower triangular)
   L_cov <- diag(sigma) %*% L_corr
-  
+
   # Convert data frames to matrices to avoid Rcpp type conversion issues
   env_occ <- as.matrix(env_occ)
-  env_m   <- as.matrix(env_m)
-  
+  env_m <- as.matrix(env_m)
+
   val <- loglik_niche_chol_cpp(mu, L_cov, env_occ, env_m)
   if (neg) val else -val
 }

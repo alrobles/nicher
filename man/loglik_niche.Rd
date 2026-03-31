@@ -29,15 +29,17 @@ combinations which come from the area of study (M)
 }
 \examples{
 loglik_niche(
-mu = example_mu_vec,
-s_mat = example_s_mat,
-env_occ = example_env_occ_2d,
-env_m = example_env_m_2d)
-#Example with log of the likelihood
+  mu = example_mu_vec,
+  s_mat = example_s_mat,
+  env_occ = example_env_occ_2d,
+  env_m = example_env_m_2d
+)
+# Example with log of the likelihood
 loglik_niche(
-mu = example_mu_vec,
-s_mat = example_s_mat,
-env_occ = example_env_occ_2d,
-env_m = example_env_m_2d,
-neg = FALSE)
+  mu = example_mu_vec,
+  s_mat = example_s_mat,
+  env_occ = example_env_occ_2d,
+  env_m = example_env_m_2d,
+  neg = FALSE
+)
 }

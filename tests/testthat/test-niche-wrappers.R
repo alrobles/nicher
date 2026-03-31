@@ -11,7 +11,7 @@
 # ---------------------------------------------------------------------------
 
 occ3 <- as.matrix(example_env_occ_3d)
-M3   <- as.matrix(example_env_m_3d)
+M3 <- as.matrix(example_env_m_3d)
 
 set.seed(42)
 theta0_3d <- start_theta(example_env_occ_3d)
@@ -20,7 +20,7 @@ theta0_3d <- start_theta(example_env_occ_3d)
 set.seed(123)
 den_idx3 <- sample.int(nrow(M3), 300L)
 kde_idx3 <- sample.int(nrow(M3), 600L)
-pre3     <- kde_gaussian(M3[den_idx3, ], M3[kde_idx3, ])
+pre3 <- kde_gaussian(M3[den_idx3, ], M3[kde_idx3, ])
 
 # ---------------------------------------------------------------------------
 # Test 1 – niche_unweighted returns correct structure
@@ -32,13 +32,17 @@ test_that("niche_unweighted returns a list with value, conv, and theta", {
   expect_named(res, c("value", "conv", "theta"), ignore.order = TRUE)
 
   expect_true(is.numeric(res$value) && length(res$value) == 1L,
-              label = "value is a scalar numeric")
+    label = "value is a scalar numeric"
+  )
   expect_true(is.integer(res$conv) && length(res$conv) == 1L,
-              label = "conv is a scalar integer")
+    label = "conv is a scalar integer"
+  )
   expect_true(is.numeric(res$theta),
-              label = "theta is a numeric vector")
+    label = "theta is a numeric vector"
+  )
   expect_equal(length(res$theta), length(theta0_3d),
-               label = "theta has the same length as start")
+    label = "theta has the same length as start"
+  )
 })
 
 # ---------------------------------------------------------------------------
@@ -48,7 +52,8 @@ test_that("niche_unweighted returns a finite log-likelihood", {
   res <- niche_unweighted(occ = occ3, M = M3, start = theta0_3d)
 
   expect_true(is.finite(res$value),
-              label = "niche_unweighted value is finite")
+    label = "niche_unweighted value is finite"
+  )
 })
 
 # ---------------------------------------------------------------------------
@@ -61,13 +66,17 @@ test_that("niche_presence_only returns a list with value, conv, and theta", {
   expect_named(res, c("value", "conv", "theta"), ignore.order = TRUE)
 
   expect_true(is.numeric(res$value) && length(res$value) == 1L,
-              label = "value is a scalar numeric")
+    label = "value is a scalar numeric"
+  )
   expect_true(is.integer(res$conv) && length(res$conv) == 1L,
-              label = "conv is a scalar integer")
+    label = "conv is a scalar integer"
+  )
   expect_true(is.numeric(res$theta),
-              label = "theta is a numeric vector")
+    label = "theta is a numeric vector"
+  )
   expect_equal(length(res$theta), length(theta0_3d),
-               label = "theta has the same length as start")
+    label = "theta has the same length as start"
+  )
 })
 
 # ---------------------------------------------------------------------------
@@ -77,7 +86,8 @@ test_that("niche_presence_only returns a finite log-likelihood", {
   res <- niche_presence_only(occ = occ3, start = theta0_3d)
 
   expect_true(is.finite(res$value),
-              label = "niche_presence_only value is finite")
+    label = "niche_presence_only value is finite"
+  )
 })
 
 # ---------------------------------------------------------------------------
@@ -97,13 +107,17 @@ test_that("niche_weighted returns a list with value, conv, and theta", {
   expect_named(res, c("value", "conv", "theta"), ignore.order = TRUE)
 
   expect_true(is.numeric(res$value) && length(res$value) == 1L,
-              label = "value is a scalar numeric")
+    label = "value is a scalar numeric"
+  )
   expect_true(is.integer(res$conv) && length(res$conv) == 1L,
-              label = "conv is a scalar integer")
+    label = "conv is a scalar integer"
+  )
   expect_true(is.numeric(res$theta),
-              label = "theta is a numeric vector")
+    label = "theta is a numeric vector"
+  )
   expect_equal(length(res$theta), length(theta0_3d),
-               label = "theta has the same length as start")
+    label = "theta has the same length as start"
+  )
 })
 
 # ---------------------------------------------------------------------------
@@ -120,7 +134,8 @@ test_that("niche_weighted returns a finite log-likelihood", {
   )
 
   expect_true(is.finite(res$value),
-              label = "niche_weighted value is finite")
+    label = "niche_weighted value is finite"
+  )
 })
 
 # ---------------------------------------------------------------------------
@@ -133,11 +148,11 @@ test_that("niche_weighted errors when precomp_w_den length does not match den_id
       M             = M3,
       den_idx       = den_idx3,
       kde_idx       = kde_idx3,
-      precomp_w_den = pre3[-1L],   # one element short
+      precomp_w_den = pre3[-1L], # one element short
       start         = theta0_3d
     ),
     regexp = "precomp_w_den.*must have the same length",
-    label  = "length mismatch produces informative error"
+    label = "length mismatch produces informative error"
   )
 })
 
@@ -149,12 +164,14 @@ test_that("wrappers error on non-finite starting values", {
   bad_start[1L] <- Inf
 
   expect_error(niche_unweighted(occ3, M3, bad_start),
-               regexp = "finite",
-               label  = "niche_unweighted errors on Inf start")
+    regexp = "finite",
+    label  = "niche_unweighted errors on Inf start"
+  )
 
   expect_error(niche_presence_only(occ3, bad_start),
-               regexp = "finite",
-               label  = "niche_presence_only errors on Inf start")
+    regexp = "finite",
+    label  = "niche_presence_only errors on Inf start"
+  )
 
   expect_error(
     niche_weighted(occ3, M3, den_idx3, kde_idx3, pre3, bad_start),
@@ -184,12 +201,14 @@ test_that("multi-start loop completes without error for UN, PO, and W (3D)", {
     # Unweighted
     un <- niche_unweighted(occ = occ3, M = M3, start = s)
     expect_true(is.finite(un$value),
-                label = sprintf("UN start %d: finite value", i))
+      label = sprintf("UN start %d: finite value", i)
+    )
 
     # Presence-only
     po <- niche_presence_only(occ = occ3, start = s)
     expect_true(is.finite(po$value),
-                label = sprintf("PO start %d: finite value", i))
+      label = sprintf("PO start %d: finite value", i)
+    )
 
     # Weighted
     w <- niche_weighted(
@@ -201,6 +220,7 @@ test_that("multi-start loop completes without error for UN, PO, and W (3D)", {
       start         = s
     )
     expect_true(is.finite(w$value),
-                label = sprintf("W start %d: finite value", i))
+      label = sprintf("W start %d: finite value", i)
+    )
   }
 })

@@ -14,7 +14,6 @@
 start_theta_multiple <- function(env_data, num_starts = 100,
                                  quant_vec = c(0.1, 0.5, 0.9),
                                  method = "sobol") {
-
   # ------------------------------------------------------------------
   # 1. COERCE TO NUMERIC MATRIX (THIS IS THE KEY FIX)
   # ------------------------------------------------------------------
@@ -55,12 +54,11 @@ start_theta_multiple <- function(env_data, num_starts = 100,
     )
 
     df <- as.data.frame(start_mat)
-
   } else if (method == "uniform") {
-
     n_par <- length(lower)
     mat <- matrix(stats::runif(num_starts * n_par),
-                  nrow = num_starts, ncol = n_par)
+      nrow = num_starts, ncol = n_par
+    )
 
     for (j in seq_len(n_par)) {
       mat[, j] <- lower[j] + mat[, j] * (upper[j] - lower[j])
@@ -68,7 +66,6 @@ start_theta_multiple <- function(env_data, num_starts = 100,
 
     df <- as.data.frame(mat)
     names(df) <- param_names
-
   } else {
     stop("method must be either 'sobol' or 'uniform'")
   }

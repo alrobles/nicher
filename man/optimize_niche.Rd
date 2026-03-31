@@ -85,28 +85,33 @@ scale. The objective function can be:
 \dontrun{
 # Unweighted (2019) with 5 starting points, R backend
 res1 <- optimize_niche(example_env_occ_2d, example_env_m_2d,
-                       num_starts = 5, start_method = "uniform",
-                       likelihood = "unweighted", eta = 1)
+  num_starts = 5, start_method = "uniform",
+  likelihood = "unweighted", eta = 1
+)
 res1$best
 
 # Unweighted (2019) with 5 starting points, C++ backend (faster)
 res1_cpp <- optimize_niche(example_env_occ_2d, example_env_m_2d,
-                           num_starts = 5, start_method = "uniform",
-                           likelihood = "unweighted", eta = 1,
-                           backend = "cpp")
+  num_starts = 5, start_method = "uniform",
+  likelihood = "unweighted", eta = 1,
+  backend = "cpp"
+)
 res1_cpp$best
 
 # Weighted (2022) with 5 starting points
 res2 <- optimize_niche(example_env_occ_2d, example_env_m_2d,
-                       num_starts = 5, start_method = "uniform",
-                       likelihood = "weighted", eta = 1,
-                       m_subsample = 2000, m_kde_subsample = 5000, seed = 123)
+  num_starts = 5, start_method = "uniform",
+  likelihood = "weighted", eta = 1,
+  m_subsample = 2000, m_kde_subsample = 5000, seed = 123
+)
 res2$best
 
 # Presence‑only (ultra‑light) with 5 starting points
-res3 <- optimize_niche(example_env_occ_2d, env_m = NULL,
-                       num_starts = 5, start_method = "uniform",
-                       likelihood = "presence_only", eta = 1)
+res3 <- optimize_niche(example_env_occ_2d,
+  env_m = NULL,
+  num_starts = 5, start_method = "uniform",
+  likelihood = "presence_only", eta = 1
+)
 res3$best
 }
 }

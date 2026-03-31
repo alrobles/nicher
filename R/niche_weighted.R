@@ -71,7 +71,6 @@
 #' @export
 niche_weighted <- function(occ, M, den_idx, kde_idx, precomp_w_den,
                            eta = 1, start = NULL, ...) {
-
   # Validate precomputed denominators
   stopifnot(length(den_idx) == length(precomp_w_den))
 

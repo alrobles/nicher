@@ -60,7 +60,7 @@ print(R)
 v <- c(0.1, -0.2, 0.8)
 L <- cvine_cholesky(v, d = 3)
 R <- tcrossprod(L)
-all.equal(diag(R), rep(1, 3))  # Should be TRUE
+all.equal(diag(R), rep(1, 3)) # Should be TRUE
 
 }
 \references{

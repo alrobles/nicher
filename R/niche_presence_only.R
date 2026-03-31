@@ -25,7 +25,6 @@
 #'
 #' @export
 niche_presence_only <- function(occ, eta = 1, start = NULL, ...) {
-
   # Build compiled C++ presence-only objective
   xptr <- create_niche_obj_ptr(
     env_occ    = as.matrix(occ),

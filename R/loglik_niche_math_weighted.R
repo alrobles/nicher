@@ -57,8 +57,10 @@
 #' # Using explicit indices and precomputed KDE weights for maximum speed
 #' den_idx <- sample.int(nrow(example_env_m_2d), 2000)
 #' kde_idx <- sample.int(nrow(example_env_m_2d), 5000)
-#' pre_w   <- kde_gaussian(example_env_m_2d[den_idx, ],
-#'                         example_env_m_2d[kde_idx, ])
+#' pre_w <- kde_gaussian(
+#'   example_env_m_2d[den_idx, ],
+#'   example_env_m_2d[kde_idx, ]
+#' )
 #'
 #' loglik_niche_math_weighted(
 #'   theta = start_theta(example_env_occ_2d),
@@ -70,23 +72,24 @@
 #' )
 #' }
 loglik_niche_math_weighted <- function(
-    theta,
-    env_occ,
-    env_m,
-    eta = 1,
-    neg = TRUE,
-    m_subsample = NULL,
-    m_kde_subsample = NULL,
-    seed = NULL,
-    den_idx = NULL,
-    kde_idx = NULL,
-    precomp_w_den = NULL,
-    ...
+  theta,
+  env_occ,
+  env_m,
+  eta = 1,
+  neg = TRUE,
+  m_subsample = NULL,
+  m_kde_subsample = NULL,
+  seed = NULL,
+  den_idx = NULL,
+  kde_idx = NULL,
+  precomp_w_den = NULL,
+  ...
 ) {
   # Dimension checks
   p <- ncol(env_occ)
-  if (p != ncol(env_m))
+  if (p != ncol(env_m)) {
     stop("env_occ and env_m must have the same number of columns")
+  }
 
   n_m <- nrow(env_m)
 
@@ -114,12 +117,15 @@ loglik_niche_math_weighted <- function(
   if (!is.null(seed)) set.seed(seed)
 
   pick_size <- function(x, nmax) {
-    if (is.null(x)) return(NULL)
+    if (is.null(x)) {
+      return(NULL)
+    }
     if (length(x) != 1L ||
-        !is.numeric(x) ||
-        !is.finite(x) ||
-        x <= 0)
+      !is.numeric(x) ||
+      !is.finite(x) ||
+      x <= 0) {
       stop("m_subsample/m_kde_subsample must be a single positive number.")
+    }
 
     if (x < 1) max(1L, floor(x * nmax)) else min(nmax, as.integer(round(x)))
   }

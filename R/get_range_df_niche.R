@@ -11,15 +11,16 @@
 #'         lower, center, upper.
 #' @keywords internal
 get_range_df_niche <- function(env_data, quant_vec = c(0.1, 0.5, 0.9)) {
-
   # --------------------------------------------------------------------
   # (1) COERCE env_data TO STRICTLY NUMERIC MATRIX (CRITICAL PATCH)
   # --------------------------------------------------------------------
-  if (is.data.frame(env_data))
+  if (is.data.frame(env_data)) {
     env_data <- as.matrix(env_data)
+  }
 
-  if (!is.numeric(env_data))
+  if (!is.numeric(env_data)) {
     stop("env_data must be numeric; convert before calling get_range_df_niche().")
+  }
 
   storage.mode(env_data) <- "double"
 
@@ -29,16 +30,16 @@ get_range_df_niche <- function(env_data, quant_vec = c(0.1, 0.5, 0.9)) {
   p <- ncol(env_data)
   n_par <- 2 * p + p * (p - 1) / 2
 
-  mu_names        <- paste0("mu",        seq_len(p))
+  mu_names <- paste0("mu", seq_len(p))
   log_sigma_names <- paste0("log_sigma", seq_len(p))
-  s_par_names     <- if (p > 1) paste0("s_par", seq_len(p * (p - 1) / 2)) else character(0)
+  s_par_names <- if (p > 1) paste0("s_par", seq_len(p * (p - 1) / 2)) else character(0)
 
   all_names <- c(mu_names, log_sigma_names, s_par_names)
 
   ranges <- data.frame(
-    lower  = numeric(n_par),
+    lower = numeric(n_par),
     center = numeric(n_par),
-    upper  = numeric(n_par),
+    upper = numeric(n_par),
     row.names = all_names
   )
 
@@ -47,16 +48,16 @@ get_range_df_niche <- function(env_data, quant_vec = c(0.1, 0.5, 0.9)) {
   # --------------------------------------------------------------------
   for (i in seq_len(p)) {
     vals <- env_data[, i]
-    qq   <- stats::quantile(vals, probs = quant_vec, na.rm = TRUE)
-    qq   <- as.numeric(qq)  # ensure numeric, drop attributes
+    qq <- stats::quantile(vals, probs = quant_vec, na.rm = TRUE)
+    qq <- as.numeric(qq) # ensure numeric, drop attributes
     ranges[mu_names[i], ] <- qq
   }
 
   # --------------------------------------------------------------------
   # (4) log_sigma: log(sd) ± 1 range
   # --------------------------------------------------------------------
-  sigma_obs     <- apply(env_data, 2, stats::sd, na.rm = TRUE)
-  sigma_obs     <- pmax(sigma_obs, 1e-6)  # avoid zeros
+  sigma_obs <- apply(env_data, 2, stats::sd, na.rm = TRUE)
+  sigma_obs <- pmax(sigma_obs, 1e-6) # avoid zeros
   log_sigma_obs <- log(sigma_obs)
 
   for (i in seq_len(p)) {

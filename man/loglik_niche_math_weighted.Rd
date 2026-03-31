@@ -82,8 +82,10 @@ the native C++ implementation \code{loglik_niche_weighted_integrated_cpp}.
 # Using explicit indices and precomputed KDE weights for maximum speed
 den_idx <- sample.int(nrow(example_env_m_2d), 2000)
 kde_idx <- sample.int(nrow(example_env_m_2d), 5000)
-pre_w   <- kde_gaussian(example_env_m_2d[den_idx, ],
-                        example_env_m_2d[kde_idx, ])
+pre_w <- kde_gaussian(
+  example_env_m_2d[den_idx, ],
+  example_env_m_2d[kde_idx, ]
+)
 
 loglik_niche_math_weighted(
   theta = start_theta(example_env_occ_2d),
