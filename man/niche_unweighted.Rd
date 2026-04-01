@@ -20,7 +20,7 @@ niche_unweighted(occ, M, eta = 1, start = NULL, ...)
 \value{
 A list with:
   \itemize{
-    \item par — best parameter vector
+    \item theta — best parameter vector (renamed from \code{par})
     \item value — negative log-likelihood
     \item conv — convergence code
     \item all_results — present only for multi-start

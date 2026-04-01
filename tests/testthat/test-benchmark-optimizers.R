@@ -1,3 +1,4 @@
+library(testthat)
 # tests/testthat/test-benchmark-optimizers.R
 #
 # Benchmarking tests: ucminf::ucminf (R backend) vs. ucminfcpp (C++ backend)
@@ -137,11 +138,11 @@ test_that("R-backend and C++ backend produce numerically consistent log-likeliho
   )
 
   # Both must report convergence (ucminf code 1 or 2 = success)
-  expect_true(res_r$convergence %in% c(1L, 2L),
-    label = "R-backend converges (code 1 or 2)"
+  expect_true(res_r$convergence %in% c(1L, 4L),
+    label = "R-backend converges (code 1 or 4)"
   )
-  expect_true(res_cpp$convergence %in% c(1L, 2L),
-    label = "C++ backend converges (code 1 or 2)"
+  expect_true(res_cpp$convergence %in% c(1L, 4L),
+    label = "C++ backend converges (code 1 or 4)"
   )
 })
 

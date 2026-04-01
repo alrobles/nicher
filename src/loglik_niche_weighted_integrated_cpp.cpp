@@ -127,7 +127,8 @@ double loglik_niche_weighted_integrated_cpp(
   double sum_exp = (a - max_a).exp().sum();
   double log_sum_exp = max_a + std::log(sum_exp);
 
-  double neg_log = 0.5 * sum_q1 - log_w_occ.sum() + static_cast<double>(n_occ) * log_sum_exp;
+  double neg_log = 0.5 * sum_q1 + log_w_occ.sum() +
+    static_cast<double>(n_occ) * log_sum_exp;
 
   // Guard against NaN/Inf: return a large finite penalty so the optimizer
   // can recover instead of crashing with a type conversion error

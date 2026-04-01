@@ -18,7 +18,7 @@ niche_presence_only(occ, eta = 1, start = NULL, ...)
 \value{
 A list with:
   \itemize{
-    \item par — best parameter vector
+    \item theta — best parameter vector (renamed from \code{par})
     \item value — negative log-likelihood
     \item conv — convergence code
     \item all_results — only present for multi-start

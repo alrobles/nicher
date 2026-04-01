@@ -1,3 +1,5 @@
+# R/niche_weighted.R (updated)
+
 #' Fit weighted-normal niche model (Jiménez & Soberón 2022)
 #'
 #' This function fits the *weighted-normal* niche model using a compiled
@@ -20,53 +22,30 @@
 #'
 #' @param occ Numeric matrix of environmental values at presence points
 #'   (rows = occurrences, columns = environmental variables).
-#'
 #' @param M Numeric matrix of environmental values sampled from the
 #'   accessibility area \eqn{M}. Must have the same number of columns as \code{occ}.
-#'
 #' @param den_idx Integer vector of 1-based row indices selecting the
 #'   denominator subset \eqn{M_\mathrm{den}}. Must have the same length as
 #'   \code{precomp_w_den}.
-#'
 #' @param kde_idx Integer vector of 1-based row indices selecting the KDE
 #'   reference subset \eqn{M_\mathrm{kde}}. Must have length >= number of columns.
-#'
 #' @param precomp_w_den Numeric vector of precomputed KDE weights matching
 #'   \code{den_idx} in length.
-#'
 #' @param eta Numeric LKJ shape parameter for the C-vine prior (default = 1).
-#'
 #' @param start Starting value(s) for optimization:
 #'   \itemize{
 #'     \item numeric vector → single-start
 #'     \item list of numeric vectors → multi-start
 #'   }
-#'
 #' @param ... Ignored. Present only for compatibility with other wrappers.
 #'
 #' @return A list with:
 #' \itemize{
-#'   \item \code{par} — best parameter vector
+#'   \item \code{theta} — best parameter vector (renamed from \code{par} for consistency with earlier versions)
 #'   \item \code{value} — negative log-likelihood at optimum
 #'   \item \code{conv} — convergence code
 #'   \item \code{all_results} — data frame of all starts (multi-start only)
 #' }
-#'
-#' @details
-#' This wrapper guarantees:
-#' \itemize{
-#'   \item No internal KDE recomputation (everything precomputed).
-#'   \item No accidental fallback to R-backend.
-#'   \item No contamination via \code{...}.
-#'   \item Deterministic behavior given \code{den_idx}, \code{kde_idx},
-#'         and \code{precomp_w_den}.
-#' }
-#'
-#' Internally constructs:
-#' \preformatted{
-#'   create_niche_obj_ptr(..., likelihood = "weighted")
-#' }
-#' and optimizes via \code{\link{optimize_niche_xptr}}.
 #'
 #' @export
 niche_weighted <- function(occ, M, den_idx, kde_idx, precomp_w_den,
@@ -87,24 +66,28 @@ niche_weighted <- function(occ, M, den_idx, kde_idx, precomp_w_den,
 
   # --- SINGLE START (numeric vector) ---
   if (is.numeric(start)) {
-    return(
-      optimize_niche_xptr(
-        start       = start,
-        xptr        = xptr,
-        multi_start = FALSE
-      )
+    res <- optimize_niche_xptr(
+      start       = start,
+      xptr        = xptr,
+      multi_start = FALSE
     )
+    # Rename $par to $theta for consistency with previous versions
+    res$theta <- res$par
+    res$par <- NULL
+    return(res)
   }
 
   # --- MULTI-START (list of numeric vectors) ---
   if (is.list(start)) {
-    return(
-      optimize_niche_xptr(
-        start       = start,
-        xptr        = xptr,
-        multi_start = TRUE
-      )
+    res <- optimize_niche_xptr(
+      start       = start,
+      xptr        = xptr,
+      multi_start = TRUE
     )
+    # For multi-start, $par is already the best; rename to $theta
+    res$theta <- res$par
+    res$par <- NULL
+    return(res)
   }
 
   stop("Start must be a numeric vector (single-start) or a list (multi-start).")

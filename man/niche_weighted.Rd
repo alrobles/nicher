@@ -45,7 +45,7 @@ reference subset \eqn{M_\mathrm{kde}}. Must have length >= number of columns.}
 \value{
 A list with:
 \itemize{
-  \item \code{par} — best parameter vector
+  \item \code{theta} — best parameter vector (renamed from \code{par} for consistency with earlier versions)
   \item \code{value} — negative log-likelihood at optimum
   \item \code{conv} — convergence code
   \item \code{all_results} — data frame of all starts (multi-start only)
@@ -70,20 +70,4 @@ This wrapper supports both:
   \item \strong{Multi-start}: \code{start} is a list of numeric vectors.
         The best result (lowest negative log-likelihood) is returned.
 }
-
-
-This wrapper guarantees:
-\itemize{
-  \item No internal KDE recomputation (everything precomputed).
-  \item No accidental fallback to R-backend.
-  \item No contamination via \code{...}.
-  \item Deterministic behavior given \code{den_idx}, \code{kde_idx},
-        and \code{precomp_w_den}.
-}
-
-Internally constructs:
-\preformatted{
-  create_niche_obj_ptr(..., likelihood = "weighted")
-}
-and optimizes via \code{\link{optimize_niche_xptr}}.
 }

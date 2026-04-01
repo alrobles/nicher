@@ -17,7 +17,7 @@
 #'
 #' @return A list with:
 #'   \itemize{
-#'     \item par — best parameter vector
+#'     \item theta — best parameter vector (renamed from \code{par})
 #'     \item value — negative log-likelihood
 #'     \item conv — convergence code
 #'     \item all_results — only present for multi-start
@@ -35,24 +35,26 @@ niche_presence_only <- function(occ, eta = 1, start = NULL, ...) {
 
   # --- SINGLE START ---
   if (is.numeric(start)) {
-    return(
-      optimize_niche_xptr(
-        start       = start,
-        xptr        = xptr,
-        multi_start = FALSE
-      )
+    res <- optimize_niche_xptr(
+      start       = start,
+      xptr        = xptr,
+      multi_start = FALSE
     )
+    res$theta <- res$par
+    res$par <- NULL
+    return(res)
   }
 
   # --- MULTI-START ---
   if (is.list(start)) {
-    return(
-      optimize_niche_xptr(
-        start       = start,
-        xptr        = xptr,
-        multi_start = TRUE
-      )
+    res <- optimize_niche_xptr(
+      start       = start,
+      xptr        = xptr,
+      multi_start = TRUE
     )
+    res$theta <- res$par
+    res$par <- NULL
+    return(res)
   }
 
   stop("Start must be a numeric vector (single-start) or a list of numeric vectors (multi-start).")
