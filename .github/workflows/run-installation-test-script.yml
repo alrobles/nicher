@@ -1,0 +1,59 @@
+name: R Package Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test-script:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up R
+      uses: r-lib/actions/setup-r@v2
+      with:
+        r-version: "latest"
+
+    - name: Install dependencies
+      run: |
+        # Update R and install 'devtools' for package installation
+        sudo apt-get -y update && sudo apt-get -y install libcurl4-openssl-dev libssl-dev libgit2-dev
+        Rscript -e 'install.packages(c("devtools", "terra"))'
+
+    - name: Install nicher and dependencies
+      run: |
+        Rscript -e 'if(!require(ucminfcpp)) devtools::install_github("alrobles/ucminfcpp")'
+        Rscript -e 'if(!require(nicher)) devtools::install_github("alrobles/nicher")'
+        Rscript -e 'if(!require(terra)) devtools::install_github("alrobles/terra")'
+
+    - name: Run script
+      run: |
+        Rscript -e 'library(nicher); library(terra); \
+        stack_path <- system.file("extdata", "stack_1_12_crop.rds", package = "nicher"); \
+        example_rasters <- terra::unwrap(readRDS(stack_path)); \
+        data(example_occ_df); \
+        env_occ <- terra::extract(example_rasters, example_occ_df[, c("long", "lat")]); \
+        env_occ <- env_occ[complete.cases(env_occ), -1]; \
+        set.seed(123); \
+        env_m <- terra::spatSample(example_rasters, size = 1000, method = "regular", na.rm = TRUE); \
+        result_weighted <- optimize_niche(
+          env_occ = env_occ,
+          env_m = env_m,
+          num_starts = 10,
+          start_method = "uniform",
+          likelihood = "weighted"); \
+        print(result_weighted$best$theta); \
+        print("Test weighted run completed successfully."); \
+        result_presence_only <- optimize_niche(
+          env_occ = env_occ,
+          env_m = env_m,
+          num_starts = 10,
+          start_method = "uniform",
+          likelihood = "presence_only"); \
+        print(result_presence_only$best$theta); \
+        print("Test presence-only run completed successfully.");'
