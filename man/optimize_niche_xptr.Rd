@@ -49,4 +49,5 @@ xptr   <- create_niche_obj_ptr(
 res <- optimize_niche_xptr(start = theta0, xptr = xptr)
 res$value
 }
+
 }

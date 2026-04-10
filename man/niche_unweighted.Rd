@@ -37,4 +37,5 @@ M   <- as.matrix(example_env_m_3d)
 theta0 <- start_theta(example_env_occ_3d)
 res <- niche_unweighted(occ = occ, M = M, start = theta0)
 res$value
+
 }

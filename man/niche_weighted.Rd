@@ -83,4 +83,5 @@ theta0  <- start_theta(example_env_occ_3d)
 res <- niche_weighted(occ, M, den_idx, kde_idx, w_den, start = theta0)
 res$value
 }
+
 }
