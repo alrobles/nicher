@@ -31,3 +31,10 @@ Fits the classical unweighted ellipsoid niche model (Jiménez & Soberón 2019)
 using the compiled C++ backend (XPtr). Supports single-start and multi-start
 optimization.
 }
+\examples{
+occ <- as.matrix(example_env_occ_3d)
+M   <- as.matrix(example_env_m_3d)
+theta0 <- start_theta(example_env_occ_3d)
+res <- niche_unweighted(occ = occ, M = M, start = theta0)
+res$value
+}

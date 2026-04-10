@@ -35,3 +35,18 @@ Runs ucminfcpp::ucminf_xptr() over a compiled C++ objective function
 created by create_niche_obj_ptr(). Supports single-start and multi-start
 optimization. Ensures that all starting vectors are numeric doubles and finite.
 }
+\examples{
+\dontrun{
+occ    <- as.matrix(example_env_occ_3d)
+M      <- as.matrix(example_env_m_3d)
+theta0 <- start_theta(example_env_occ_3d)
+xptr   <- create_niche_obj_ptr(
+  env_occ    = occ,
+  env_m      = M,
+  likelihood = "unweighted",
+  eta        = 1
+)
+res <- optimize_niche_xptr(start = theta0, xptr = xptr)
+res$value
+}
+}

@@ -26,4 +26,7 @@ from Abeillia abeillei presence points. This is a hummingbird example.
 A dataset with two variables containing points
 contains 2 bioclimatic variables
 }
+\examples{
+head(example_env_m_2d)
+}
 \keyword{datasets}

@@ -20,3 +20,9 @@ using `data` as the reference sample. Bandwidths are set internally via
 Scott's rule-of-thumb (diagonal). For 2D, a manually optimized version is used;
 for higher dimensions, an Eigen-based vectorized version is used.
 }
+\examples{
+x    <- as.matrix(example_env_occ_2d)
+data <- as.matrix(example_env_m_2d)
+dens <- kde_gaussian(x, data)
+head(dens)
+}

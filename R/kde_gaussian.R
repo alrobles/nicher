@@ -9,6 +9,11 @@
 #' @param data Numeric matrix `n_data x p` (reference sample for KDE).
 #'
 #' @return Numeric vector of length `n_eval` with the density estimates.
+#' @examples
+#' x    <- as.matrix(example_env_occ_2d)
+#' data <- as.matrix(example_env_m_2d)
+#' dens <- kde_gaussian(x, data)
+#' head(dens)
 #' @export
 kde_gaussian <- function(x, data) {
   x <- as.matrix(x)

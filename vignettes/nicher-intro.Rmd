@@ -1,0 +1,218 @@
+---
+title: "Getting Started with nicher"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with nicher}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment  = "#>"
+)
+library(nicher)
+```
+
+## Introduction
+
+The **nicher** package estimates ecological niche models using ellipsoidal
+distributions under the *M hypothesis* (Soberón & Peterson 2005). The niche is
+represented as a multivariate normal distribution parameterised in the
+unconstrained *math scale* (log-standard-deviations + C-vine partial
+correlations), which allows unconstrained numerical optimization.
+
+Three likelihood formulations are supported:
+
+| Model | Description | Reference |
+|---|---|---|
+| `"unweighted"` | Background correction via log-sum-exp | Jiménez & Soberón (2019) |
+| `"weighted"` | KDE-weighted background correction | Jiménez & Soberón (2022) |
+| `"presence_only"` | Multivariate normal, no background | — |
+
+---
+
+## Built-in datasets
+
+The package ships four environmental data frames for the hummingbird
+*Abeillia abeillei* (Jiménez et al. 2022):
+
+```{r data-overview}
+# 2-D datasets (bio1 = temperature, bio12 = precipitation)
+dim(example_env_occ_2d)   # presence points
+dim(example_env_m_2d)     # M-hypothesis background sample
+
+# 3-D datasets (adds bio19 = precipitation of coldest quarter)
+dim(example_env_occ_3d)
+dim(example_env_m_3d)
+
+head(example_env_occ_2d)
+```
+
+---
+
+## Starting values
+
+`start_theta()` generates a single starting parameter vector from the sample
+moments of the presence data. `start_theta_multiple()` generates a space-filling
+design of multiple starts.
+
+```{r start-theta}
+theta0_2d <- start_theta(example_env_occ_2d)
+length(theta0_2d)   # 2*p + p*(p-1)/2 = 2*2 + 1 = 5
+
+theta0_3d <- start_theta(example_env_occ_3d)
+length(theta0_3d)   # 2*3 + 3 = 9
+```
+
+---
+
+## Baseline log-likelihood (`loglik_niche`)
+
+`loglik_niche()` accepts a centroid vector `mu` and covariance matrix `s_mat`
+directly. This is the pure-R reference implementation.
+
+```{r loglik-niche}
+ll <- loglik_niche(
+  mu      = example_mu_vec,
+  s_mat   = example_s_mat,
+  env_occ = example_env_occ_2d,
+  env_m   = example_env_m_2d,
+  neg     = FALSE         # return the log-likelihood (not negative)
+)
+print(ll)
+```
+
+---
+
+## Math-scale log-likelihood (`loglik_niche_math_cpp`)
+
+`loglik_niche_math_cpp()` accepts the unconstrained parameter vector `theta`
+(no matrix construction required) and delegates to a compiled C++ kernel for
+efficiency.
+
+```{r loglik-math-cpp}
+ll_cpp <- loglik_niche_math_cpp(
+  theta   = theta0_2d,
+  env_occ = example_env_occ_2d,
+  env_m   = example_env_m_2d,
+  eta     = 1,
+  neg     = FALSE
+)
+print(ll_cpp)
+```
+
+---
+
+## Optimizing an unweighted niche model
+
+`optimize_niche()` runs multi-start optimization. Use `likelihood = "unweighted"`
+for the classical 2019 model.
+
+```{r optimize-unweighted}
+set.seed(42)
+res_uw <- optimize_niche(
+  env_occ      = example_env_occ_2d,
+  env_m        = example_env_m_2d,
+  num_starts   = 5L,
+  start_method = "uniform",
+  likelihood   = "unweighted",
+  eta          = 1
+)
+
+print(res_uw$best$loglik)
+print(res_uw$best$convergence)
+```
+
+The resulting parameter vector can be decoded into biological parameters with
+`get_ellipsoid_pars()`:
+
+```{r ellipsoid-pars}
+theta_best <- res_uw$best$theta
+pars <- get_ellipsoid_pars(example_env_occ_2d)
+print(pars$mu)
+print(pars$s_mat)
+```
+
+---
+
+## Optimizing a weighted niche model
+
+The weighted model requires precomputed KDE weights for the denominator subset.
+
+```{r optimize-weighted}
+M <- as.matrix(example_env_m_2d)
+set.seed(1)
+den_idx <- sample.int(nrow(M), 500L)
+kde_idx <- sample.int(nrow(M), 1000L)
+w_den   <- kde_gaussian(M[den_idx, ], M[kde_idx, ])
+
+set.seed(42)
+res_w <- optimize_niche(
+  env_occ      = example_env_occ_2d,
+  env_m        = example_env_m_2d,
+  num_starts   = 5L,
+  start_method = "uniform",
+  likelihood   = "weighted",
+  eta          = 1,
+  m_subsample      = 500L,
+  m_kde_subsample  = 1000L,
+  seed             = 1L
+)
+
+print(res_w$best$loglik)
+```
+
+---
+
+## Presence-only model
+
+When no background data are available, use `likelihood = "presence_only"`.
+
+```{r optimize-presence-only}
+set.seed(42)
+res_po <- optimize_niche(
+  env_occ      = example_env_occ_2d,
+  env_m        = NULL,
+  num_starts   = 5L,
+  start_method = "uniform",
+  likelihood   = "presence_only",
+  eta          = 1
+)
+
+print(res_po$best$loglik)
+```
+
+---
+
+## Low-level wrappers
+
+For maximum performance with a fixed starting vector, use the model-specific
+wrappers (`niche_unweighted`, `niche_presence_only`, `niche_weighted`). These
+call the compiled C++ XPtr backend directly.
+
+```{r low-level-wrappers}
+occ3    <- as.matrix(example_env_occ_3d)
+M3      <- as.matrix(example_env_m_3d)
+theta3  <- start_theta(example_env_occ_3d)
+
+res_uw3 <- niche_unweighted(occ = occ3, M = M3, start = theta3)
+print(res_uw3$value)
+
+res_po3 <- niche_presence_only(occ = occ3, start = theta3)
+print(res_po3$value)
+```
+
+---
+
+## References
+
+Jiménez, L., & Soberón, J. (2019). Leaving the area under the ROC curve aside:
+An alternative assessment of the performance of species distribution models.
+*Ecological Modelling*, 402, 41–51.
+
+Jiménez, L., Soberón, J., Christen, J. A., & Soto, D. (2022).
+On the problem of modeling a fundamental niche from occurrence data.
+*Ecological Modelling*, 397, 109823.
+<https://doi.org/10.1016/j.ecolmodel.2021.109823>

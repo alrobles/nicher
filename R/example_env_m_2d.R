@@ -8,4 +8,6 @@
 #'   \item{bio12WH}{precipitation, in mm}
 #' }
 #' @source <doi:10.1016/j.ecolmodel.2021.109823>
+#' @examples
+#' head(example_env_m_2d)
 "example_env_m_2d"

@@ -10,4 +10,6 @@
 #' }
 #'
 #' @source \doi{doi:10.1016/j.ecolmodel.2021.109823}
+#' @examples
+#' head(example_env_occ_2d)
 "example_env_occ_2d"

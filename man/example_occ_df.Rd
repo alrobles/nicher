@@ -27,4 +27,7 @@ download and clean from GBIF. This is a hummingbird example.
 A dataset with three variables. Contains scientific name, longitude and
 latitude.
 }
+\examples{
+head(example_occ_df)
+}
 \keyword{datasets}

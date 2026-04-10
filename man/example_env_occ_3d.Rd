@@ -29,4 +29,7 @@ hummingbird example.
 A dataset with three variables containing points
 contains 3 bioclimatic variables
 }
+\examples{
+head(example_env_occ_3d)
+}
 \keyword{datasets}

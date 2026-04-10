@@ -17,6 +17,21 @@
 #'     \item all_results — (multi-start only) table of all runs
 #'   }
 #'
+#' @examples
+#' \dontrun{
+#' occ    <- as.matrix(example_env_occ_3d)
+#' M      <- as.matrix(example_env_m_3d)
+#' theta0 <- start_theta(example_env_occ_3d)
+#' xptr   <- create_niche_obj_ptr(
+#'   env_occ    = occ,
+#'   env_m      = M,
+#'   likelihood = "unweighted",
+#'   eta        = 1
+#' )
+#' res <- optimize_niche_xptr(start = theta0, xptr = xptr)
+#' res$value
+#' }
+#'
 #' @export
 optimize_niche_xptr <- function(start = NULL,
                                 xptr,
@@ -67,7 +82,7 @@ optimize_niche_xptr <- function(start = NULL,
     s <- sanitize_start(start)
 
     out <- tryCatch(
-      ucminfcpp:::ucminf_xptr(
+      ucminfcpp::ucminf_xptr(
         par = s,
         xptr = xptr,
         control = control
@@ -113,7 +128,7 @@ optimize_niche_xptr <- function(start = NULL,
     }
 
     res <- tryCatch(
-      ucminfcpp:::ucminf_xptr(
+      ucminfcpp::ucminf_xptr(
         par = s,
         xptr = xptr,
         control = control

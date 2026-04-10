@@ -10,4 +10,6 @@
 #'   \item{bio19WH}{Precipitation of Coldest Quarter, in mm}
 #' }
 #' @source <doi:10.1016/j.ecolmodel.2021.109823>
+#' @examples
+#' head(example_env_m_3d)
 "example_env_m_3d"

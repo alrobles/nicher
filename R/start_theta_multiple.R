@@ -10,6 +10,13 @@
 #' @param method "sobol" (Sobol design) or "uniform".
 #'
 #' @return A data frame of dimension num_starts × num_parameters.
+#' @examples
+#' starts <- start_theta_multiple(
+#'   env_data   = example_env_occ_2d,
+#'   num_starts = 5L,
+#'   method     = "uniform"
+#' )
+#' dim(starts)
 #' @export
 start_theta_multiple <- function(env_data, num_starts = 100,
                                  quant_vec = c(0.1, 0.5, 0.9),

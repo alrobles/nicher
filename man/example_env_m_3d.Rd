@@ -29,4 +29,7 @@ hummingbird example.
 A dataset with three columns containing extracted
 information from 3 bioclimatic variables
 }
+\examples{
+head(example_env_m_3d)
+}
 \keyword{datasets}

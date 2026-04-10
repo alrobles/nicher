@@ -18,6 +18,13 @@
 #'     \item all_results — present only for multi-start
 #'   }
 #'
+#' @examples
+#' occ <- as.matrix(example_env_occ_3d)
+#' M   <- as.matrix(example_env_m_3d)
+#' theta0 <- start_theta(example_env_occ_3d)
+#' res <- niche_unweighted(occ = occ, M = M, start = theta0)
+#' res$value
+#'
 #' @export
 niche_unweighted <- function(occ, M, eta = 1, start = NULL, ...) {
   xptr <- create_niche_obj_ptr(

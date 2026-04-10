@@ -144,7 +144,7 @@ optimize_niche <- function(env_occ, env_m,
     # -----------------------------------------------------------------------
     runner <- function(start_vec, id) {
       if (verbose) {
-        cat(sprintf("Starting point %d [cpp backend]\n", id))
+        message(sprintf("Starting point %d [cpp backend]\n", id))
       }
       .optimize_niche_helper_cpp(
         param      = start_vec,
@@ -167,7 +167,7 @@ optimize_niche <- function(env_occ, env_m,
 
     runner <- function(start_vec, id) {
       if (verbose) {
-        cat(sprintf("Starting point %d\n", id))
+        message(sprintf("Starting point %d\n", id))
       }
       res <- .optimize_niche_helper(
         param    = start_vec,
@@ -212,7 +212,7 @@ optimize_niche <- function(env_occ, env_m,
   )
 
   if (verbose) {
-    cat(sprintf(
+    message(sprintf(
       "Best log-likelihood: %.6f (convergence = %d)\n",
       best$loglik, best$convergence
     ))
