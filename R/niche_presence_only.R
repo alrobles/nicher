@@ -23,6 +23,12 @@
 #'     \item all_results — only present for multi-start
 #'   }
 #'
+#' @examples
+#' occ    <- as.matrix(example_env_occ_3d)
+#' theta0 <- start_theta(example_env_occ_3d)
+#' res    <- niche_presence_only(occ = occ, start = theta0)
+#' res$value
+#'
 #' @export
 niche_presence_only <- function(occ, eta = 1, start = NULL, ...) {
   # Build compiled C++ presence-only objective

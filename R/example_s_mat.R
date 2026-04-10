@@ -5,4 +5,6 @@
 #' In two dimensions encodes the rotation (orientation) and scaling of an
 #' ellipse.
 #' @source <doi:10.1016/j.ecolmodel.2021.109823>
+#' @examples
+#' print(example_s_mat)
 "example_s_mat"

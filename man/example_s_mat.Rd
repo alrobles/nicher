@@ -26,4 +26,7 @@ semi-definite matrix.
 In two dimensions encodes the rotation (orientation) and scaling of an
 ellipse.
 }
+\examples{
+print(example_s_mat)
+}
 \keyword{datasets}

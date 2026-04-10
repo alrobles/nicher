@@ -21,6 +21,19 @@
 #'
 #' @return Scalar numeric: (negative) log-likelihood.
 #'
+#' @examples
+#' \dontrun{
+#' theta <- start_theta(example_env_occ_2d)
+#' ll <- loglik_niche_math_weighted_integrated(
+#'   theta   = theta,
+#'   env_occ = example_env_occ_2d,
+#'   env_m   = example_env_m_2d,
+#'   eta     = 1,
+#'   neg     = TRUE
+#' )
+#' print(ll)
+#' }
+#'
 #' @export
 loglik_niche_math_weighted_integrated <- function(theta, env_occ, env_m, eta = 1, neg = TRUE,
                                                   den_idx = NULL, kde_idx = NULL,
@@ -36,7 +49,7 @@ loglik_niche_math_weighted_integrated <- function(theta, env_occ, env_m, eta = 1
   L_corr <- cvine_cholesky(v, d = p, eta = eta)
   L_cov <- diag(sigma) %*% L_corr
 
-  # Convertir a matriz
+  # Convert to matrix
   env_occ <- as.matrix(env_occ)
   env_m <- as.matrix(env_m)
 
@@ -45,6 +58,6 @@ loglik_niche_math_weighted_integrated <- function(theta, env_occ, env_m, eta = 1
   if (!is.null(kde_idx)) kde_idx <- as.integer(kde_idx)
   if (!is.null(precomp_w_den)) precomp_w_den <- as.numeric(precomp_w_den)
 
-  # Llamada a C++ con el nuevo argumento
+  # Call C++ with the new argument
   loglik_niche_weighted_integrated_cpp(mu, L_cov, env_occ, env_m, den_idx, kde_idx, precomp_w_den, neg)
 }

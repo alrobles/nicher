@@ -9,4 +9,6 @@
 #'   \item{lat}{Decimal latitude geographical coordinate, in degrees}
 #' }
 #' @source <doi:10.1016/j.ecolmodel.2021.109823>
+#' @examples
+#' head(example_occ_df)
 "example_occ_df"

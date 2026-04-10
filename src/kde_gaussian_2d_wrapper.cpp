@@ -1,6 +1,6 @@
 #include "nicher_types.h"
 
-// Declaración explícita (opcional, pero ayuda a diagnosticar)
+// Explicit declaration (optional, aids diagnostics)
 namespace nicher {
 Eigen::VectorXd kde_2d(const Eigen::MatrixXd& x, const Eigen::MatrixXd& data);
 }

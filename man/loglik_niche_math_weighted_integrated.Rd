@@ -45,3 +45,16 @@ in C++, including KDE calculation and Mahalanobis distances, to minimize
 R overhead. Handles optional subsampling via integer indices. Optionally
 accepts precomputed denominator weights to avoid recomputing KDE.
 }
+\examples{
+\dontrun{
+theta <- start_theta(example_env_occ_2d)
+ll <- loglik_niche_math_weighted_integrated(
+  theta   = theta,
+  env_occ = example_env_occ_2d,
+  env_m   = example_env_m_2d,
+  eta     = 1,
+  neg     = TRUE
+)
+print(ll)
+}
+}

@@ -71,3 +71,16 @@ This wrapper supports both:
         The best result (lowest negative log-likelihood) is returned.
 }
 }
+\examples{
+\dontrun{
+occ <- as.matrix(example_env_occ_3d)
+M   <- as.matrix(example_env_m_3d)
+set.seed(1)
+den_idx <- sample.int(nrow(M), 300L)
+kde_idx <- sample.int(nrow(M), 600L)
+w_den   <- kde_gaussian(M[den_idx, ], M[kde_idx, ])
+theta0  <- start_theta(example_env_occ_3d)
+res <- niche_weighted(occ, M, den_idx, kde_idx, w_den, start = theta0)
+res$value
+}
+}

@@ -2,7 +2,7 @@
 #include "nicher_types.h"
 
 using namespace Rcpp;
-using namespace nicher; // para usar nuestras funciones KDE
+using namespace nicher; // for KDE helper functions
 
 // [[Rcpp::export]]
 double loglik_niche_weighted_integrated_cpp(
@@ -26,22 +26,22 @@ double loglik_niche_weighted_integrated_cpp(
   if (mu.size() != p) stop("mu must have length p");
   if (n_occ <= 0 || n_m <= 0) stop("n_occ and n_m must be >0");
 
-  // Mapear a Eigen
+  // Map to Eigen
   Eigen::Map<Eigen::VectorXd> mu_eig(Rcpp::as<Eigen::Map<Eigen::VectorXd>>(mu));
   Eigen::Map<Eigen::MatrixXd> L_eig(Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(L));
   Eigen::Map<Eigen::MatrixXd> occ_eig(Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(env_occ));
   Eigen::Map<Eigen::MatrixXd> m_eig(Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(env_m));
 
-  // --- Construir subconjuntos según índices ---
+  // --- Build subsets according to indices ---
   Eigen::MatrixXd M_den, M_kde;
 
-  // Denominador
+  // Denominator subset
   if (den_idx.isNotNull()) {
     IntegerVector idx(den_idx);
     int n_den = idx.size();
     M_den.resize(n_den, p);
     for (int i = 0; i < n_den; ++i) {
-      int row = idx[i] - 1;  // R usa 1-based
+      int row = idx[i] - 1;  // R uses 1-based indexing
       if (row < 0 || row >= n_m) stop("den_idx out of range");
       M_den.row(i) = m_eig.row(row);
     }
@@ -49,7 +49,7 @@ double loglik_niche_weighted_integrated_cpp(
     M_den = m_eig;
   }
 
-  // KDE reference
+  // KDE reference subset
   if (kde_idx.isNotNull()) {
     IntegerVector idx(kde_idx);
     int n_kde = idx.size();
@@ -63,17 +63,17 @@ double loglik_niche_weighted_integrated_cpp(
     M_kde = m_eig;
   }
 
-  // --- Calcular pesos KDE ---
+  // --- Compute KDE weights ---
   Eigen::VectorXd w_occ, w_den;
 
-  // Pesos para presencias
+  // Weights for presence points
   if (p == 2) {
     w_occ = nicher::kde_2d(occ_eig, M_kde);
   } else {
     w_occ = nicher::kde_eigen(occ_eig, M_kde);
   }
 
-  // Pesos del denominador — versión parcheada y segura
+  // Denominator weights — safe patched version
   if (precomp_w_den.isNotNull()) {
 
     NumericVector pw_R(precomp_w_den);
@@ -84,7 +84,7 @@ double loglik_niche_weighted_integrated_cpp(
            pw_R.size(), n_den);
     }
 
-    // Copia en orden 1:1 consistente con la construcción de M_den
+    // Copy in 1:1 order consistent with M_den construction
     Eigen::VectorXd w_tmp(n_den);
     for (int i = 0; i < n_den; ++i) {
       w_tmp(i) = pw_R[i];
@@ -100,7 +100,7 @@ double loglik_niche_weighted_integrated_cpp(
     }
   }
 
-  // --- Distancias de Mahalanobis ---
+  // --- Mahalanobis distances ---
   Eigen::MatrixXd diff_occ(p, n_occ);
   for (int j = 0; j < n_occ; ++j)
     diff_occ.col(j) = occ_eig.row(j).transpose() - mu_eig;

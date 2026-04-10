@@ -28,3 +28,11 @@ Creates a set of starting parameter vectors on the math scale for use with
 the log-likelihood functions. Ensures all starting values are strictly
 numeric and finite, even if env_data is supplied as a data frame.
 }
+\examples{
+starts <- start_theta_multiple(
+  env_data   = example_env_occ_2d,
+  num_starts = 5L,
+  method     = "uniform"
+)
+dim(starts)
+}

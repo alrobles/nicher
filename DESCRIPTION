@@ -13,8 +13,8 @@ Authors@R:
            email = "ljimenez@cmm.uchile.cl",
            role = c("aut", "ctb"))
            )
-Description: Ecological niche model estimation using elipses under an M hypothesis.
-    Methods for the optimization of ellipses parameter are as described in :
+Description: Ecological niche model estimation using ellipses under an M hypothesis.
+    Methods for the optimization of ellipses parameter are as described in:
     Jimenez et al. (2022) <doi:10.1016/j.ecolmodel.2021.109823>.
 License: GPL (>= 3)
 Encoding: UTF-8
@@ -30,10 +30,14 @@ Imports:
     ucminfcpp,
     utils
 Suggests:
+    knitr,
+    rmarkdown,
     pomp,
     testthat (>= 3.0.0)
+VignetteBuilder: knitr
 Config/testthat/edition: 3
 URL: https://alrobles.github.io/nicher, https://github.com/alrobles/nicher, https://alrobles.github.io/nicher/
+BugReports: https://github.com/alrobles/nicher/issues
 LinkingTo: 
     Rcpp,
     RcppEigen

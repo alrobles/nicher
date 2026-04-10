@@ -22,4 +22,7 @@ environmental variables.
 vector of length 2 corresponding to the centroid
 of an ellipsoid
 }
+\examples{
+print(example_mu_vec)
+}
 \keyword{datasets}
