@@ -81,7 +81,7 @@ ll <- loglik_niche(
   env_m   = example_env_m_2d,
   neg     = FALSE         # return the log-likelihood (not negative)
 )
-cat("Log-likelihood:", ll, "\n")
+print(ll)
 ```
 
 ---
@@ -100,7 +100,7 @@ ll_cpp <- loglik_niche_math_cpp(
   eta     = 1,
   neg     = FALSE
 )
-cat("Math-scale log-likelihood:", ll_cpp, "\n")
+print(ll_cpp)
 ```
 
 ---
@@ -121,8 +121,8 @@ res_uw <- optimize_niche(
   eta          = 1
 )
 
-cat("Best log-likelihood:", res_uw$best$loglik, "\n")
-cat("Convergence code:   ", res_uw$best$convergence, "\n")
+print(res_uw$best$loglik)
+print(res_uw$best$convergence)
 ```
 
 The resulting parameter vector can be decoded into biological parameters with
@@ -131,9 +131,7 @@ The resulting parameter vector can be decoded into biological parameters with
 ```{r ellipsoid-pars}
 theta_best <- res_uw$best$theta
 pars <- get_ellipsoid_pars(example_env_occ_2d)
-cat("Centroid (mu):\n")
 print(pars$mu)
-cat("Covariance matrix:\n")
 print(pars$s_mat)
 ```
 
@@ -163,7 +161,7 @@ res_w <- optimize_niche(
   seed             = 1L
 )
 
-cat("Weighted model best log-likelihood:", res_w$best$loglik, "\n")
+print(res_w$best$loglik)
 ```
 
 ---
@@ -183,7 +181,7 @@ res_po <- optimize_niche(
   eta          = 1
 )
 
-cat("Presence-only best log-likelihood:", res_po$best$loglik, "\n")
+print(res_po$best$loglik)
 ```
 
 ---
@@ -200,10 +198,10 @@ M3      <- as.matrix(example_env_m_3d)
 theta3  <- start_theta(example_env_occ_3d)
 
 res_uw3 <- niche_unweighted(occ = occ3, M = M3, start = theta3)
-cat("Unweighted (3D) value:", res_uw3$value, "\n")
+print(res_uw3$value)
 
 res_po3 <- niche_presence_only(occ = occ3, start = theta3)
-cat("Presence-only (3D) value:", res_po3$value, "\n")
+print(res_po3$value)
 ```
 
 ---
