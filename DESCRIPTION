@@ -23,7 +23,7 @@ Depends:
     R (>= 3.5)
 RoxygenNote: 7.3.3
 Imports: 
-    Rcpp,
+    Rcpp (>=1.1.0),
     RcppEigen,
     stats,
     ucminf,
