@@ -248,11 +248,11 @@ optimize_niche <- function(env_occ,
           ...
         )
       }
-      val_ctrl <- list(maxeval = 500L)
+      validation_ctrl <- list(maxeval = 500L)
       res <- ucminf::ucminf(
         par     = best$theta,
         fn      = fn,
-        control = val_ctrl,
+        control = validation_ctrl,
         hessian = FALSE
       )
       -res$value

@@ -191,16 +191,11 @@ assess.nicher <- function(x,
       "Good solution found with minor numerical noise ",
       "across starts."
     )
-  } else if (n_conv >= min_converged) {
+  } else {
     flag <- "suggest_average"
     rec  <- paste0(
       "Converged solutions spread widely. ",
       "Consider averaging theta vectors or increasing num_starts."
-    )
-  } else {
-    flag <- "needs_more_starts"
-    rec  <- paste0(
-      "Insufficient convergence evidence. Increase num_starts."
     )
   }
 

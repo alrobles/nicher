@@ -53,7 +53,7 @@ result <- optimize_niche(
 print(result)
 #> -- nicher optimization result --
 #>   Likelihood : unweighted
-#>   Starts     : 20 (converged: 20 )
+#>   Starts     : 20 (converged: 20)
 #>   Best loglik: -3.141593
 #>   Convergence: 1
 
