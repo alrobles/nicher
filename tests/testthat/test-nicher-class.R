@@ -8,7 +8,7 @@
 # Shared test data: build a small nicher object for unit tests
 # ---------------------------------------------------------------------------
 
-.make_mock_nicher <- function(logliks, convs, likelihood = "unweighted") {
+.make_mock_nicher <- function(logliks, convs, likelihood = "weighted") {
   n <- length(logliks)
   solutions <- data.frame(
     start_id    = seq_len(n),
@@ -127,15 +127,15 @@ test_that("optimize_niche returns a nicher object with correct structure (2D)", 
   set.seed(7L)
   res <- optimize_niche(
     env_occ    = example_env_occ_2d,
-    env_m      = example_env_m_2d,
+    env_m      = NULL,
     num_starts = 5L,
     breadth    = 0.1,
-    likelihood = "unweighted",
+    likelihood = "presence_only",
     eta        = 1
   )
 
   expect_s3_class(res, "nicher")
-  expect_equal(res$likelihood, "unweighted")
+  expect_equal(res$likelihood, "presence_only")
   expect_equal(res$n_starts, 5L)
   expect_true(is.finite(res$best$loglik))
   expect_true(nrow(res$solutions) == 5L)

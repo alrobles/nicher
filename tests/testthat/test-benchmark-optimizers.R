@@ -235,21 +235,21 @@ test_that("optimize_niche (xptr backend) outperforms equivalent ucminf loop (2D)
   set.seed(123)
   n_starts <- 5L
 
-  # --- optimize_niche (always xptr) -------------------------------------
+  # --- optimize_niche (always xptr, presence_only for simplicity) -------
   time_cpp <- system.time(
     result_cpp <- optimize_niche(
       env_occ    = example_env_occ_2d,
-      env_m      = example_env_m_2d,
+      env_m      = NULL,
       num_starts = n_starts,
       breadth    = 0.1,
-      likelihood = "unweighted",
+      likelihood = "presence_only",
       eta        = 1
     )
   )["elapsed"]
 
   # --- ucminf R backend: replicate multi-start logic manually -----------
   starts_df <- start_theta_multiple(
-    example_env_m_2d, n_starts,
+    example_env_occ_2d, n_starts,
     method = "uniform"
   )
   starts_list <- split(starts_df, seq_len(nrow(starts_df)))
@@ -259,9 +259,15 @@ test_that("optimize_niche (xptr backend) outperforms equivalent ucminf loop (2D)
     v
   })
 
+  fn_po <- function(theta) {
+    loglik_niche_math_presence_only(
+      theta, example_env_occ_2d, eta = 1, neg = TRUE
+    )
+  }
   time_r <- system.time({
     results_r <- lapply(starts_list, function(s) {
-      .run_ucminf_r_backend(s, example_env_occ_2d, example_env_m_2d)
+      ucminf::ucminf(par = s, fn = fn_po,
+        control = list(maxeval = 500L), hessian = FALSE)
     })
   })["elapsed"]
 
@@ -270,7 +276,7 @@ test_that("optimize_niche (xptr backend) outperforms equivalent ucminf loop (2D)
 
   message(sprintf(
     paste0(
-      "\n--- Multi-start benchmark (%d starts, 2D) ---\n",
+      "\n--- Multi-start benchmark (%d starts, 2D, presence_only) ---\n",
       "  R backend:  %.4f s | best loglik = %.4f\n",
       "  xptr:       %.4f s | best loglik = %.4f\n",
       "  Speedup:    %.2fx\n"
@@ -365,16 +371,16 @@ test_that("XPtr backend (create_niche_obj_ptr) produces consistent results (2D)"
 # ---------------------------------------------------------------------------
 # Test 8 – optimize_niche (cpp xptr) returns a valid nicher object (2D)
 # ---------------------------------------------------------------------------
-test_that("optimize_niche returns a valid nicher object (2D)", {
+test_that("optimize_niche returns a valid nicher object (2D, presence_only)", {
   set.seed(42)
 
   res <- optimize_niche(
-    env_occ      = example_env_occ_2d,
-    env_m        = example_env_m_2d,
-    num_starts   = 3L,
-    breadth      = 0.1,
-    likelihood   = "unweighted",
-    eta          = 1
+    env_occ    = example_env_occ_2d,
+    env_m      = NULL,
+    num_starts = 3L,
+    breadth    = 0.1,
+    likelihood = "presence_only",
+    eta        = 1
   )
 
   # Must return a nicher S3 object
@@ -387,7 +393,7 @@ test_that("optimize_niche returns a valid nicher object (2D)", {
   expect_true(res$best$convergence %in% c(1L, 2L),
     label = "best$convergence is successful"
   )
-  expect_equal(res$likelihood, "unweighted",
+  expect_equal(res$likelihood, "presence_only",
     label = "likelihood field is set correctly"
   )
   expect_equal(res$n_starts, 3L,

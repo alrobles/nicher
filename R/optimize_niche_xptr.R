@@ -25,7 +25,7 @@
 #' xptr   <- create_niche_obj_ptr(
 #'   env_occ    = occ,
 #'   env_m      = M,
-#'   likelihood = "unweighted",
+#'   likelihood = "weighted",
 #'   eta        = 1
 #' )
 #' res <- optimize_niche_xptr(start = theta0, xptr = xptr)

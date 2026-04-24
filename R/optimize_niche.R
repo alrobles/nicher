@@ -5,13 +5,12 @@
 #' Sobol low-discrepancy sequence (via \pkg{pomp}) over the parameter space
 #' implied by \code{env_occ} and \code{breadth}.
 #'
-#' Three likelihood models are supported:
+#' Two likelihood models are supported:
 #' \itemize{
-#'   \item \code{"unweighted"}: ellipsoid model with background correction
-#'         (Jiménez & Soberón 2019).
 #'   \item \code{"weighted"}: weighted-normal model with KDE correction
 #'         (Jiménez & Soberón 2022).
-#'   \item \code{"presence_only"}: model using only presence points.
+#'   \item \code{"presence_only"}: model using only presence points,
+#'         no background correction.
 #' }
 #'
 #' An internal safeguard re-optimizes the best result with
@@ -26,8 +25,8 @@
 #'   to define starting bounds for \code{mu} parameters.
 #'   Quantiles are set to \code{c(breadth, 0.5, 1 - breadth)}.
 #'   Default is \code{0.1}.
-#' @param likelihood Character. One of \code{"unweighted"} (default),
-#'   \code{"weighted"}, or \code{"presence_only"}.
+#' @param likelihood Character. One of \code{"weighted"} (default) or
+#'   \code{"presence_only"}.
 #' @param control Named list of control parameters for
 #'   \code{ucminfcpp::ucminf_xptr()}. Recognized entries:
 #'   \describe{
@@ -57,22 +56,31 @@
 #' @export
 #' @examples
 #' \dontrun{
+#' # Weighted model (KDE background correction)
 #' result <- optimize_niche(
 #'   env_occ    = example_env_occ_2d,
 #'   env_m      = example_env_m_2d,
 #'   num_starts = 20L,
 #'   breadth    = 0.1,
-#'   likelihood = "unweighted"
+#'   likelihood = "weighted"
 #' )
 #' print(result)
 #' assess(result)
+#'
+#' # Presence-only model
+#' result_po <- optimize_niche(
+#'   env_occ    = example_env_occ_2d,
+#'   env_m      = NULL,
+#'   num_starts = 20L,
+#'   likelihood = "presence_only"
+#' )
+#' print(result_po)
 #' }
 optimize_niche <- function(env_occ,
                            env_m,
                            num_starts = 100L,
                            breadth    = 0.1,
                            likelihood = c(
-                             "unweighted",
                              "weighted",
                              "presence_only"
                            ),
@@ -232,7 +240,6 @@ optimize_niche <- function(env_occ,
 .validate_xptr_result <- function(best, env_occ, env_m,
                                   likelihood, ctrl, ...) {
   obj_fun <- switch(likelihood,
-    unweighted    = loglik_niche_math_cpp,
     weighted      = loglik_niche_math_weighted,
     presence_only = loglik_niche_math_presence_only
   )
@@ -283,7 +290,7 @@ optimize_niche <- function(env_occ,
 #' @param param Numeric vector of starting parameters (named).
 #' @param env_occ,env_m Data frames as in [optimize_niche].
 #' @param control List of control parameters.
-#' @param likelihood Character. One of "unweighted", "weighted", "presence_only".
+#' @param likelihood Character. One of "weighted", "presence_only".
 #' @param ... Additional arguments (eta, m_subsample, m_kde_subsample, seed).
 #' @return A list with components: theta, loglik, convergence.
 #' @keywords internal

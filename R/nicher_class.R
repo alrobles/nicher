@@ -16,8 +16,8 @@
 #'   \code{loglik}, \code{convergence}, and \code{full_par} (list column).
 #' @param best A list with the best solution:
 #'   \code{theta}, \code{loglik}, \code{convergence}.
-#' @param likelihood Character. One of \code{"unweighted"},
-#'   \code{"weighted"}, or \code{"presence_only"}.
+#' @param likelihood Character. One of \code{"weighted"} or
+#'   \code{"presence_only"}.
 #' @param n_starts Integer. Total number of starting points used.
 #'
 #' @return An object of class \code{"nicher"}.
@@ -55,7 +55,7 @@ new_nicher <- function(solutions, best, likelihood, n_starts) {
 #'   env_occ    = example_env_occ_2d,
 #'   env_m      = example_env_m_2d,
 #'   num_starts = 10L,
-#'   likelihood = "unweighted"
+#'   likelihood = "weighted"
 #' )
 #' print(result)
 #' }
@@ -139,7 +139,7 @@ assess <- function(x, ...) UseMethod("assess")
 #'   env_occ    = example_env_occ_2d,
 #'   env_m      = example_env_m_2d,
 #'   num_starts = 20L,
-#'   likelihood = "unweighted"
+#'   likelihood = "weighted"
 #' )
 #' diag <- assess(result)
 #' cat("Flag          :", diag$flag, "\n")

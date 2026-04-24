@@ -27,7 +27,6 @@ Three likelihood formulations are supported:
 
 | Model | Description | Reference |
 |---|---|---|
-| `"unweighted"` | Background correction via log-sum-exp | Jiménez & Soberón (2019) |
 | `"weighted"` | KDE-weighted background correction | Jiménez & Soberón (2022) |
 | `"presence_only"` | Multivariate normal, no background | — |
 
@@ -105,55 +104,13 @@ print(ll_cpp)
 
 ---
 
-## Optimizing an unweighted niche model
-
-`optimize_niche()` runs multi-start optimization. Use `likelihood = "unweighted"`
-for the classical 2019 model. The `breadth` parameter controls the quantile
-range of starting points (default `0.1` → quantiles `c(0.1, 0.5, 0.9)`).
-
-```{r optimize-unweighted}
-set.seed(42)
-res_uw <- optimize_niche(
-  env_occ    = example_env_occ_2d,
-  env_m      = example_env_m_2d,
-  num_starts = 5L,
-  breadth    = 0.1,
-  likelihood = "unweighted",
-  eta        = 1
-)
-
-# Print the nicher object
-print(res_uw)
-
-# Assess acceptance criteria
-diag_uw <- assess(res_uw)
-cat("Flag:", diag_uw$flag, "\n")
-cat("Recommendation:", diag_uw$recommendation, "\n")
-```
-
-The resulting parameter vector can be decoded into biological parameters with
-`get_ellipsoid_pars()`:
-
-```{r ellipsoid-pars}
-theta_best <- res_uw$best$theta
-pars <- get_ellipsoid_pars(example_env_occ_2d)
-print(pars$mu)
-print(pars$s_mat)
-```
-
----
-
 ## Optimizing a weighted niche model
 
-The weighted model requires precomputed KDE weights for the denominator subset.
+`optimize_niche()` runs multi-start optimization. The `breadth` parameter
+controls the quantile range of starting points
+(default `0.1` → quantiles `c(0.1, 0.5, 0.9)`).
 
 ```{r optimize-weighted}
-M <- as.matrix(example_env_m_2d)
-set.seed(1)
-den_idx <- sample.int(nrow(M), 500L)
-kde_idx <- sample.int(nrow(M), 1000L)
-w_den   <- kde_gaussian(M[den_idx, ], M[kde_idx, ])
-
 set.seed(42)
 res_w <- optimize_niche(
   env_occ         = example_env_occ_2d,
@@ -167,8 +124,23 @@ res_w <- optimize_niche(
   seed            = 1L
 )
 
+# Print the nicher object
 print(res_w)
-assess(res_w)$flag
+
+# Assess acceptance criteria
+diag_w <- assess(res_w)
+cat("Flag:", diag_w$flag, "\n")
+cat("Recommendation:", diag_w$recommendation, "\n")
+```
+
+The resulting parameter vector can be decoded into biological parameters with
+`get_ellipsoid_pars()`:
+
+```{r ellipsoid-pars}
+theta_best <- res_w$best$theta
+pars <- get_ellipsoid_pars(example_env_occ_2d)
+print(pars$mu)
+print(pars$s_mat)
 ```
 
 ---
@@ -197,16 +169,13 @@ assess(res_po)$flag
 ## Low-level wrappers
 
 For maximum performance with a fixed starting vector, use the model-specific
-wrappers (`niche_unweighted`, `niche_presence_only`, `niche_weighted`). These
+wrappers (`niche_presence_only`, `niche_weighted`). These
 call the compiled C++ XPtr backend directly.
 
 ```{r low-level-wrappers}
 occ3    <- as.matrix(example_env_occ_3d)
 M3      <- as.matrix(example_env_m_3d)
 theta3  <- start_theta(example_env_occ_3d)
-
-res_uw3 <- niche_unweighted(occ = occ3, M = M3, start = theta3)
-print(res_uw3$value)
 
 res_po3 <- niche_presence_only(occ = occ3, start = theta3)
 print(res_po3$value)
