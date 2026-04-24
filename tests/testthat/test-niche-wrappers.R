@@ -1,7 +1,7 @@
 # tests/testthat/test-niche-wrappers.R
 #
 # Tests for the single-start niche optimization wrappers:
-#   niche_unweighted(), niche_presence_only(), niche_weighted()
+#   niche_presence_only(), niche_weighted()
 #
 # These tests use the built-in 3-D example datasets so that they run quickly
 # on CRAN. Heavier multi-start scenarios are guarded with skip_on_cran().
@@ -23,41 +23,7 @@ kde_idx3 <- sample.int(nrow(M3), 600L)
 pre3 <- kde_gaussian(M3[den_idx3, ], M3[kde_idx3, ])
 
 # ---------------------------------------------------------------------------
-# Test 1 – niche_unweighted returns correct structure
-# ---------------------------------------------------------------------------
-test_that("niche_unweighted returns a list with value, conv, and theta", {
-  res <- niche_unweighted(occ = occ3, M = M3, start = theta0_3d)
-
-  expect_type(res, "list")
-  expect_named(res, c("value", "conv", "theta"), ignore.order = TRUE)
-
-  expect_true(is.numeric(res$value) && length(res$value) == 1L,
-    label = "value is a scalar numeric"
-  )
-  expect_true(is.integer(res$conv) && length(res$conv) == 1L,
-    label = "conv is a scalar integer"
-  )
-  expect_true(is.numeric(res$theta),
-    label = "theta is a numeric vector"
-  )
-  expect_equal(length(res$theta), length(theta0_3d),
-    label = "theta has the same length as start"
-  )
-})
-
-# ---------------------------------------------------------------------------
-# Test 2 – niche_unweighted returns a finite log-likelihood
-# ---------------------------------------------------------------------------
-test_that("niche_unweighted returns a finite log-likelihood", {
-  res <- niche_unweighted(occ = occ3, M = M3, start = theta0_3d)
-
-  expect_true(is.finite(res$value),
-    label = "niche_unweighted value is finite"
-  )
-})
-
-# ---------------------------------------------------------------------------
-# Test 3 – niche_presence_only returns correct structure
+# Test 1 – niche_presence_only returns correct structure
 # ---------------------------------------------------------------------------
 test_that("niche_presence_only returns a list with value, conv, and theta", {
   res <- niche_presence_only(occ = occ3, start = theta0_3d)
@@ -157,16 +123,11 @@ test_that("niche_weighted errors when precomp_w_den length does not match den_id
 })
 
 # ---------------------------------------------------------------------------
-# Test 8 – Non-finite starting values raise an error
+# Test 6 – Non-finite starting values raise an error
 # ---------------------------------------------------------------------------
 test_that("wrappers error on non-finite starting values", {
   bad_start <- theta0_3d
   bad_start[1L] <- Inf
-
-  expect_error(niche_unweighted(occ3, M3, bad_start),
-    regexp = "finite",
-    label  = "niche_unweighted errors on Inf start"
-  )
 
   expect_error(niche_presence_only(occ3, bad_start),
     regexp = "finite",
@@ -181,10 +142,10 @@ test_that("wrappers error on non-finite starting values", {
 })
 
 # ---------------------------------------------------------------------------
-# Test 9 – Multi-start loop: all three models run for every starting point
+# Test 7 – Multi-start loop: presence-only and weighted run for every start
 #           (off-CRAN only due to heavier computation with full Sobol starts)
 # ---------------------------------------------------------------------------
-test_that("multi-start loop completes without error for UN, PO, and W (3D)", {
+test_that("multi-start loop completes without error for PO and W (3D)", {
   skip_on_cran()
 
   set.seed(2026)
@@ -197,12 +158,6 @@ test_that("multi-start loop completes without error for UN, PO, and W (3D)", {
 
   for (i in seq_along(starts)) {
     s <- starts[[i]]
-
-    # Unweighted
-    un <- niche_unweighted(occ = occ3, M = M3, start = s)
-    expect_true(is.finite(un$value),
-      label = sprintf("UN start %d: finite value", i)
-    )
 
     # Presence-only
     po <- niche_presence_only(occ = occ3, start = s)

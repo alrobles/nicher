@@ -168,16 +168,6 @@ test_that("loglik_niche_math_cpp returns finite value for extreme parameters", {
 # 6.7 2D path in wrapper tests
 # ---------------------------------------------------------------------------
 
-test_that("niche_unweighted works on 2D data", {
-  occ2   <- as.matrix(example_env_occ_2d)
-  M2     <- as.matrix(example_env_m_2d)
-  theta2 <- start_theta(example_env_occ_2d)
-
-  res <- niche_unweighted(occ = occ2, M = M2, start = theta2)
-  expect_type(res, "list")
-  expect_true(is.finite(res$value), label = "niche_unweighted 2D value is finite")
-})
-
 test_that("niche_presence_only works on 2D data", {
   occ2   <- as.matrix(example_env_occ_2d)
   theta2 <- start_theta(example_env_occ_2d)
@@ -191,14 +181,14 @@ test_that("niche_presence_only works on 2D data", {
 # 6.8 optimize_niche() error handling
 # ---------------------------------------------------------------------------
 
-test_that("optimize_niche errors when env_m is missing for unweighted model", {
+test_that("optimize_niche errors when env_m is missing for weighted model", {
   expect_error(
     optimize_niche(
-      env_occ      = example_env_occ_2d,
-      env_m        = NULL,
-      num_starts   = 2L,
-      start_method = "uniform",
-      likelihood   = "unweighted"
+      env_occ    = example_env_occ_2d,
+      env_m      = NULL,
+      num_starts = 2L,
+      breadth    = 0.1,
+      likelihood = "weighted"
     ),
     regexp = "env_m must be provided"
   )
@@ -210,11 +200,11 @@ test_that("optimize_niche errors when env_occ and env_m have different column na
 
   expect_error(
     optimize_niche(
-      env_occ      = occ_bad,
-      env_m        = example_env_m_2d,
-      num_starts   = 2L,
-      start_method = "uniform",
-      likelihood   = "unweighted"
+      env_occ    = occ_bad,
+      env_m      = example_env_m_2d,
+      num_starts = 2L,
+      breadth    = 0.1,
+      likelihood = "weighted"
     ),
     regexp = "same variables"
   )
