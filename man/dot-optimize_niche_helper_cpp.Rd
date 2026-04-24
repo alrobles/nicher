@@ -13,7 +13,7 @@
 
 \item{control}{List of control parameters.}
 
-\item{likelihood}{Character. One of "unweighted", "weighted", "presence_only".}
+\item{likelihood}{Character. One of "weighted", "presence_only".}
 
 \item{...}{Additional arguments (eta, m_subsample, m_kde_subsample, seed).}
 }

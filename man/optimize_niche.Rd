@@ -2,116 +2,103 @@
 % Please edit documentation in R/optimize_niche.R
 \name{optimize_niche}
 \alias{optimize_niche}
-\title{Optimize niche model log-likelihood (math scale) with multiple starts (ucminf)}
+\title{Optimize niche model log-likelihood with multi-start Sobol design}
 \usage{
 optimize_niche(
   env_occ,
   env_m,
-  num_starts = 100,
-  quant_vec = c(0.1, 0.5, 0.9),
-  start_method = "sobol",
-  likelihood = c("unweighted", "weighted", "presence_only"),
-  backend = c("R", "cpp"),
+  num_starts = 100L,
+  breadth = 0.1,
+  likelihood = c("weighted", "presence_only"),
   control = list(),
   verbose = FALSE,
   ...
 )
 }
 \arguments{
-\item{env_occ}{Data frame with environmental values at presence points.}
+\item{env_occ}{Data frame of environmental values at presence points.}
 
-\item{env_m}{Data frame with environmental values from the accessibility
-area M (background). Ignored if `likelihood = "presence_only"`.}
+\item{env_m}{Data frame of background environmental values. Ignored
+when \code{likelihood = "presence_only"}.}
 
-\item{num_starts}{Integer. Number of starting points.}
+\item{num_starts}{Integer. Number of Sobol starting points.}
 
-\item{quant_vec}{Quantiles used to define ranges for `mu` (passed to
-[start_theta_multiple()]).}
+\item{breadth}{Numeric in (0, 0.5). Controls the quantile range used
+to define starting bounds for \code{mu} parameters.
+Quantiles are set to \code{c(breadth, 0.5, 1 - breadth)}.
+Default is \code{0.1}.}
 
-\item{start_method}{Method for generating starting points:
-`"sobol"` (requires \pkg{pomp}) or `"uniform"`.}
+\item{likelihood}{Character. One of \code{"weighted"} (default) or
+\code{"presence_only"}.}
 
-\item{likelihood}{Character. One of `"unweighted"` (default), `"weighted"`,
-or `"presence_only"`.}
-
-\item{backend}{Character. Optimization backend: `"R"` (default) uses
-[ucminf::ucminf()] with an R-level objective function;
-`"cpp"` uses [ucminfcpp::ucminf_xptr()] with a compiled C++ objective
-function for greater performance.}
-
-\item{control}{List of control parameters passed to [ucminf::ucminf()] or
-[ucminfcpp::ucminf_xptr()].
-Default values (if not supplied) are:
+\item{control}{Named list of control parameters for
+\code{ucminfcpp::ucminf_xptr()}. Recognized entries:
 \describe{
-  \item{grad}{"central"}
-  \item{gradstep}{c(1e-6, 1e-8)}
-  \item{grtol}{1e-4}
-  \item{xtol}{1e-8}
-  \item{stepmax}{5}
-  \item{maxeval}{2000}
+  \item{\code{grad}}{"central" (default)}
+  \item{\code{gradstep}}{c(1e-6, 1e-8)}
+  \item{\code{grtol}}{1e-4}
+  \item{\code{xtol}}{1e-8}
+  \item{\code{stepmax}}{5}
+  \item{\code{maxeval}}{2000}
 }}
 
-\item{verbose}{Logical. If `TRUE`, print progress messages.}
+\item{verbose}{Logical. If \code{TRUE}, print per-start progress.}
 
-\item{...}{Additional arguments passed to the chosen objective function,
-e.g., `eta` for the LKJ prior, or subsampling parameters for the weighted
-model (`m_subsample`, `m_kde_subsample`, `seed`).}
+\item{...}{Additional arguments forwarded to the C++ helper, e.g.
+\code{eta} for the LKJ prior, or \code{m_subsample},
+\code{m_kde_subsample}, \code{seed} for the weighted model.}
 }
 \value{
-A list with two components:
-  \item{solutions}{A data frame with columns:
-    \itemize{
-      \item `start_id`: integer identifier of the starting point.
-      \item `loglik`: the maximized log-likelihood (not negative).
-      \item `convergence`: convergence code from `ucminf` (1 or 2 mean success).
-      \item `full_par`: list column with the full parameter vector at the optimum.
-    }}
-  \item{best}{A list with the best solution: `theta`, `loglik`, `convergence`.}
+An object of class \code{"nicher"} (see \code{\link{new_nicher}})
+  with components:
+  \describe{
+    \item{\code{solutions}}{Data frame with columns \code{start_id},
+      \code{loglik}, \code{convergence}, \code{full_par}.}
+    \item{\code{best}}{List: \code{theta}, \code{loglik},
+      \code{convergence}.}
+    \item{\code{likelihood}}{The likelihood model used.}
+    \item{\code{n_starts}}{Number of starting points.}
+  }
 }
 \description{
-Runs multiple optimizations using [ucminf::ucminf()] from different starting
-points to maximize the likelihood of the ellipsoid niche model on the math
-scale. The objective function can be:
-\itemize{
-  \item `"unweighted"`: the basic ellipsoid model with background correction
-        (Jiménez & Soberón 2019) – uses [loglik_niche_math_cpp()].
-  \item `"weighted"`: the weighted‑normal model with integrated KDE
-        (Jiménez & Soberón 2022) – uses [loglik_niche_math_weighted()].
-  \item `"presence_only"`: the simplest model using only presence points
-        (no background correction) – uses [loglik_niche_math_presence_only()].
+Runs multi-start optimization using \code{ucminfcpp::ucminf_xptr()} with
+a compiled C++ objective function. Starting points are drawn from a
+Sobol low-discrepancy sequence (via \pkg{pomp}) over the parameter space
+implied by \code{env_occ} and \code{breadth}.
 }
+\details{
+Two likelihood models are supported:
+\itemize{
+  \item \code{"weighted"}: weighted-normal model with KDE correction
+        (Jiménez & Soberón 2022).
+  \item \code{"presence_only"}: model using only presence points,
+        no background correction.
+}
+
+An internal safeguard re-optimizes the best result with
+\code{ucminf::ucminf} and warns if the two log-likelihoods diverge
+by more than \code{1e-3}, indicating a potential pointer-safety issue.
 }
 \examples{
 \dontrun{
-# Unweighted (2019) with 5 starting points, R backend
-res1 <- optimize_niche(example_env_occ_2d, example_env_m_2d,
-  num_starts = 5, start_method = "uniform",
-  likelihood = "unweighted", eta = 1
+# Weighted model (KDE background correction)
+result <- optimize_niche(
+  env_occ    = example_env_occ_2d,
+  env_m      = example_env_m_2d,
+  num_starts = 20L,
+  breadth    = 0.1,
+  likelihood = "weighted"
 )
-res1$best
+print(result)
+assess(result)
 
-# Unweighted (2019) with 5 starting points, C++ backend (faster)
-res1_cpp <- optimize_niche(example_env_occ_2d, example_env_m_2d,
-  num_starts = 5, start_method = "uniform",
-  likelihood = "unweighted", eta = 1,
-  backend = "cpp"
+# Presence-only model
+result_po <- optimize_niche(
+  env_occ    = example_env_occ_2d,
+  env_m      = NULL,
+  num_starts = 20L,
+  likelihood = "presence_only"
 )
-res1_cpp$best
-
-# Weighted (2022) with 5 starting points
-res2 <- optimize_niche(example_env_occ_2d, example_env_m_2d,
-  num_starts = 5, start_method = "uniform",
-  likelihood = "weighted", eta = 1,
-  m_subsample = 2000, m_kde_subsample = 5000, seed = 123
-)
-res2$best
-
-# Presence‑only (ultra‑light) with 5 starting points
-res3 <- optimize_niche(example_env_occ_2d,
-  env_m = NULL,
-  num_starts = 5, start_method = "uniform",
-  likelihood = "presence_only", eta = 1
-)
-res3$best
+print(result_po)
 }
 }
