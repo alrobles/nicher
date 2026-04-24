@@ -151,6 +151,9 @@ assess.nicher <- function(x,
                           tol_dist     = 0.05,
                           min_converged = 2L,
                           ...) {
+  if (min_converged < 2L) {
+    stop("`min_converged` must be at least 2 because `gap` is computed from the top two converged solutions.")
+  }
   sols     <- x$solutions
   best_ll  <- x$best$loglik
 

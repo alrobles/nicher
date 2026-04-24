@@ -22,7 +22,7 @@
     loglik      = max(logliks),
     convergence = as.integer(convs[which.max(logliks)])
   )
-  new_nicher(solutions, best, likelihood, n_starts = n)
+  nicher:::new_nicher(solutions, best, likelihood, n_starts = n)
 }
 
 # ---------------------------------------------------------------------------
