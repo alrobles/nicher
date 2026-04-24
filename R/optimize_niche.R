@@ -1,124 +1,124 @@
-#' Optimize niche model log-likelihood (math scale) with multiple starts (ucminf)
+#' Optimize niche model log-likelihood with multi-start Sobol design
 #'
-#' Runs multiple optimizations using [ucminf::ucminf()] from different starting
-#' points to maximize the likelihood of the ellipsoid niche model on the math
-#' scale. The objective function can be:
+#' Runs multi-start optimization using \code{ucminfcpp::ucminf_xptr()} with
+#' a compiled C++ objective function. Starting points are drawn from a
+#' Sobol low-discrepancy sequence (via \pkg{pomp}) over the parameter space
+#' implied by \code{env_occ} and \code{breadth}.
+#'
+#' Three likelihood models are supported:
 #' \itemize{
-#'   \item `"unweighted"`: the basic ellipsoid model with background correction
-#'         (Jiménez & Soberón 2019) – uses [loglik_niche_math_cpp()].
-#'   \item `"weighted"`: the weighted‑normal model with integrated KDE
-#'         (Jiménez & Soberón 2022) – uses [loglik_niche_math_weighted()].
-#'   \item `"presence_only"`: the simplest model using only presence points
-#'         (no background correction) – uses [loglik_niche_math_presence_only()].
+#'   \item \code{"unweighted"}: ellipsoid model with background correction
+#'         (Jiménez & Soberón 2019).
+#'   \item \code{"weighted"}: weighted-normal model with KDE correction
+#'         (Jiménez & Soberón 2022).
+#'   \item \code{"presence_only"}: model using only presence points.
 #' }
 #'
-#' @param env_occ Data frame with environmental values at presence points.
-#' @param env_m Data frame with environmental values from the accessibility
-#'   area M (background). Ignored if `likelihood = "presence_only"`.
-#' @param num_starts Integer. Number of starting points.
-#' @param quant_vec Quantiles used to define ranges for `mu` (passed to
-#'   [start_theta_multiple()]).
-#' @param start_method Method for generating starting points:
-#'   `"sobol"` (requires \pkg{pomp}) or `"uniform"`.
-#' @param likelihood Character. One of `"unweighted"` (default), `"weighted"`,
-#'   or `"presence_only"`.
-#' @param backend Character. Optimization backend: `"R"` (default) uses
-#'   [ucminf::ucminf()] with an R-level objective function;
-#'   `"cpp"` uses [ucminfcpp::ucminf_xptr()] with a compiled C++ objective
-#'   function for greater performance.
-#' @param control List of control parameters passed to [ucminf::ucminf()] or
-#'   [ucminfcpp::ucminf_xptr()].
-#'   Default values (if not supplied) are:
-#'   \describe{
-#'     \item{grad}{"central"}
-#'     \item{gradstep}{c(1e-6, 1e-8)}
-#'     \item{grtol}{1e-4}
-#'     \item{xtol}{1e-8}
-#'     \item{stepmax}{5}
-#'     \item{maxeval}{2000}
-#'   }
-#' @param verbose Logical. If `TRUE`, print progress messages.
-#' @param ... Additional arguments passed to the chosen objective function,
-#'   e.g., `eta` for the LKJ prior, or subsampling parameters for the weighted
-#'   model (`m_subsample`, `m_kde_subsample`, `seed`).
+#' An internal safeguard re-optimizes the best result with
+#' \code{ucminf::ucminf} and warns if the two log-likelihoods diverge
+#' by more than \code{1e-3}, indicating a potential pointer-safety issue.
 #'
-#' @return A list with two components:
-#'   \item{solutions}{A data frame with columns:
-#'     \itemize{
-#'       \item `start_id`: integer identifier of the starting point.
-#'       \item `loglik`: the maximized log-likelihood (not negative).
-#'       \item `convergence`: convergence code from `ucminf` (1 or 2 mean success).
-#'       \item `full_par`: list column with the full parameter vector at the optimum.
-#'     }}
-#'   \item{best}{A list with the best solution: `theta`, `loglik`, `convergence`.}
+#' @param env_occ Data frame of environmental values at presence points.
+#' @param env_m Data frame of background environmental values. Ignored
+#'   when \code{likelihood = "presence_only"}.
+#' @param num_starts Integer. Number of Sobol starting points.
+#' @param breadth Numeric in (0, 0.5). Controls the quantile range used
+#'   to define starting bounds for \code{mu} parameters.
+#'   Quantiles are set to \code{c(breadth, 0.5, 1 - breadth)}.
+#'   Default is \code{0.1}.
+#' @param likelihood Character. One of \code{"unweighted"} (default),
+#'   \code{"weighted"}, or \code{"presence_only"}.
+#' @param control Named list of control parameters for
+#'   \code{ucminfcpp::ucminf_xptr()}. Recognized entries:
+#'   \describe{
+#'     \item{\code{grad}}{"central" (default)}
+#'     \item{\code{gradstep}}{c(1e-6, 1e-8)}
+#'     \item{\code{grtol}}{1e-4}
+#'     \item{\code{xtol}}{1e-8}
+#'     \item{\code{stepmax}}{5}
+#'     \item{\code{maxeval}}{2000}
+#'   }
+#' @param verbose Logical. If \code{TRUE}, print per-start progress.
+#' @param ... Additional arguments forwarded to the C++ helper, e.g.
+#'   \code{eta} for the LKJ prior, or \code{m_subsample},
+#'   \code{m_kde_subsample}, \code{seed} for the weighted model.
+#'
+#' @return An object of class \code{"nicher"} (see \code{\link{new_nicher}})
+#'   with components:
+#'   \describe{
+#'     \item{\code{solutions}}{Data frame with columns \code{start_id},
+#'       \code{loglik}, \code{convergence}, \code{full_par}.}
+#'     \item{\code{best}}{List: \code{theta}, \code{loglik},
+#'       \code{convergence}.}
+#'     \item{\code{likelihood}}{The likelihood model used.}
+#'     \item{\code{n_starts}}{Number of starting points.}
+#'   }
 #'
 #' @export
 #' @examples
 #' \dontrun{
-#' # Unweighted (2019) with 5 starting points, R backend
-#' res1 <- optimize_niche(example_env_occ_2d, example_env_m_2d,
-#'   num_starts = 5, start_method = "uniform",
-#'   likelihood = "unweighted", eta = 1
+#' result <- optimize_niche(
+#'   env_occ    = example_env_occ_2d,
+#'   env_m      = example_env_m_2d,
+#'   num_starts = 20L,
+#'   breadth    = 0.1,
+#'   likelihood = "unweighted"
 #' )
-#' res1$best
-#'
-#' # Unweighted (2019) with 5 starting points, C++ backend (faster)
-#' res1_cpp <- optimize_niche(example_env_occ_2d, example_env_m_2d,
-#'   num_starts = 5, start_method = "uniform",
-#'   likelihood = "unweighted", eta = 1,
-#'   backend = "cpp"
-#' )
-#' res1_cpp$best
-#'
-#' # Weighted (2022) with 5 starting points
-#' res2 <- optimize_niche(example_env_occ_2d, example_env_m_2d,
-#'   num_starts = 5, start_method = "uniform",
-#'   likelihood = "weighted", eta = 1,
-#'   m_subsample = 2000, m_kde_subsample = 5000, seed = 123
-#' )
-#' res2$best
-#'
-#' # Presence‑only (ultra‑light) with 5 starting points
-#' res3 <- optimize_niche(example_env_occ_2d,
-#'   env_m = NULL,
-#'   num_starts = 5, start_method = "uniform",
-#'   likelihood = "presence_only", eta = 1
-#' )
-#' res3$best
+#' print(result)
+#' assess(result)
 #' }
-optimize_niche <- function(env_occ, env_m,
-                           num_starts = 100,
-                           quant_vec = c(0.1, 0.5, 0.9),
-                           start_method = "sobol",
-                           likelihood = c("unweighted", "weighted", "presence_only"),
-                           backend = c("R", "cpp"),
-                           control = list(),
-                           verbose = FALSE,
+optimize_niche <- function(env_occ,
+                           env_m,
+                           num_starts = 100L,
+                           breadth    = 0.1,
+                           likelihood = c(
+                             "unweighted",
+                             "weighted",
+                             "presence_only"
+                           ),
+                           control  = list(),
+                           verbose  = FALSE,
                            ...) {
-  # Match arguments
   likelihood <- match.arg(likelihood)
-  backend <- match.arg(backend)
 
-  # Validate inputs based on likelihood
+  # ----------------------------------------------------------------
+  # Input validation
+  # ----------------------------------------------------------------
   if (likelihood != "presence_only") {
-    if (missing(env_m) || is.null(env_m)) stop("env_m must be provided for likelihood '", likelihood, "'")
-    if (!identical(sort(colnames(env_occ)), sort(colnames(env_m)))) {
-      stop("env_occ and env_m must have the same variables (column names)")
+    if (missing(env_m) || is.null(env_m)) {
+      stop(
+        "env_m must be provided for likelihood '",
+        likelihood, "'"
+      )
+    }
+    if (!identical(
+      sort(colnames(env_occ)),
+      sort(colnames(env_m))
+    )) {
+      stop(
+        "env_occ and env_m must have the same",
+        " variables (column names)"
+      )
     }
   }
 
-  # Determine which data to use for generating starting ranges
-  # range_data <- if (likelihood == "presence_only") env_occ else env_m
+  if (!is.numeric(breadth) ||
+      length(breadth) != 1L ||
+      breadth <= 0 || breadth >= 0.5) {
+    stop("breadth must be a single number in (0, 0.5)")
+  }
 
-  # Generate starting points (using the appropriate data for ranges)
+  # ----------------------------------------------------------------
+  # Generate Sobol starting points
+  # ----------------------------------------------------------------
+  quant_vec <- c(breadth, 0.5, 1.0 - breadth)
   starts_df <- start_theta_multiple(
-    env_data = env_occ,
+    env_data   = env_occ,
     num_starts = num_starts,
-    quant_vec = quant_vec,
-    method = start_method
+    quant_vec  = quant_vec,
+    method     = "sobol"
   )
 
-  # Convert each row to a named numeric vector
   starts_list <- split(starts_df, seq_len(nrow(starts_df)))
   starts_list <- lapply(starts_list, function(x) {
     v <- as.numeric(x)
@@ -126,160 +126,151 @@ optimize_niche <- function(env_occ, env_m,
     v
   })
 
-  # Default control for ucminf / ucminfcpp
+  # ----------------------------------------------------------------
+  # Default ucminfcpp control
+  # ----------------------------------------------------------------
   default_ctrl <- list(
     grad     = "central",
     gradstep = c(1e-6, 1e-8),
     grtol    = 1e-4,
     xtol     = 1e-8,
     stepmax  = 5,
-    maxeval  = 2000
+    maxeval  = 2000L
   )
   ctrl <- utils::modifyList(default_ctrl, control)
 
-  if (backend == "cpp") {
-    # -----------------------------------------------------------------------
-    # C++ backend: use ucminfcpp::ucminf_xptr() with a compiled objective
-    # function (NicheObjFun), bypassing the R interpreter on each evaluation.
-    # -----------------------------------------------------------------------
-    runner <- function(start_vec, id) {
-      if (verbose) {
-        message(sprintf("Starting point %d [cpp backend]\n", id))
-      }
-      .optimize_niche_helper_cpp(
-        param      = start_vec,
-        env_occ    = env_occ,
-        env_m      = env_m,
-        control    = ctrl,
-        likelihood = likelihood,
-        ...
-      )
-    }
-  } else {
-    # -----------------------------------------------------------------------
-    # R backend (original): ucminf::ucminf with an R-level objective function
-    # -----------------------------------------------------------------------
-    obj_fun <- switch(likelihood,
-      unweighted    = loglik_niche_math_cpp,
-      weighted      = loglik_niche_math_weighted,
-      presence_only = loglik_niche_math_presence_only
-    )
-
-    runner <- function(start_vec, id) {
-      if (verbose) {
-        message(sprintf("Starting point %d\n", id))
-      }
-      res <- .optimize_niche_helper(
-        param    = start_vec,
-        obj_fun  = obj_fun,
-        env_occ  = env_occ,
-        env_m    = env_m,
-        control  = ctrl,
-        ...
-      )
-      list(
-        theta       = res$par,
-        loglik      = -res$value,
-        convergence = res$convergence
-      )
-    }
-  }
-
-  # Run sequentially
+  # ----------------------------------------------------------------
+  # Run all starts via C++ xptr backend
+  # ----------------------------------------------------------------
   results <- vector("list", length(starts_list))
   for (i in seq_along(starts_list)) {
-    results[[i]] <- runner(starts_list[[i]], i)
+    if (verbose) {
+      message(sprintf("Start %d / %d", i, length(starts_list)))
+    }
+    results[[i]] <- .optimize_niche_helper_cpp(
+      param      = starts_list[[i]],
+      env_occ    = env_occ,
+      env_m      = env_m,
+      control    = ctrl,
+      likelihood = likelihood,
+      ...
+    )
   }
 
-  # Compile results
+  # ----------------------------------------------------------------
+  # Compile solutions data frame
+  # ----------------------------------------------------------------
   solutions <- data.frame(
-    start_id = seq_along(results),
-    loglik = vapply(results, function(x) as.numeric(x$loglik), numeric(1)),
-    convergence = vapply(results, function(x) as.integer(x$convergence), integer(1)),
+    start_id    = seq_along(results),
+    loglik      = vapply(
+      results, function(x) as.numeric(x$loglik), numeric(1L)
+    ),
+    convergence = vapply(
+      results,
+      function(x) as.integer(x$convergence),
+      integer(1L)
+    ),
     stringsAsFactors = FALSE
   )
   solutions$full_par <- lapply(results, function(x) x$theta)
 
   # Sort by decreasing log-likelihood
-  ord <- order(solutions$loglik, decreasing = TRUE)
+  ord       <- order(solutions$loglik, decreasing = TRUE)
   solutions <- solutions[ord, ]
   rownames(solutions) <- NULL
 
   best <- list(
-    theta       = solutions$full_par[[1]],
-    loglik      = solutions$loglik[1],
-    convergence = solutions$convergence[1]
+    theta       = solutions$full_par[[1L]],
+    loglik      = solutions$loglik[1L],
+    convergence = solutions$convergence[1L]
+  )
+
+  # ----------------------------------------------------------------
+  # Internal safeguard: validate xptr result against ucminf::ucminf
+  # ----------------------------------------------------------------
+  .validate_xptr_result(
+    best       = best,
+    env_occ    = env_occ,
+    env_m      = env_m,
+    likelihood = likelihood,
+    ctrl       = ctrl,
+    ...
   )
 
   if (verbose) {
     message(sprintf(
-      "Best log-likelihood: %.6f (convergence = %d)\n",
-      best$loglik, best$convergence
+      "Best log-likelihood: %.6f (convergence = %d)",
+      best$loglik,
+      best$convergence
     ))
   }
 
-  list(solutions = solutions, best = best)
+  new_nicher(
+    solutions  = solutions,
+    best       = best,
+    likelihood = likelihood,
+    n_starts   = num_starts
+  )
 }
 
-#' Internal helper: run ucminf for a single starting vector (R backend)
+# -----------------------------------------------------------------------
+# Internal safeguard: compare xptr result with ucminf::ucminf
+# -----------------------------------------------------------------------
+
+#' Validate ucminfcpp::ucminf_xptr result against ucminf::ucminf
 #'
-#' @param param Numeric vector of starting parameters (named).
-#' @param obj_fun Objective function pointer: either [loglik_niche_math_cpp],
-#'   [loglik_niche_math_weighted], or [loglik_niche_math_presence_only].
-#' @param env_occ,env_m Data frames as in [optimize_niche].
-#' @param control List of control parameters for ucminf.
-#' @param ... Additional arguments passed to `obj_fun` (e.g., eta, subsampling).
-#' @return A list with components: par, value, convergence, invhessian.lt (if computed).
+#' Runs a short \code{ucminf::ucminf} optimization from the best theta
+#' and warns if the two log-likelihoods differ by more than \code{1e-3}.
+#' This guards against pointer-safety issues in the C++ backend.
+#'
+#' @param best List with \code{theta} and \code{loglik}.
+#' @param env_occ,env_m Data as in \code{\link{optimize_niche}}.
+#' @param likelihood Character likelihood type.
+#' @param ctrl Control list.
+#' @param ... Forwarded to objective function.
 #' @keywords internal
-.optimize_niche_helper <- function(param, obj_fun, env_occ, env_m, control, ...) {
-  # Ensure param is numeric and finite
-  param <- as.numeric(param)
-  if (any(!is.finite(param))) {
-    stop("All starting parameters must be finite")
-  }
+.validate_xptr_result <- function(best, env_occ, env_m,
+                                  likelihood, ctrl, ...) {
+  obj_fun <- switch(likelihood,
+    unweighted    = loglik_niche_math_cpp,
+    weighted      = loglik_niche_math_weighted,
+    presence_only = loglik_niche_math_presence_only
+  )
 
-  # Objective function (returns negative log-likelihood)
-  fn <- function(theta) {
-    obj_fun(theta,
-      env_occ = env_occ,
-      env_m   = env_m,
-      neg     = TRUE,
-      ...
-    )
-  }
-
-  # Run ucminf with error handling
-  out <- tryCatch(
+  ref <- tryCatch(
     {
-      res <- ucminf::ucminf(
-        par = param,
-        fn = fn,
-        control = control,
-        hessian = FALSE
-      ) # Hessian not needed for optimization
-      # Restore names if ucminf drops them
-      if (is.null(names(res$par)) && !is.null(names(param))) {
-        names(res$par) <- names(param)
+      fn <- function(theta) {
+        obj_fun(
+          theta,
+          env_occ = env_occ,
+          env_m   = env_m,
+          neg     = TRUE,
+          ...
+        )
       }
-      if (is.null(res$convergence)) res$convergence <- NA_integer_
-      res
-    },
-    error = function(e) {
-      list(
-        par = param,
-        value = Inf,
-        convergence = NA_integer_,
-        error = conditionMessage(e)
+      val_ctrl <- list(maxeval = 500L)
+      res <- ucminf::ucminf(
+        par     = best$theta,
+        fn      = fn,
+        control = val_ctrl,
+        hessian = FALSE
       )
-    }
+      -res$value
+    },
+    error = function(e) NA_real_
   )
 
-  list(
-    par = out$par,
-    value = as.numeric(out$value),
-    convergence = as.integer(out$convergence),
-    invhessian.lt = if (!is.null(out$invhessian.lt)) out$invhessian.lt else NULL
-  )
+  if (is.finite(ref) && abs(best$loglik - ref) > 1e-3) {
+    warning(sprintf(
+      paste0(
+        "ucminfcpp::ucminf_xptr and ucminf::ucminf disagree: ",
+        "xptr loglik = %.6f, ucminf loglik = %.6f. ",
+        "Possible pointer-safety issue."
+      ),
+      best$loglik, ref
+    ))
+  }
+  invisible(NULL)
 }
 
 #' Internal helper: run ucminfcpp::ucminf_xptr for a single starting vector

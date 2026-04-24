@@ -194,11 +194,11 @@ test_that("niche_presence_only works on 2D data", {
 test_that("optimize_niche errors when env_m is missing for unweighted model", {
   expect_error(
     optimize_niche(
-      env_occ      = example_env_occ_2d,
-      env_m        = NULL,
-      num_starts   = 2L,
-      start_method = "uniform",
-      likelihood   = "unweighted"
+      env_occ    = example_env_occ_2d,
+      env_m      = NULL,
+      num_starts = 2L,
+      breadth    = 0.1,
+      likelihood = "unweighted"
     ),
     regexp = "env_m must be provided"
   )
@@ -210,11 +210,11 @@ test_that("optimize_niche errors when env_occ and env_m have different column na
 
   expect_error(
     optimize_niche(
-      env_occ      = occ_bad,
-      env_m        = example_env_m_2d,
-      num_starts   = 2L,
-      start_method = "uniform",
-      likelihood   = "unweighted"
+      env_occ    = occ_bad,
+      env_m      = example_env_m_2d,
+      num_starts = 2L,
+      breadth    = 0.1,
+      likelihood = "unweighted"
     ),
     regexp = "same variables"
   )

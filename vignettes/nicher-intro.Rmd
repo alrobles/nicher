@@ -108,21 +108,27 @@ print(ll_cpp)
 ## Optimizing an unweighted niche model
 
 `optimize_niche()` runs multi-start optimization. Use `likelihood = "unweighted"`
-for the classical 2019 model.
+for the classical 2019 model. The `breadth` parameter controls the quantile
+range of starting points (default `0.1` → quantiles `c(0.1, 0.5, 0.9)`).
 
 ```{r optimize-unweighted}
 set.seed(42)
 res_uw <- optimize_niche(
-  env_occ      = example_env_occ_2d,
-  env_m        = example_env_m_2d,
-  num_starts   = 5L,
-  start_method = "uniform",
-  likelihood   = "unweighted",
-  eta          = 1
+  env_occ    = example_env_occ_2d,
+  env_m      = example_env_m_2d,
+  num_starts = 5L,
+  breadth    = 0.1,
+  likelihood = "unweighted",
+  eta        = 1
 )
 
-print(res_uw$best$loglik)
-print(res_uw$best$convergence)
+# Print the nicher object
+print(res_uw)
+
+# Assess acceptance criteria
+diag_uw <- assess(res_uw)
+cat("Flag:", diag_uw$flag, "\n")
+cat("Recommendation:", diag_uw$recommendation, "\n")
 ```
 
 The resulting parameter vector can be decoded into biological parameters with
@@ -150,18 +156,19 @@ w_den   <- kde_gaussian(M[den_idx, ], M[kde_idx, ])
 
 set.seed(42)
 res_w <- optimize_niche(
-  env_occ      = example_env_occ_2d,
-  env_m        = example_env_m_2d,
-  num_starts   = 5L,
-  start_method = "uniform",
-  likelihood   = "weighted",
-  eta          = 1,
-  m_subsample      = 500L,
-  m_kde_subsample  = 1000L,
-  seed             = 1L
+  env_occ         = example_env_occ_2d,
+  env_m           = example_env_m_2d,
+  num_starts      = 5L,
+  breadth         = 0.1,
+  likelihood      = "weighted",
+  eta             = 1,
+  m_subsample     = 500L,
+  m_kde_subsample = 1000L,
+  seed            = 1L
 )
 
-print(res_w$best$loglik)
+print(res_w)
+assess(res_w)$flag
 ```
 
 ---
@@ -173,15 +180,16 @@ When no background data are available, use `likelihood = "presence_only"`.
 ```{r optimize-presence-only}
 set.seed(42)
 res_po <- optimize_niche(
-  env_occ      = example_env_occ_2d,
-  env_m        = NULL,
-  num_starts   = 5L,
-  start_method = "uniform",
-  likelihood   = "presence_only",
-  eta          = 1
+  env_occ    = example_env_occ_2d,
+  env_m      = NULL,
+  num_starts = 5L,
+  breadth    = 0.1,
+  likelihood = "presence_only",
+  eta        = 1
 )
 
-print(res_po$best$loglik)
+print(res_po)
+assess(res_po)$flag
 ```
 
 ---

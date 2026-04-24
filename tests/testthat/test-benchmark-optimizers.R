@@ -229,26 +229,27 @@ test_that("C++ backend is not slower than R backend (2D, single start)", {
 # ---------------------------------------------------------------------------
 # Test 5 – Multi-start benchmark via optimize_niche (heavier, off-CRAN only)
 # ---------------------------------------------------------------------------
-test_that("optimize_niche (C++ backend) outperforms equivalent R-backend loop (2D)", {
+test_that("optimize_niche (xptr backend) outperforms equivalent ucminf loop (2D)", {
   skip_on_cran()
 
   set.seed(123)
   n_starts <- 5L
 
-  # --- C++ backend via optimize_niche -----------------------------------
+  # --- optimize_niche (always xptr) -------------------------------------
   time_cpp <- system.time(
     result_cpp <- optimize_niche(
-      env_occ      = example_env_occ_2d,
-      env_m        = example_env_m_2d,
-      num_starts   = n_starts,
-      start_method = "uniform",
-      likelihood   = "unweighted",
-      eta          = 1
+      env_occ    = example_env_occ_2d,
+      env_m      = example_env_m_2d,
+      num_starts = n_starts,
+      breadth    = 0.1,
+      likelihood = "unweighted",
+      eta        = 1
     )
   )["elapsed"]
 
-  # --- R backend: replicate multi-start logic manually ------------------
-  starts_df <- start_theta_multiple(example_env_m_2d, n_starts,
+  # --- ucminf R backend: replicate multi-start logic manually -----------
+  starts_df <- start_theta_multiple(
+    example_env_m_2d, n_starts,
     method = "uniform"
   )
   starts_list <- split(starts_df, seq_len(nrow(starts_df)))
@@ -265,11 +266,15 @@ test_that("optimize_niche (C++ backend) outperforms equivalent R-backend loop (2
   })["elapsed"]
 
   best_loglik_cpp <- result_cpp$best$loglik
-  best_loglik_r <- max(sapply(results_r, function(x) -x$value))
+  best_loglik_r   <- max(sapply(results_r, function(x) -x$value))
 
-  # Report for informational purposes
   message(sprintf(
-    "\n--- Multi-start benchmark (%d starts, 2D) ---\n  R backend:   %.4f s | best loglik = %.4f\n  C++ backend: %.4f s | best loglik = %.4f\n  Speedup:     %.2fx\n",
+    paste0(
+      "\n--- Multi-start benchmark (%d starts, 2D) ---\n",
+      "  R backend:  %.4f s | best loglik = %.4f\n",
+      "  xptr:       %.4f s | best loglik = %.4f\n",
+      "  Speedup:    %.2fx\n"
+    ),
     n_starts,
     time_r,   best_loglik_r,
     time_cpp, best_loglik_cpp,
@@ -282,10 +287,10 @@ test_that("optimize_niche (C++ backend) outperforms equivalent R-backend loop (2
     label = "Multi-start best log-likelihoods agree within 0.1 units"
   )
 
-  # The C++ backend must not be dramatically slower than the R backend
+  # The xptr backend must not be dramatically slower than ucminf
   expect_true(
     time_cpp <= 3 * time_r,
-    label = "C++ multi-start is within 3x of R multi-start wall time"
+    label = "xptr multi-start is within 3x of ucminf wall time"
   )
 })
 
@@ -358,64 +363,59 @@ test_that("XPtr backend (create_niche_obj_ptr) produces consistent results (2D)"
 })
 
 # ---------------------------------------------------------------------------
-# Test 8 – XPtr backend via optimize_niche(backend="cpp") (2D)
+# Test 8 – optimize_niche (cpp xptr) returns a valid nicher object (2D)
 # ---------------------------------------------------------------------------
-test_that("optimize_niche(backend='cpp') matches optimize_niche(backend='R') (2D)", {
+test_that("optimize_niche returns a valid nicher object (2D)", {
   set.seed(42)
 
-  res_r <- optimize_niche(
+  res <- optimize_niche(
     env_occ      = example_env_occ_2d,
     env_m        = example_env_m_2d,
     num_starts   = 3L,
-    start_method = "uniform",
+    breadth      = 0.1,
     likelihood   = "unweighted",
-    backend      = "R",
     eta          = 1
   )
 
-  set.seed(42)
-  res_cpp <- optimize_niche(
-    env_occ      = example_env_occ_2d,
-    env_m        = example_env_m_2d,
-    num_starts   = 3L,
-    start_method = "uniform",
-    likelihood   = "unweighted",
-    backend      = "cpp",
-    eta          = 1
+  # Must return a nicher S3 object
+  expect_s3_class(res, "nicher")
+  expect_true(!is.null(res$best), label = "result has $best")
+  expect_true(!is.null(res$solutions), label = "result has $solutions")
+  expect_true(is.finite(res$best$loglik),
+    label = "best$loglik is finite"
   )
-
-  # Best log-likelihoods must agree within reasonable tolerance
-  expect_equal(res_r$best$loglik, res_cpp$best$loglik,
-    tolerance = 1e-2,
-    label = "backend='R' and backend='cpp' best log-likelihoods agree"
+  expect_true(res$best$convergence %in% c(1L, 2L),
+    label = "best$convergence is successful"
   )
-
-  # Both must return the expected structure
-  expect_true(is.list(res_cpp), label = "cpp result is a list")
-  expect_true(!is.null(res_cpp$best), label = "cpp result has $best")
-  expect_true(!is.null(res_cpp$solutions), label = "cpp result has $solutions")
-  expect_true(is.finite(res_cpp$best$loglik), label = "cpp best$loglik is finite")
-  expect_true(res_cpp$best$convergence %in% c(1L, 2L),
-    label = "cpp best$convergence is successful"
+  expect_equal(res$likelihood, "unweighted",
+    label = "likelihood field is set correctly"
+  )
+  expect_equal(res$n_starts, 3L,
+    label = "n_starts field matches num_starts"
   )
 })
 
 # ---------------------------------------------------------------------------
-# Test 9 – Presence-only XPtr backend via optimize_niche(backend="cpp")
+# Test 9 – Presence-only likelihood via optimize_niche (2D)
 # ---------------------------------------------------------------------------
-test_that("optimize_niche(backend='cpp', likelihood='presence_only') works (2D)", {
+test_that("optimize_niche(likelihood='presence_only') returns valid nicher (2D)", {
   set.seed(42)
 
-  res_cpp <- optimize_niche(
+  res <- optimize_niche(
     env_occ      = example_env_occ_2d,
     env_m        = NULL,
     num_starts   = 3L,
-    start_method = "uniform",
+    breadth      = 0.1,
     likelihood   = "presence_only",
-    backend      = "cpp",
     eta          = 1
   )
 
-  expect_true(is.list(res_cpp), label = "presence_only cpp result is a list")
-  expect_true(is.finite(res_cpp$best$loglik), label = "presence_only cpp loglik is finite")
+  expect_s3_class(res, "nicher", label = "presence_only result is nicher")
+  expect_true(
+    is.finite(res$best$loglik),
+    label = "presence_only best loglik is finite"
+  )
+  expect_equal(res$likelihood, "presence_only",
+    label = "likelihood field is 'presence_only'"
+  )
 })
