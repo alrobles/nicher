@@ -1,7 +1,7 @@
 #' Optimize niche model log-likelihood with multi-start Sobol design
 #'
-#' Runs multi-start optimization using \code{ucminfcpp::ucminf_xptr()} with
-#' a compiled C++ objective function. Starting points are drawn from a
+#' Runs multi-start optimization using \code{ucminfcpp::ucminf()} with
+#' R-level objective functions. Starting points are drawn from a
 #' Sobol low-discrepancy sequence (via \pkg{pomp}) over the parameter space
 #' implied by \code{env_occ} and \code{breadth}.
 #'
@@ -15,7 +15,7 @@
 #'
 #' An internal safeguard re-optimizes the best result with
 #' \code{ucminf::ucminf} and warns if the two log-likelihoods diverge
-#' by more than \code{1e-3}, indicating a potential pointer-safety issue.
+#' by more than \code{1e-3}.
 #'
 #' @param env_occ Data frame of environmental values at presence points.
 #' @param env_m Data frame of background environmental values. Ignored
@@ -28,7 +28,7 @@
 #' @param likelihood Character. One of \code{"weighted"} (default) or
 #'   \code{"presence_only"}.
 #' @param control Named list of control parameters for
-#'   \code{ucminfcpp::ucminf_xptr()}. Recognized entries:
+#'   \code{ucminfcpp::ucminf()}. Recognized entries:
 #'   \describe{
 #'     \item{\code{grad}}{"central" (default)}
 #'     \item{\code{gradstep}}{c(1e-6, 1e-8)}
@@ -37,7 +37,8 @@
 #'     \item{\code{stepmax}}{5}
 #'     \item{\code{maxeval}}{2000}
 #'   }
-#' @param verbose Logical. If \code{TRUE}, print per-start progress.
+#' @param verbose Logical. If \code{TRUE}, show a progress bar during
+#'   multi-start optimization.
 #' @param ... Additional arguments forwarded to the C++ helper, e.g.
 #'   \code{eta} for the LKJ prior, or \code{m_subsample},
 #'   \code{m_kde_subsample}, \code{seed} for the weighted model.
@@ -148,13 +149,13 @@ optimize_niche <- function(env_occ,
   ctrl <- utils::modifyList(default_ctrl, control)
 
   # ----------------------------------------------------------------
-  # Run all starts via C++ xptr backend
+  # Run all starts via ucminfcpp::ucminf
   # ----------------------------------------------------------------
   results <- vector("list", length(starts_list))
+  if (verbose) {
+    pb <- utils::txtProgressBar(min = 0, max = length(starts_list), style = 3)
+  }
   for (i in seq_along(starts_list)) {
-    if (verbose) {
-      message(sprintf("Start %d / %d", i, length(starts_list)))
-    }
     results[[i]] <- .optimize_niche_helper_cpp(
       param      = starts_list[[i]],
       env_occ    = env_occ,
@@ -163,6 +164,12 @@ optimize_niche <- function(env_occ,
       likelihood = likelihood,
       ...
     )
+    if (verbose) {
+      utils::setTxtProgressBar(pb, i)
+    }
+  }
+  if (verbose) {
+    close(pb)
   }
 
   # ----------------------------------------------------------------
@@ -194,7 +201,7 @@ optimize_niche <- function(env_occ,
   )
 
   # ----------------------------------------------------------------
-  # Internal safeguard: validate xptr result against ucminf::ucminf
+  # Internal safeguard: validate ucminfcpp::ucminf result
   # ----------------------------------------------------------------
   .validate_xptr_result(
     best       = best,
@@ -222,14 +229,13 @@ optimize_niche <- function(env_occ,
 }
 
 # -----------------------------------------------------------------------
-# Internal safeguard: compare xptr result with ucminf::ucminf
+# Internal safeguard: compare ucminfcpp::ucminf result with ucminf::ucminf
 # -----------------------------------------------------------------------
 
-#' Validate ucminfcpp::ucminf_xptr result against ucminf::ucminf
+#' Validate ucminfcpp::ucminf result against ucminf::ucminf
 #'
 #' Runs a short \code{ucminf::ucminf} optimization from the best theta
 #' and warns if the two log-likelihoods differ by more than \code{1e-3}.
-#' This guards against pointer-safety issues in the C++ backend.
 #'
 #' @param best List with \code{theta} and \code{loglik}.
 #' @param env_occ,env_m Data as in \code{\link{optimize_niche}}.
@@ -270,9 +276,8 @@ optimize_niche <- function(env_occ,
   if (is.finite(ref) && abs(best$loglik - ref) > 1e-3) {
     warning(sprintf(
       paste0(
-        "ucminfcpp::ucminf_xptr and ucminf::ucminf disagree: ",
-        "xptr loglik = %.6f, ucminf loglik = %.6f. ",
-        "Possible pointer-safety issue."
+        "ucminfcpp::ucminf and ucminf::ucminf disagree: ",
+        "ucminfcpp loglik = %.6f, ucminf loglik = %.6f."
       ),
       best$loglik, ref
     ))
@@ -280,12 +285,11 @@ optimize_niche <- function(env_occ,
   invisible(NULL)
 }
 
-#' Internal helper: run ucminfcpp::ucminf_xptr for a single starting vector
+#' Internal helper: run ucminfcpp::ucminf for a single starting vector
 #'
-#' Creates a compiled C++ objective function via [create_niche_obj_ptr()] and
-#' calls [ucminfcpp::ucminf_xptr()] to optimize from a single starting point.
-#' This bypasses the R interpreter on every function/gradient evaluation for
-#' maximum performance.
+#' Builds an R-level objective function from the appropriate likelihood
+#' and calls \code{ucminfcpp::ucminf()} to optimize from a single starting
+#' point.
 #'
 #' @param param Numeric vector of starting parameters (named).
 #' @param env_occ,env_m Data frames as in [optimize_niche].
@@ -338,39 +342,53 @@ optimize_niche <- function(env_occ,
     kde_idx <- if (!is.null(n_kde) && n_kde < n_m) sample.int(n_m, n_kde) else NULL
   }
 
-  # Create the compiled C++ objective function (external pointer).
-  # Pass gradstep from control so finite-difference steps match the user's
-  # configured values (defaults: c(1e-6, 1e-8), same as ucminf defaults).
-  gs <- if (!is.null(control$gradstep)) control$gradstep else c(1e-6, 1e-8)
-  xptr <- create_niche_obj_ptr(
-    env_occ       = env_occ_mat,
-    env_m         = env_m_mat,
-    eta           = eta,
-    likelihood    = likelihood,
-    den_idx       = den_idx,
-    kde_idx       = kde_idx,
-    precomp_w_den = precomp_w_den,
-    gradstep      = gs
-  )
+  # Build the R-level objective function for the chosen likelihood model
+  if (likelihood == "weighted") {
+    fn <- function(theta) {
+      loglik_niche_math_weighted(
+        theta,
+        env_occ       = env_occ_mat,
+        env_m         = env_m_mat,
+        eta           = eta,
+        neg           = TRUE,
+        den_idx       = den_idx,
+        kde_idx       = kde_idx,
+        precomp_w_den = precomp_w_den
+      )
+    }
+  } else {
+    fn <- function(theta) {
+      loglik_niche_math_presence_only(
+        theta,
+        env_occ = env_occ_mat,
+        eta     = eta,
+        neg     = TRUE
+      )
+    }
+  }
 
-  # Build ucminfcpp control object by forwarding the (validated) control list.
-  # This preserves existing defaults while allowing additional ucminf options.
-  control_args <- control
-  if (is.null(control_args$grad)) {
-    control_args$grad <- "central"
+  # Build control list for ucminfcpp::ucminf (drop-in replacement for
+  # ucminf::ucminf, takes the same plain named list as control).
+  # The caller (optimize_niche) already resolves all defaults via
+  # utils::modifyList, so the full set of parameters (grad, gradstep, grtol,
+  # xtol, stepmax, maxeval) is already present in `control`.
+  ctrl_list <- control
+  if (is.null(ctrl_list$grad)) {
+    ctrl_list$grad <- "central"
   }
-  if (is.null(control_args$gradstep)) {
-    control_args$gradstep <- gs
+  if (!is.null(ctrl_list$maxeval)) {
+    ctrl_list$maxeval <- as.integer(ctrl_list$maxeval)
   }
-  if (!is.null(control_args$maxeval)) {
-    control_args$maxeval <- as.integer(control_args$maxeval)
-  }
-  con <- do.call(ucminfcpp::ucminf_control, control_args)
 
   # Run optimization with error handling
   out <- tryCatch(
     {
-      res <- ucminfcpp::ucminf_xptr(par = param, xptr = xptr, control = con)
+      res <- ucminfcpp::ucminf(
+        par     = param,
+        fn      = fn,
+        control = ctrl_list,
+        hessian = FALSE
+      )
       if (is.null(names(res$par)) && !is.null(names(param))) {
         names(res$par) <- names(param)
       }
