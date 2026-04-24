@@ -367,7 +367,11 @@ optimize_niche <- function(env_occ,
     }
   }
 
-  # Build control list for ucminfcpp::ucminf (same interface as ucminf::ucminf)
+  # Build control list for ucminfcpp::ucminf (drop-in replacement for
+  # ucminf::ucminf, takes the same plain named list as control).
+  # The caller (optimize_niche) already resolves all defaults via
+  # utils::modifyList, so the full set of parameters (grad, gradstep, grtol,
+  # xtol, stepmax, maxeval) is already present in `control`.
   ctrl_list <- control
   if (is.null(ctrl_list$grad)) {
     ctrl_list$grad <- "central"
