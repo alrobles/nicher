@@ -154,12 +154,16 @@ assess.nicher <- function(x,
   if (min_converged < 2L) {
     stop("`min_converged` must be at least 2 because `gap` is computed from the top two converged solutions.")
   }
-  sols     <- x$solutions
-  best_ll  <- x$best$loglik
+  sols   <- x$solutions
 
   # Filter to converged solutions (ucminf codes 1 or 2 = success)
-  conv     <- sols[sols$convergence %in% c(1L, 2L), ]
-  n_conv   <- nrow(conv)
+  conv   <- sols[sols$convergence %in% c(1L, 2L), ]
+  n_conv <- nrow(conv)
+
+  # Derive best_loglik from the converged set; fall back to overall best
+  # only when no solution converged (so the needs_more_starts path can
+  # still report a meaningful value).
+  best_ll <- if (n_conv > 0L) max(conv$loglik) else x$best$loglik
 
   if (n_conv < min_converged) {
     return(list(
