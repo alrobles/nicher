@@ -78,7 +78,7 @@ print(result_po)
 theta_best <- result$best$theta
 ```
 
-The two supported `assess()` flags correspond to two models:
+The two supported models are:
 
 | Model | Description |
 |-------|-------------|
