@@ -93,6 +93,12 @@ library(testthat)
 #' function and passes it directly to \code{ucminfcpp::ucminf_xptr()},
 #' eliminating all R interpreter round-trips during optimization.
 #'
+#' Note: uses the internal \code{"unweighted"} likelihood (C++ lik_type = 0)
+#' to mirror the classical log-likelihood computed by the R backend helper
+#' above via \code{loglik_niche()}. The R-level \code{niche_unweighted()}
+#' wrapper was removed in PR #27, but the C++ code path remains and is
+#' still the correct benchmark counterpart here.
+#'
 #' @param theta0 Numeric starting vector (math scale).
 #' @param env_occ,env_m Data frames for presences and background.
 #' @param control List of control parameters forwarded to

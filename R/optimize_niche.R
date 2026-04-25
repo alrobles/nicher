@@ -194,23 +194,35 @@ optimize_niche <- function(env_occ,
   solutions <- solutions[ord, ]
   rownames(solutions) <- NULL
 
+  # Prefer the best among converged starts (ucminf codes 1 or 2).
+  # Fall back to the overall best only when no start converged, so
+  # downstream code can still report a solution and assess() can
+  # surface "needs_more_starts".
+  conv_mask <- solutions$convergence %in% c(1L, 2L)
+  best_idx  <- if (any(conv_mask)) which(conv_mask)[1L] else 1L
+
   best <- list(
-    theta       = solutions$full_par[[1L]],
-    loglik      = solutions$loglik[1L],
-    convergence = solutions$convergence[1L]
+    theta       = solutions$full_par[[best_idx]],
+    loglik      = solutions$loglik[best_idx],
+    convergence = solutions$convergence[best_idx]
   )
 
   # ----------------------------------------------------------------
-  # Internal safeguard: validate ucminfcpp::ucminf result
+  # Internal safeguard: validate ucminfcpp::ucminf result.
+  # Only run when best actually converged — otherwise both optimizers
+  # are stuck at different non-optimal points and the disagreement
+  # warning is noisy and uninformative.
   # ----------------------------------------------------------------
-  .validate_xptr_result(
-    best       = best,
-    env_occ    = env_occ,
-    env_m      = env_m,
-    likelihood = likelihood,
-    ctrl       = ctrl,
-    ...
-  )
+  if (best$convergence %in% c(1L, 2L)) {
+    .validate_xptr_result(
+      best       = best,
+      env_occ    = env_occ,
+      env_m      = env_m,
+      likelihood = likelihood,
+      ctrl       = ctrl,
+      ...
+    )
+  }
 
   if (verbose) {
     message(sprintf(
