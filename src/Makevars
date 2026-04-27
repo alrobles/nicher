@@ -1,13 +1,18 @@
 CXX_STD = CXX14
 
-# Force RcppParallel's TinyThread backend (header-only). Avoids linking
-# against TBB / tbbmalloc — on Windows, RcppParallel::RcppParallelLibs()
-# returns linker flags pointing at tbb.dll / tbbmalloc.dll inside the
-# RcppParallel installation, which are NOT on the default DLL search
-# path at load time, so loading nicher.dll fails with
-#   "LoadLibrary failure: The specified module could not be found".
-# TinyThread is header-only, so we get parallelFor() with no extra
-# runtime DLL on any platform. Same flag is set in src/Makevars.win.
-PKG_CXXFLAGS = -DRCPP_PARALLEL_USE_TBB=0 \
-               $(shell "${R_HOME}/bin/Rscript" -e "RcppParallel::CxxFlags()")
+# Force RcppParallel's TinyThread backend (header-only). The earlier
+# version of this file added `RcppParallel::CxxFlags()` here, but on
+# Windows that helper expands to:
+#   -I<...>/RcppParallel/include  -DRCPP_PARALLEL_USE_TBB=1
+# which silently *overrode* our own -DRCPP_PARALLEL_USE_TBB=0, leaving
+# the compiled DLL linked against TBB at the source level. R then
+# failed to load nicher.dll with
+#   LoadLibrary failure: The specified module could not be found
+# because tbb.dll / tbbmalloc.dll live inside the RcppParallel install
+# directory and are not on the default DLL search path.
+#
+# We rely on `LinkingTo: RcppParallel` (declared in DESCRIPTION) to
+# add RcppParallel's include directory automatically, and we set the
+# TBB flag once, here, to its only correct value.
+PKG_CXXFLAGS = -DRCPP_PARALLEL_USE_TBB=0
 PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)

@@ -1,7 +1,7 @@
 Package: nicher
 Type: Package
 Title: Estimates Ecological Niche Models Using Ellipses
-Version: 2.2.2
+Version: 2.2.3
 Authors@R: 
   c(person(given = "Angel",
            family = "Robles",
