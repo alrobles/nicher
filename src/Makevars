@@ -1,3 +1,10 @@
 CXX_STD = CXX14
-PKG_CXXFLAGS =
-PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)
+
+# Use RcppParallel's TinyThread backend (header-only). This avoids the
+# need to link against RcppParallel.so on Linux (where TBB is provided
+# by the package itself but RcppParallel::RcppParallelLibs() returns
+# an empty string, see RcppParallel:::tbbLdFlagsImpl).
+PKG_CXXFLAGS = -DRCPP_PARALLEL_USE_TBB=0 \
+               $(shell "${R_HOME}/bin/Rscript" -e "RcppParallel::CxxFlags()")
+PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) \
+           $(shell "${R_HOME}/bin/Rscript" -e "RcppParallel::RcppParallelLibs()")

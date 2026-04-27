@@ -4,7 +4,15 @@
 \alias{.validate_xptr_result}
 \title{Validate ucminfcpp::ucminf_xptr result against ucminf::ucminf.}
 \usage{
-.validate_xptr_result(best, env_occ, env_m, likelihood, ctrl, ...)
+.validate_xptr_result(
+  best,
+  env_occ,
+  env_m,
+  likelihood,
+  ctrl,
+  weighted_inputs = NULL,
+  ...
+)
 }
 \description{
 Runs a short \code{ucminf::ucminf} optimization from the best theta

@@ -4,7 +4,7 @@
 \alias{new_nicher}
 \title{Create a nicher optimization result object}
 \usage{
-new_nicher(solutions, best, likelihood, n_starts)
+new_nicher(solutions, best, likelihood, n_starts, var_names = NULL)
 }
 \arguments{
 \item{solutions}{A data frame with columns \code{start_id},
@@ -17,6 +17,12 @@ new_nicher(solutions, best, likelihood, n_starts)
 \code{"presence_only"}.}
 
 \item{n_starts}{Integer. Total number of starting points used.}
+
+\item{var_names}{Optional character vector of length \code{p} naming
+the environmental variables in the order assumed by
+\code{best$theta}. Stored on the object so
+\code{\link{predict.nicher}} can reorder a future
+\code{\link[terra]{SpatRaster}} by layer name.}
 }
 \value{
 An object of class \code{"nicher"}.

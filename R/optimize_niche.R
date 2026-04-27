@@ -264,7 +264,8 @@ optimize_niche <- function(env_occ,
     solutions  = solutions,
     best       = best,
     likelihood = likelihood,
-    n_starts   = num_starts
+    n_starts   = num_starts,
+    var_names  = colnames(env_occ)
   )
 }
 

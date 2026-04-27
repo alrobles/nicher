@@ -32,7 +32,9 @@
 test_that("new_nicher creates an object of class 'nicher'", {
   obj <- .make_mock_nicher(c(-10, -10.5), c(1L, 1L))
   expect_s3_class(obj, "nicher")
-  expect_named(obj, c("solutions", "best", "likelihood", "n_starts"),
+  expect_named(
+    obj,
+    c("solutions", "best", "likelihood", "n_starts", "var_names"),
     ignore.order = TRUE
   )
 })

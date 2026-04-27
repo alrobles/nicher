@@ -1,7 +1,7 @@
 Package: nicher
 Type: Package
 Title: Estimates Ecological Niche Models Using Ellipses
-Version: 2.1.0
+Version: 2.2.0
 Authors@R: 
   c(person(given = "Angel",
            family = "Robles",
@@ -23,10 +23,13 @@ Depends:
     R (>= 3.5)
 RoxygenNote: 7.3.3
 Imports: 
+    checkmate,
     Rcpp (>= 1.1.0),
     RcppEigen,
+    RcppParallel,
     lifecycle,
     stats,
+    terra,
     ucminf,
     ucminfcpp,
     pomp,
@@ -41,4 +44,6 @@ URL: https://alrobles.github.io/nicher, https://github.com/alrobles/nicher
 BugReports: https://github.com/alrobles/nicher/issues
 LinkingTo: 
     Rcpp,
-    RcppEigen
+    RcppEigen,
+    RcppParallel
+SystemRequirements: GNU make
