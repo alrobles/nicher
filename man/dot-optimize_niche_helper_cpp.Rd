@@ -2,28 +2,20 @@
 % Please edit documentation in R/optimize_niche.R
 \name{.optimize_niche_helper_cpp}
 \alias{.optimize_niche_helper_cpp}
-\title{Internal helper: run ucminfcpp::ucminf_xptr for a single starting vector}
+\title{Run ucminfcpp::ucminf_xptr() for a single starting vector.}
 \usage{
-.optimize_niche_helper_cpp(param, env_occ, env_m, control, likelihood, ...)
-}
-\arguments{
-\item{param}{Numeric vector of starting parameters (named).}
-
-\item{env_occ, env_m}{Data frames as in [optimize_niche].}
-
-\item{control}{List of control parameters.}
-
-\item{likelihood}{Character. One of "weighted", "presence_only".}
-
-\item{...}{Additional arguments (eta, m_subsample, m_kde_subsample, seed).}
-}
-\value{
-A list with components: theta, loglik, convergence.
+.optimize_niche_helper_cpp(
+  param,
+  env_occ,
+  env_m,
+  control,
+  likelihood,
+  grad,
+  weighted_inputs = NULL,
+  ...
+)
 }
 \description{
-Creates a compiled C++ objective function via [create_niche_obj_ptr()] and
-calls [ucminfcpp::ucminf_xptr()] to optimize from a single starting point.
-This bypasses the R interpreter on every function/gradient evaluation for
-maximum performance.
+Run ucminfcpp::ucminf_xptr() for a single starting vector.
 }
 \keyword{internal}

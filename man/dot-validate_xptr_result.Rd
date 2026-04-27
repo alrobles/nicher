@@ -2,20 +2,9 @@
 % Please edit documentation in R/optimize_niche.R
 \name{.validate_xptr_result}
 \alias{.validate_xptr_result}
-\title{Validate ucminfcpp::ucminf_xptr result against ucminf::ucminf}
+\title{Validate ucminfcpp::ucminf_xptr result against ucminf::ucminf.}
 \usage{
 .validate_xptr_result(best, env_occ, env_m, likelihood, ctrl, ...)
-}
-\arguments{
-\item{best}{List with \code{theta} and \code{loglik}.}
-
-\item{env_occ, env_m}{Data as in \code{\link{optimize_niche}}.}
-
-\item{likelihood}{Character likelihood type.}
-
-\item{ctrl}{Control list.}
-
-\item{...}{Forwarded to objective function.}
 }
 \description{
 Runs a short \code{ucminf::ucminf} optimization from the best theta
