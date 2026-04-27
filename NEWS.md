@@ -1,3 +1,49 @@
+# nicher 2.2.2
+
+## Bug fixes (Windows)
+
+* `nicher.dll` no longer fails to load on Windows with
+  `LoadLibrary failure: The specified module could not be found`.
+  Both `src/Makevars` and `src/Makevars.win` now drop
+  `RcppParallel::RcppParallelLibs()` from `PKG_LIBS`. The TinyThread
+  backend (`-DRCPP_PARALLEL_USE_TBB=0`) was already enabled at compile
+  time but the linker line still referenced TBB / `tbbmalloc`, whose
+  DLLs live inside the `RcppParallel` install directory and are not on
+  Windows' default DLL search path. Forcing the header-only TinyThread
+  backend at both compile *and* link time eliminates the runtime
+  dependency on `tbb.dll` / `tbbmalloc.dll`. Same change is applied to
+  `Makevars` (Linux/macOS) for consistency.
+
+## Validation & UX
+
+* `optimize_niche()` now validates `eta` upfront, rejecting non-numeric,
+  non-positive, non-finite, or non-scalar values *before* any compute is
+  spent on a multi-start optimization. Previously the check happened in
+  `new_nicher()` after the optimization had already run.
+* `print.nicher()` now surfaces the `eta` value used at fit time and the
+  variable names stored on the object (when present).
+
+## Dependency hygiene
+
+* `RcppEigen` and `RcppParallel` removed from the `Imports:` field —
+  they are LinkingTo dependencies only, not imported via `import()` /
+  `importFrom()`. Clears one of the `R CMD check` NOTEs.
+
+## Documentation
+
+* `R CMD check`: 5 WARNINGs cleared, down from 5 W + 3 N to 0 W + 2 N
+  (installed size and `SystemRequirements: GNU make`, both unavoidable
+  and informational).
+* `R/benchmark_optimize_niche.R`: replaced unknown `\lifecycle{...}`
+  Rd macro with the canonical
+  `\Sexpr[results=rd, stage=render]{lifecycle::badge("...")}` recipe.
+* `R/optimize_niche.R`: replaced bare `\cdot` with `*` inside `\code{}`
+  (Rd does not honour `\cdot` outside `\eqn{}`).
+* `R/niche_weighted.R`: replaced dangling `\link{create_niche_obj_ptr}`
+  with plain `\code{}` — the helper is internal and has no Rd file.
+* `vignettes/nicher-intro.Rmd` now builds correctly during
+  `R CMD build`, populating `inst/doc/`.
+
 # nicher 2.2.1
 
 ## Bug fixes

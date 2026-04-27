@@ -1,5 +1,12 @@
 CXX_STD = CXX14
+
+# Force RcppParallel's TinyThread backend (header-only). With the TBB
+# backend, nicher.dll would link against tbb.dll / tbbmalloc.dll from
+# the RcppParallel installation; on Windows those DLLs are not on the
+# default DLL search path at load time, producing
+#   "LoadLibrary failure: The specified module could not be found"
+# when R tries to load nicher.dll. TinyThread is bundled as headers, so
+# we get the same parallelFor() API with no extra runtime DLL.
 PKG_CXXFLAGS = -DRCPP_PARALLEL_USE_TBB=0 \
                $(shell "${R_HOME}/bin/Rscript.exe" -e "RcppParallel::CxxFlags()")
-PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) \
-           $(shell "${R_HOME}/bin/Rscript.exe" -e "RcppParallel::RcppParallelLibs()")
+PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)

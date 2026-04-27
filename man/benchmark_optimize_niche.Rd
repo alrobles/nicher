@@ -43,7 +43,7 @@ A data frame with one row per backend, columns:
   }
 }
 \description{
-\lifecycle{experimental}
+\Sexpr[results=rd, stage=render]{lifecycle::badge("experimental")}
 }
 \details{
 Runs \code{\link{optimize_niche}} from the same Sobol starts under both

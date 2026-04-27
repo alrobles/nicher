@@ -29,6 +29,33 @@ test_that("optimize_niche backend='cpp' and 'r' agree on the same Sobol starts",
   expect_equal(fit_cpp$best$loglik, fit_r$best$loglik, tolerance = 1e-2)
 })
 
+test_that("optimize_niche rejects malformed eta upfront (no compute wasted)", {
+  occ <- example_env_occ_2d
+  M   <- example_env_m_2d
+
+  # Each of these should fail before any optimization runs.
+  expect_error(
+    optimize_niche(env_occ = occ, env_m = M, num_starts = 5L,
+                   likelihood = "weighted", eta = -1),
+    regexp = "eta.*positive finite"
+  )
+  expect_error(
+    optimize_niche(env_occ = occ, env_m = M, num_starts = 5L,
+                   likelihood = "weighted", eta = NA_real_),
+    regexp = "eta.*positive finite"
+  )
+  expect_error(
+    optimize_niche(env_occ = occ, env_m = M, num_starts = 5L,
+                   likelihood = "weighted", eta = c(1, 2)),
+    regexp = "eta.*positive finite"
+  )
+  expect_error(
+    optimize_niche(env_occ = occ, env_m = M, num_starts = 5L,
+                   likelihood = "weighted", eta = "1"),
+    regexp = "eta.*positive finite"
+  )
+})
+
 test_that("backend='r' emits a lifecycle deprecation warning", {
   occ <- example_env_occ_2d
   M   <- example_env_m_2d

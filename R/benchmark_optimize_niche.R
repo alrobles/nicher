@@ -1,6 +1,6 @@
 #' Benchmark cpp vs r backends for optimize_niche
 #'
-#' \lifecycle{experimental}
+#' \Sexpr[results=rd, stage=render]{lifecycle::badge("experimental")}
 #'
 #' Runs \code{\link{optimize_niche}} from the same Sobol starts under both
 #' \code{backend = "cpp"} and \code{backend = "r"} and returns timing /
