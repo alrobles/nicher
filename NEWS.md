@@ -1,3 +1,43 @@
+# nicher 2.3.0
+
+## New features
+
+### ggplot2 plotting engine for 2-D fitted niches (E-space)
+
+* New `autoplot.nicher()` S3 method on `ggplot2::autoplot` returns a
+  `ggplot` object visualizing a fitted 2-D `nicher` model in
+  environmental space. Composes a faint background point cloud
+  (`env_m`), an occurrence cloud (`env_occ`), and the model-implied
+  iso-suitability ellipses; axes are labelled by `object$var_names`.
+* New composable layer constructors — each returns a single self-
+  contained `ggplot2::layer` and is stackable with `+` on a fresh
+  `ggplot()`:
+    * `geom_nicher_background(env_m, ...)` — background environment.
+    * `geom_nicher_occ(env_occ, ...)` — occurrence cloud.
+    * `geom_nicher_ellipse(model, level, level_type, n, ...)` — niche
+      geometry; default `level = c(0.95, 0.5, 0.05)` interpreted as
+      iso-suitability contours `S(x) = level` (paper-aligned, Jiménez
+      et al. 2022 Eq. 2). Pass `level_type = "chisq"` for the textbook
+      χ² confidence-ellipse interpretation.
+* New `nicher_compare_plot(models, env_occ, env_m, ...)` convenience
+  wrapper for the two multi-model contexts called out in the design
+  spec:
+    * Single species, multiple models — `env_occ` is shared.
+    * Multiple species, multiple models — `env_occ` is a named list
+      whose names match `names(models)`; ellipse colour identifies the
+      model and occurrences are coloured to match.
+* Plotting is restricted to 2-D models (`length(object$var_names) ==
+  2`). Higher-dimensional fits are rejected with a clear error; no
+  projection or marginalization is performed.
+* Fitted `nicher` objects do not store environmental data — `env_occ`
+  and `env_m` must be supplied explicitly to every plotting call.
+* `ggplot2 (>= 3.0.0)` is added as a *Suggests* dependency. nicher
+  installs and runs without ggplot2; the plotting methods register at
+  load time only when ggplot2 is available, and each entry point
+  guards with a clear error message otherwise. The `linewidth` /
+  `size` argument rename across ggplot2 3.4.0 is handled
+  transparently.
+
 # nicher 2.2.3
 
 ## Bug fixes (Windows, follow-up)
