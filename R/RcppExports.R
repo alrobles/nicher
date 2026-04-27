@@ -17,6 +17,18 @@ loglik_niche_chol_cpp <- function(mu, L, env_occ, env_m) {
     .Call(`_nicher_loglik_niche_chol_cpp`, mu, L, env_occ, env_m)
 }
 
+loglik_niche_math_presence_only_cpp <- function(theta, env_occ, eta = 1.0) {
+    .Call(`_nicher_loglik_niche_math_presence_only_cpp`, theta, env_occ, eta)
+}
+
+loglik_niche_math_weighted_cpp <- function(theta, env_occ, M_den, w_occ, w_den, eta = 1.0) {
+    .Call(`_nicher_loglik_niche_math_weighted_cpp`, theta, env_occ, M_den, w_occ, w_den, eta)
+}
+
+loglik_niche_math_weighted_grad_cpp <- function(theta, env_occ, M_den, w_occ, w_den, eta = 1.0, gradstep_rel = 1e-6, gradstep_abs = 1e-8) {
+    .Call(`_nicher_loglik_niche_math_weighted_grad_cpp`, theta, env_occ, M_den, w_occ, w_den, eta, gradstep_rel, gradstep_abs)
+}
+
 loglik_niche_presence_only_cpp <- function(mu, L, env_occ) {
     .Call(`_nicher_loglik_niche_presence_only_cpp`, mu, L, env_occ)
 }
@@ -25,7 +37,7 @@ loglik_niche_weighted_integrated_cpp <- function(mu, L, env_occ, env_m, den_idx 
     .Call(`_nicher_loglik_niche_weighted_integrated_cpp`, mu, L, env_occ, env_m, den_idx, kde_idx, precomp_w_den, neg)
 }
 
-create_niche_obj_ptr <- function(env_occ, env_m = NULL, eta = 1.0, likelihood = "unweighted", den_idx = NULL, kde_idx = NULL, precomp_w_den = NULL, gradstep = as.numeric( c(1e-6,1e-8))) {
-    .Call(`_nicher_create_niche_obj_ptr`, env_occ, env_m, eta, likelihood, den_idx, kde_idx, precomp_w_den, gradstep)
+create_niche_obj_ptr <- function(env_occ, env_m = NULL, eta = 1.0, likelihood = "weighted", den_idx = NULL, kde_idx = NULL, precomp_w_occ = NULL, precomp_w_den = NULL, grad = "central", gradstep = as.numeric( c(1e-6, 1e-8))) {
+    .Call(`_nicher_create_niche_obj_ptr`, env_occ, env_m, eta, likelihood, den_idx, kde_idx, precomp_w_occ, precomp_w_den, grad, gradstep)
 }
 

@@ -10,6 +10,11 @@ optimize_niche(
   num_starts = 100L,
   breadth = 0.1,
   likelihood = c("weighted", "presence_only"),
+  backend = c("cpp", "r"),
+  grad = c("auto", "analytic", "central", "forward"),
+  m_subsample = NULL,
+  m_kde_subsample = NULL,
+  seed = NULL,
   control = list(),
   verbose = FALSE,
   ...
@@ -18,21 +23,33 @@ optimize_niche(
 \arguments{
 \item{env_occ}{Data frame of environmental values at presence points.}
 
-\item{env_m}{Data frame of background environmental values. Ignored
-when \code{likelihood = "presence_only"}.}
+\item{env_m}{Data frame of background environmental values. Required for
+\code{likelihood = "weighted"}; ignored for \code{"presence_only"}.}
 
 \item{num_starts}{Integer. Number of Sobol starting points.}
 
-\item{breadth}{Numeric in (0, 0.5). Controls the quantile range used
-to define starting bounds for \code{mu} parameters.
-Quantiles are set to \code{c(breadth, 0.5, 1 - breadth)}.
-Default is \code{0.1}.}
+\item{breadth}{Numeric in (0, 0.5). Controls the quantile range used to
+define starting bounds for \code{mu} parameters. Default \code{0.1}.}
 
-\item{likelihood}{Character. One of \code{"weighted"} (default) or
+\item{likelihood}{One of \code{"weighted"} (default) or
 \code{"presence_only"}.}
 
+\item{backend}{One of \code{"cpp"} (default) or \code{"r"} (deprecated;
+see Backends section).}
+
+\item{grad}{Gradient strategy: \code{"auto"} (default) selects
+\code{"analytic"} for the weighted model with \code{backend = "cpp"} and
+\code{"central"} otherwise. Force one of
+\code{c("analytic", "central", "forward")} to override.}
+
+\item{m_subsample, m_kde_subsample}{Optional integer or fraction in (0, 1].
+Resolved to \code{min(nrow(env_m), 10000)} when \code{NULL} (default).}
+
+\item{seed}{Optional integer to make subsampling deterministic.}
+
 \item{control}{Named list of control parameters for
-\code{ucminfcpp::ucminf_xptr()}. Recognized entries:
+\code{ucminfcpp::ucminf_xptr()} (cpp backend) or \code{ucminf::ucminf()}
+(r backend). Recognized entries:
 \describe{
   \item{\code{grad}}{"central" (default)}
   \item{\code{gradstep}}{c(1e-6, 1e-8)}
@@ -44,27 +61,16 @@ Default is \code{0.1}.}
 
 \item{verbose}{Logical. If \code{TRUE}, print per-start progress.}
 
-\item{...}{Additional arguments forwarded to the C++ helper, e.g.
-\code{eta} for the LKJ prior, or \code{m_subsample},
-\code{m_kde_subsample}, \code{seed} for the weighted model.}
+\item{...}{Additional arguments forwarded to the objective function
+(e.g. \code{eta}).}
 }
 \value{
-An object of class \code{"nicher"} (see \code{\link{new_nicher}})
-  with components:
-  \describe{
-    \item{\code{solutions}}{Data frame with columns \code{start_id},
-      \code{loglik}, \code{convergence}, \code{full_par}.}
-    \item{\code{best}}{List: \code{theta}, \code{loglik},
-      \code{convergence}.}
-    \item{\code{likelihood}}{The likelihood model used.}
-    \item{\code{n_starts}}{Number of starting points.}
-  }
+An object of class \code{"nicher"} (see \code{\link{new_nicher}}).
 }
 \description{
-Runs multi-start optimization using \code{ucminfcpp::ucminf_xptr()} with
-a compiled C++ objective function. Starting points are drawn from a
-Sobol low-discrepancy sequence (via \pkg{pomp}) over the parameter space
-implied by \code{env_occ} and \code{breadth}.
+Runs multi-start optimization over a Sobol low-discrepancy sequence
+(via \pkg{pomp}) of starting points covering the parameter space implied
+by \code{env_occ} and \code{breadth}.
 }
 \details{
 Two likelihood models are supported:
@@ -74,14 +80,45 @@ Two likelihood models are supported:
   \item \code{"presence_only"}: model using only presence points,
         no background correction.
 }
-
-An internal safeguard re-optimizes the best result with
-\code{ucminf::ucminf} and warns if the two log-likelihoods diverge
-by more than \code{1e-3}, indicating a potential pointer-safety issue.
 }
+\section{Backends}{
+
+
+\describe{
+  \item{\code{backend = "cpp"} (default)}{Optimizes via
+    \code{ucminfcpp::ucminf_xptr()} with a compiled C++ objective built by
+    \code{create_niche_obj_ptr()}. The full \code{(theta -> mu, log sigma, v)}
+    unpacking, \code{cvine_cholesky}, log-likelihood, and gradient are
+    evaluated in pure C++ with no R-callback overhead.
+    For the weighted likelihood, gradient mode \code{"analytic"} uses
+    closed-form derivatives over \code{mu} and \code{log sigma} and central
+    finite differences over the C-vine partial-correlation block (hybrid
+    analytic gradient).}
+  \item{\code{backend = "r"} (deprecated)}{Optimizes via
+    \code{ucminf::ucminf()} with the legacy R-level objective functions
+    (\code{loglik_niche_math_weighted()} or
+    \code{loglik_niche_math_presence_only()}). Provided ONLY to allow
+    side-by-side benchmarking with the C++ backend; will be removed in
+    the next minor release.}
+}
+}
+
+\section{KDE sampling (weighted model)}{
+
+
+The KDE that weights the M-background depends only on the environmental
+data (not on \code{theta}), so the weights are computed once before
+optimization. By default, the KDE reference (\code{m_kde_subsample}) and
+the denominator subset (\code{m_subsample}) are both capped at
+10\,000 distinct background combinations -- the maximum the model can
+usefully exploit even for very large rasters. A floor of
+\code{max(500, 50 \cdot 2^p)} rows is used as a heuristic minimum
+representative sample (Silverman 1986; Wand & Jones 1995); below this
+floor a \code{warning()} is emitted.
+}
+
 \examples{
 \dontrun{
-# Weighted model (KDE background correction)
 result <- optimize_niche(
   env_occ    = example_env_occ_2d,
   env_m      = example_env_m_2d,
@@ -91,14 +128,5 @@ result <- optimize_niche(
 )
 print(result)
 assess(result)
-
-# Presence-only model
-result_po <- optimize_niche(
-  env_occ    = example_env_occ_2d,
-  env_m      = NULL,
-  num_starts = 20L,
-  likelihood = "presence_only"
-)
-print(result_po)
 }
 }

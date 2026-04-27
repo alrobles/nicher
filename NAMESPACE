@@ -3,6 +3,7 @@
 S3method(assess,nicher)
 S3method(print,nicher)
 export(assess)
+export(benchmark_optimize_niche)
 export(cvine_cholesky)
 export(get_ellipsoid_pars)
 export(kde_gaussian)

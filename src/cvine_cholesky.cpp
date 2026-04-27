@@ -1,8 +1,10 @@
+#include "nicher_types.h"
 #include <Rcpp.h>
 using namespace Rcpp;
 
 #include <cmath>
 #include <algorithm>
+#include <vector>
 
 // Forward substitution: solve L_sub * g = b, where L_sub is the top-left
 // (j x j) submatrix of the lower-triangular matrix L.
@@ -160,3 +162,77 @@ NumericMatrix cvine_cholesky(NumericVector v, int d, double eta = 1.0) {
 
   return L;
 }
+
+// =============================================================================
+// Eigen-native C-vine Cholesky (no R object allocations on each call).
+//
+// Direct port of the algorithm above; used by the math-scale C++ kernels
+// invoked from the ucminfcpp::ucminf_xptr closure in `niche_obj.cpp`. Keeping
+// both versions side-by-side avoids re-implementing the recursion.
+// =============================================================================
+namespace nicher {
+
+void cvine_cholesky_eigen(const Eigen::Ref<const Eigen::VectorXd>& v,
+                          int d, double eta,
+                          Eigen::MatrixXd& L_out) {
+  if (d < 1)    Rcpp::stop("d must be >= 1");
+  if (eta <= 0) Rcpp::stop("eta must be > 0 (got %g)", eta);
+
+  L_out = Eigen::MatrixXd::Identity(d, d);
+  if (d == 1) return;
+
+  const int m_needed = d * (d - 1) / 2;
+  if (v.size() != m_needed) {
+    Rcpp::stop("v must have length %d for d=%d (got %d).",
+               m_needed, d, (int)v.size());
+  }
+
+  const double eps   = 1e-12;
+  const double eps15 = 1e-15;
+
+  Eigen::MatrixXd p(d, d);
+  p.setZero();
+
+  int idx = 0;
+  for (int k = 0; k < d - 1; k++) {
+    const double phi_k = eta + (d - k - 2) / 2.0;
+    for (int ell = k + 1; ell < d; ell++) {
+      double u = 1.0 / (1.0 + std::exp(-v(idx++)));
+      u = std::min(std::max(u, eps), 1.0 - eps);
+      double val = 2.0 * R::qbeta(u, phi_k, phi_k, 1, 0) - 1.0;
+      p(k, ell) = std::min(std::max(val, -1.0 + eps15), 1.0 - eps15);
+    }
+  }
+
+  // Build L row-by-row using forward substitution on the top-left block.
+  std::vector<double> g_buf;
+  for (int j = 1; j < d; j++) {
+    Eigen::VectorXd r(j);
+    r(0) = p(0, j);
+    for (int i = 1; i < j; i++) {
+      double rij = p(i, j);
+      for (int m = i - 1; m >= 0; m--) {
+        const double rim = p(m, i);
+        const double rjm = p(m, j);
+        const double inner = (1.0 - rim * rim) * (1.0 - rjm * rjm);
+        rij = rij * std::sqrt(std::max(0.0, inner)) + rim * rjm;
+      }
+      r(i) = rij;
+    }
+
+    g_buf.assign(j, 0.0);
+    for (int i = 0; i < j; i++) {
+      double s = r(i);
+      for (int k = 0; k < i; k++) s -= L_out(i, k) * g_buf[k];
+      g_buf[i] = s / L_out(i, i);
+    }
+
+    for (int col = 0; col < j; col++) L_out(j, col) = g_buf[col];
+
+    double g_sq_sum = 0.0;
+    for (int col = 0; col < j; col++) g_sq_sum += g_buf[col] * g_buf[col];
+    L_out(j, j) = std::sqrt(std::max(0.0, 1.0 - g_sq_sum));
+  }
+}
+
+} // namespace nicher
