@@ -56,7 +56,7 @@ jobs:
           stack_path <- system.file("extdata", "stack_1_12_crop.rds", package = "nicher")
           example_rasters <- terra::unwrap(readRDS(stack_path))
           data(example_occ_df)
-          env_occ <- terra::extract(example_rasters, example_occ_df[, c("long", "lat")])
+          env_occ <- terra::extract(example_rasters, example_occ_df[, c("lon", "lat")])
           env_occ <- env_occ[complete.cases(env_occ), -1]
           set.seed(123)
           env_m <- terra::spatSample(example_rasters, size = 1000, method = "regular", na.rm = TRUE)
