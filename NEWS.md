@@ -1,3 +1,32 @@
+# nicher 2.2.3
+
+## Bug fixes (Windows, follow-up)
+
+* The 2.2.2 attempt at forcing `RcppParallel`'s header-only TinyThread
+  backend was incomplete: `src/Makevars{,.win}` set `PKG_CXXFLAGS` to
+  ```
+  -DRCPP_PARALLEL_USE_TBB=0 $(shell ... RcppParallel::CxxFlags())
+  ```
+  but on Windows `RcppParallel::CxxFlags()` expands to
+  `-I<...>/RcppParallel/include -DRCPP_PARALLEL_USE_TBB=1`, so g++ saw
+  ```
+  -DRCPP_PARALLEL_USE_TBB=0 ... -DRCPP_PARALLEL_USE_TBB=1
+  ```
+  with the *last* `-D` winning, silently turning TBB back on at the
+  source level. The compiled DLL then failed to load with the original
+  `LoadLibrary failure: The specified module could not be found`
+  because tbb.dll / tbbmalloc.dll live inside the `RcppParallel`
+  install dir and are not on the default DLL search path.
+* Both `Makevars` files now set `PKG_CXXFLAGS = -DRCPP_PARALLEL_USE_TBB=0`
+  exactly once. `RcppParallel`'s include directory is supplied
+  automatically by `LinkingTo: RcppParallel` (declared in DESCRIPTION),
+  so dropping the `RcppParallel::CxxFlags()` `$(shell ...)` substitution
+  loses nothing.
+* Verified locally on Linux: the per-source compile line now contains a
+  single `-DRCPP_PARALLEL_USE_TBB=0`, no `<command-line>: warning:
+  "RCPP_PARALLEL_USE_TBB" redefined`, and `library(nicher)` loads
+  cleanly. Windows users should see the same.
+
 # nicher 2.2.2
 
 ## Bug fixes (Windows)
