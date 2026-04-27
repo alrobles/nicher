@@ -25,6 +25,7 @@ RoxygenNote: 7.3.3
 Imports: 
     checkmate,
     Rcpp (>= 1.1.0),
+    RcppParallel,
     lifecycle,
     stats,
     terra,

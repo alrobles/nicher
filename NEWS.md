@@ -25,9 +25,13 @@
 
 ## Dependency hygiene
 
-* `RcppEigen` and `RcppParallel` removed from the `Imports:` field —
-  they are LinkingTo dependencies only, not imported via `import()` /
-  `importFrom()`. Clears one of the `R CMD check` NOTEs.
+* `RcppEigen` removed from the `Imports:` field — it is LinkingTo only,
+  with no R-level `::` usage. Clears the
+  "Namespaces in Imports not imported from: RcppEigen" NOTE.
+* `RcppParallel` retained in `Imports:` (it is called at runtime as
+  `RcppParallel::defaultNumThreads()`) but now declared in `NAMESPACE`
+  via `@importFrom RcppParallel defaultNumThreads` on
+  `habitat_suitability()`. Clears the matching NOTE for `RcppParallel`.
 
 ## Documentation
 
