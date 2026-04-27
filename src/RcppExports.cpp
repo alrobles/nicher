@@ -161,6 +161,22 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// niche_suitability_cpp
+Rcpp::NumericVector niche_suitability_cpp(Rcpp::NumericVector env_dat_vec, Rcpp::IntegerVector env_dat_dims, Rcpp::NumericVector mu, Rcpp::NumericMatrix L_inv, bool return_log, int num_threads);
+RcppExport SEXP _nicher_niche_suitability_cpp(SEXP env_dat_vecSEXP, SEXP env_dat_dimsSEXP, SEXP muSEXP, SEXP L_invSEXP, SEXP return_logSEXP, SEXP num_threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type env_dat_vec(env_dat_vecSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type env_dat_dims(env_dat_dimsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type L_inv(L_invSEXP);
+    Rcpp::traits::input_parameter< bool >::type return_log(return_logSEXP);
+    Rcpp::traits::input_parameter< int >::type num_threads(num_threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(niche_suitability_cpp(env_dat_vec, env_dat_dims, mu, L_inv, return_log, num_threads));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_nicher_cvine_cholesky", (DL_FUNC) &_nicher_cvine_cholesky, 3},
@@ -173,6 +189,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_nicher_loglik_niche_presence_only_cpp", (DL_FUNC) &_nicher_loglik_niche_presence_only_cpp, 3},
     {"_nicher_loglik_niche_weighted_integrated_cpp", (DL_FUNC) &_nicher_loglik_niche_weighted_integrated_cpp, 8},
     {"_nicher_create_niche_obj_ptr", (DL_FUNC) &_nicher_create_niche_obj_ptr, 10},
+    {"_nicher_niche_suitability_cpp", (DL_FUNC) &_nicher_niche_suitability_cpp, 6},
     {NULL, NULL, 0}
 };
 

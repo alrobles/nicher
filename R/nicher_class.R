@@ -19,16 +19,23 @@
 #' @param likelihood Character. One of \code{"weighted"} or
 #'   \code{"presence_only"}.
 #' @param n_starts Integer. Total number of starting points used.
+#' @param var_names Optional character vector of length \code{p} naming
+#'   the environmental variables in the order assumed by
+#'   \code{best$theta}. Stored on the object so
+#'   \code{\link{predict.nicher}} can reorder a future
+#'   \code{\link[terra]{SpatRaster}} by layer name.
 #'
 #' @return An object of class \code{"nicher"}.
 #' @keywords internal
-new_nicher <- function(solutions, best, likelihood, n_starts) {
+new_nicher <- function(solutions, best, likelihood, n_starts,
+                       var_names = NULL) {
   structure(
     list(
       solutions  = solutions,
       best       = best,
       likelihood = likelihood,
-      n_starts   = as.integer(n_starts)
+      n_starts   = as.integer(n_starts),
+      var_names  = if (is.null(var_names)) NULL else as.character(var_names)
     ),
     class = "nicher"
   )

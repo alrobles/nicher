@@ -41,3 +41,30 @@ create_niche_obj_ptr <- function(env_occ, env_m = NULL, eta = 1.0, likelihood = 
     .Call(`_nicher_create_niche_obj_ptr`, env_occ, env_m, eta, likelihood, den_idx, kde_idx, precomp_w_occ, precomp_w_den, grad, gradstep)
 }
 
+#' Habitat-suitability kernel (parallel, zero-copy)
+#'
+#' Evaluates the standardized multivariate-normal density
+#' \eqn{S(x) = \exp(-\tfrac12 (x-\mu)^\top \Sigma^{-1} (x-\mu))} for each
+#' row of a column-major flat environmental buffer. Uses
+#' \pkg{RcppParallel}'s \code{parallelFor} over locations.
+#'
+#' @param env_dat_vec Numeric vector. Flat column-major buffer of length
+#'   \code{n_loc * p}; entry for location \code{l} variable \code{k} sits
+#'   at index \code{l + n_loc * k}.
+#' @param env_dat_dims Integer vector \code{c(n_loc, p)}.
+#' @param mu Numeric vector of length \code{p}: niche centroid.
+#' @param L_inv Numeric matrix \code{p x p}: inverse of the lower
+#'   Cholesky factor of \eqn{\Sigma}. Precomputed R-side once.
+#' @param return_log Logical. If \code{FALSE} (default) returns
+#'   suitability in \eqn{(0, 1]}; if \code{TRUE} returns
+#'   \eqn{\log S(x) \le 0}.
+#' @param num_threads Integer. \code{0} (default) leaves
+#'   \code{RcppParallel}'s global thread state unchanged.
+#'
+#' @return Numeric vector of length \code{n_loc}.
+#'
+#' @keywords internal
+niche_suitability_cpp <- function(env_dat_vec, env_dat_dims, mu, L_inv, return_log = FALSE, num_threads = 0L) {
+    .Call(`_nicher_niche_suitability_cpp`, env_dat_vec, env_dat_dims, mu, L_inv, return_log, num_threads)
+}
+
