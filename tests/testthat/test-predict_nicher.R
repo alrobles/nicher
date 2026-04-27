@@ -65,6 +65,54 @@ test_that("predict.nicher errors when env is missing required layer names", {
   expect_error(predict(fit, env_bad), "missing required layer")
 })
 
+test_that("predict.nicher uses the eta stored on the fit (regression)", {
+  data(example_env_occ_2d, package = "nicher")
+  data(example_env_m_2d,   package = "nicher")
+  # Fit with a non-default eta. cvine_cholesky maps `v` to a correlation
+  # Cholesky factor through a Beta-quantile mapping parameterised by eta,
+  # so the same theta with different eta yields a different Sigma. If
+  # predict.nicher silently used eta = 1, the suitability map would not
+  # match the model that was fitted.
+  set.seed(13)
+  fit <- optimize_niche(
+    env_occ    = example_env_occ_2d,
+    env_m      = example_env_m_2d,
+    num_starts = 3L,
+    likelihood = "weighted",
+    eta        = 2.5,
+    verbose    = FALSE
+  )
+  expect_equal(fit$eta, 2.5)
+
+  # Reconstruct the expected Sigma using the same eta the optimizer saw.
+  theta  <- fit$best$theta
+  p      <- length(fit$var_names)
+  v      <- if (p > 1L) theta[(2L * p + 1L):length(theta)] else numeric(0)
+  sigma  <- exp(theta[(p + 1L):(2L * p)])
+  L_corr_correct <- cvine_cholesky(v, d = p, eta = 2.5)
+  Sigma_correct  <- tcrossprod(diag(sigma, p) %*% L_corr_correct)
+
+  L_corr_wrong   <- cvine_cholesky(v, d = p, eta = 1.0)
+  Sigma_wrong    <- tcrossprod(diag(sigma, p) %*% L_corr_wrong)
+
+  # Sanity: the two reconstructions actually differ — otherwise this
+  # test would not be exercising the fix.
+  expect_false(isTRUE(all.equal(Sigma_correct, Sigma_wrong)))
+
+  env <- env_from_m(example_env_m_2d, fit$var_names, seed = 21L)
+  s_predicted <- predict(fit, env)
+
+  # Build the reference suitability map directly with the correct Sigma.
+  ref_mat <- as.matrix(terra::values(env))
+  L_inv <- backsolve(t(chol(Sigma_correct)), diag(p), upper.tri = FALSE)
+  ref <- niche_suitability_cpp(
+    as.numeric(ref_mat), c(nrow(ref_mat), p),
+    theta[seq_len(p)], L_inv, FALSE, 0L
+  )
+  expect_equal(as.numeric(terra::values(s_predicted)), ref,
+               tolerance = 1e-12)
+})
+
 test_that("suitability evaluated at the fitted mu equals 1", {
   data(example_env_occ_2d, package = "nicher")
   data(example_env_m_2d,   package = "nicher")

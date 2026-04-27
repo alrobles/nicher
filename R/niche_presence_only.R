@@ -31,6 +31,10 @@
 #'
 #' @export
 niche_presence_only <- function(occ, eta = 1, start = NULL, ...) {
+  if (is.numeric(start) && !all(is.finite(start))) {
+    stop("`start` must contain only finite values (no NA, NaN, Inf).")
+  }
+
   # Build compiled C++ presence-only objective
   xptr <- create_niche_obj_ptr(
     env_occ    = as.matrix(occ),

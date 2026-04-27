@@ -1,3 +1,32 @@
+# nicher 2.2.1
+
+## Bug fixes
+
+* `predict.nicher()` now reconstructs the correlation matrix using the same
+  `eta` value that `optimize_niche()` used at fit time, rather than always
+  passing `eta = 1` to `cvine_cholesky()`. `eta` is persisted on the
+  returned `nicher` object as a new field. Legacy `nicher` objects produced
+  before 2.2.1 (with no `eta` field) continue to predict against the
+  default `eta = 1`. Reported by Devin Review on PR #34.
+
+## Test-suite fixes
+
+* `test-benchmark-optimizers.R`: the 3D R-vs-C++ test now verifies kernel
+  parity (`fn_r(theta) == fn_cpp(theta)` at each backend's optimum) rather
+  than asserting the two optimizers find the same local minimum, which is
+  not guaranteed for a non-convex objective when the FD gradient differs
+  between the interpreter and the compiled kernel.
+* `test-benchmark-optimizers.R`: the XPtr-backend convergence test now
+  accepts ucminf code 4 ("zero step from line search") as a valid
+  termination, matching the convention used by the 2D R-vs-C++ test.
+* `test-benchmark-optimizers.R`: removed `label = ` argument from
+  `expect_s3_class()` (unsupported in installed testthat).
+* `niche_weighted()` and `niche_presence_only()` now emit informative
+  errors for `precomp_w_den` length mismatches and non-finite `start`
+  values; the corresponding `test-niche-wrappers.R` cases now exercise
+  these paths via named arguments rather than relying on positional
+  argument order.
+
 # nicher 2.2.0
 
 ## New features

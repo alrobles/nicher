@@ -24,18 +24,28 @@
 #'   \code{best$theta}. Stored on the object so
 #'   \code{\link{predict.nicher}} can reorder a future
 #'   \code{\link[terra]{SpatRaster}} by layer name.
+#' @param eta Numeric scalar. The Beta-shape parameter passed to
+#'   \code{\link{cvine_cholesky}} during fitting (default \code{1.0}).
+#'   Stored on the object so \code{\link{predict.nicher}} reconstructs
+#'   the same correlation matrix from \code{best$theta} that the
+#'   optimizer used. Defaults to \code{1.0} (the LKJ-uniform prior),
+#'   matching \code{\link{optimize_niche}}.
 #'
 #' @return An object of class \code{"nicher"}.
 #' @keywords internal
 new_nicher <- function(solutions, best, likelihood, n_starts,
-                       var_names = NULL) {
+                       var_names = NULL, eta = 1.0) {
+  if (!is.numeric(eta) || length(eta) != 1L || !is.finite(eta) || eta <= 0) {
+    stop("`eta` must be a single positive finite number.")
+  }
   structure(
     list(
       solutions  = solutions,
       best       = best,
       likelihood = likelihood,
       n_starts   = as.integer(n_starts),
-      var_names  = if (is.null(var_names)) NULL else as.character(var_names)
+      var_names  = if (is.null(var_names)) NULL else as.character(var_names),
+      eta        = as.numeric(eta)
     ),
     class = "nicher"
   )
