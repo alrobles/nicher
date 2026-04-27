@@ -109,6 +109,14 @@ optimize_niche <- function(env_occ,
   backend    <- match.arg(backend)
   grad       <- match.arg(grad)
 
+  # Resolve `eta` from `...` so we can both forward it to the objective
+  # functions (already done downstream) and persist it on the returned
+  # object for `predict.nicher()`.
+  eta <- {
+    .dots <- list(...)
+    if (!is.null(.dots$eta)) .dots$eta else 1.0
+  }
+
   # ------------------------------------------------------------------
   # Input validation
   # ------------------------------------------------------------------
@@ -265,7 +273,8 @@ optimize_niche <- function(env_occ,
     best       = best,
     likelihood = likelihood,
     n_starts   = num_starts,
-    var_names  = colnames(env_occ)
+    var_names  = colnames(env_occ),
+    eta        = eta
   )
 }
 

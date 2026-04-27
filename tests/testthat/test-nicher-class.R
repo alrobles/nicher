@@ -34,7 +34,7 @@ test_that("new_nicher creates an object of class 'nicher'", {
   expect_s3_class(obj, "nicher")
   expect_named(
     obj,
-    c("solutions", "best", "likelihood", "n_starts", "var_names"),
+    c("solutions", "best", "likelihood", "n_starts", "var_names", "eta"),
     ignore.order = TRUE
   )
 })

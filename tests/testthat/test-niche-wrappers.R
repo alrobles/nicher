@@ -129,13 +129,13 @@ test_that("wrappers error on non-finite starting values", {
   bad_start <- theta0_3d
   bad_start[1L] <- Inf
 
-  expect_error(niche_presence_only(occ3, bad_start),
+  expect_error(niche_presence_only(occ3, start = bad_start),
     regexp = "finite",
     label  = "niche_presence_only errors on Inf start"
   )
 
   expect_error(
-    niche_weighted(occ3, M3, den_idx3, kde_idx3, pre3, bad_start),
+    niche_weighted(occ3, M3, den_idx3, kde_idx3, pre3, start = bad_start),
     regexp = "finite",
     label  = "niche_weighted errors on Inf start"
   )

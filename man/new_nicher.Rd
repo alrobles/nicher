@@ -4,7 +4,7 @@
 \alias{new_nicher}
 \title{Create a nicher optimization result object}
 \usage{
-new_nicher(solutions, best, likelihood, n_starts, var_names = NULL)
+new_nicher(solutions, best, likelihood, n_starts, var_names = NULL, eta = 1)
 }
 \arguments{
 \item{solutions}{A data frame with columns \code{start_id},
@@ -23,6 +23,13 @@ the environmental variables in the order assumed by
 \code{best$theta}. Stored on the object so
 \code{\link{predict.nicher}} can reorder a future
 \code{\link[terra]{SpatRaster}} by layer name.}
+
+\item{eta}{Numeric scalar. The Beta-shape parameter passed to
+\code{\link{cvine_cholesky}} during fitting (default \code{1.0}).
+Stored on the object so \code{\link{predict.nicher}} reconstructs
+the same correlation matrix from \code{best$theta} that the
+optimizer used. Defaults to \code{1.0} (the LKJ-uniform prior),
+matching \code{\link{optimize_niche}}.}
 }
 \value{
 An object of class \code{"nicher"}.

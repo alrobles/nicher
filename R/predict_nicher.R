@@ -115,7 +115,11 @@ predict.nicher <- function(
   sigma  <- exp(theta[(p + 1L):(2L * p)])
   v      <- if (p > 1L) theta[(2L * p + 1L):k] else numeric(0)
 
-  L_corr <- cvine_cholesky(v, d = p, eta = 1)
+  # Use the same `eta` the optimizer used at fit time. Fall back to 1.0
+  # (the LKJ-uniform default) for legacy `nicher` objects produced
+  # before nicher 2.2.1, which do not carry an `eta` field.
+  eta_fit <- if (is.null(object$eta)) 1.0 else object$eta
+  L_corr  <- cvine_cholesky(v, d = p, eta = eta_fit)
   L_cov  <- diag(sigma, p) %*% L_corr
   Sigma  <- tcrossprod(L_cov)
 

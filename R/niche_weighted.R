@@ -62,7 +62,14 @@
 niche_weighted <- function(occ, M, den_idx, kde_idx, precomp_w_den,
                            eta = 1, start = NULL, ...) {
   # Validate precomputed denominators
-  stopifnot(length(den_idx) == length(precomp_w_den))
+  if (length(den_idx) != length(precomp_w_den)) {
+    stop("`precomp_w_den` must have the same length as `den_idx` ",
+         "(got length(precomp_w_den) = ", length(precomp_w_den),
+         ", length(den_idx) = ", length(den_idx), ").")
+  }
+  if (is.numeric(start) && !all(is.finite(start))) {
+    stop("`start` must contain only finite values (no NA, NaN, Inf).")
+  }
 
   # Create compiled C++ objective function
   xptr <- create_niche_obj_ptr(
