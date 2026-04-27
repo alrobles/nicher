@@ -39,6 +39,12 @@ jobs:
         Rscript -e 'install.packages(c("remotes", "devtools", "terra"))'
 
     - name: Install nicher and dependencies
+      env:
+        # Pass the workflow's GITHUB_TOKEN through to remotes::install_github()
+        # so it doesn't fall back on the bundled (rate-limited) PAT.
+        # Without this, remotes::install_github("alrobles/ucminfcpp") fails
+        # with "HTTP error 401. Bad credentials".
+        GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       run: |
         Rscript -e 'if(!require(ucminfcpp)) remotes::install_github("alrobles/ucminfcpp")'
         Rscript -e 'remotes::install_local(".", upgrade = "never")'

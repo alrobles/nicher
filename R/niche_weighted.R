@@ -1,8 +1,8 @@
 #' Fit weighted-normal niche model (Jiménez & Soberón 2022)
 #'
 #' This function fits the *weighted-normal* niche model using a compiled
-#' C++ backend via an external pointer (`XPtr`) created by
-#' \code{\link{create_niche_obj_ptr}}.
+#' C++ backend via an external pointer (`XPtr`) — see the (internal)
+#' \code{create_niche_obj_ptr()} factory.
 #'
 #' The weighted-normal model corrects for environmental bias in the
 #' accessibility area \eqn{M} by incorporating kernel-density weights (KDE).

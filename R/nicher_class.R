@@ -89,6 +89,12 @@ print.nicher <- function(x, ...) {
   )
   cat("  Best loglik:", round(x$best$loglik, 6L), "\n")
   cat("  Convergence:", x$best$convergence, "\n")
+  if (!is.null(x$eta)) {
+    cat("  eta        :", x$eta, "\n")
+  }
+  if (!is.null(x$var_names)) {
+    cat("  Variables  :", paste(x$var_names, collapse = ", "), "\n")
+  }
   invisible(x)
 }
 

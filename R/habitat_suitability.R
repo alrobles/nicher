@@ -77,6 +77,8 @@
 #' @seealso \code{\link{niche_suitability_cpp}},
 #'   \code{\link{predict.nicher}}.
 #'
+#' @importFrom RcppParallel defaultNumThreads
+#'
 #' @examples
 #' \dontrun{
 #'   ## Hand-built (mu, Sigma):

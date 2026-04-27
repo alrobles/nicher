@@ -112,7 +112,7 @@ optimization. By default, the KDE reference (\code{m_kde_subsample}) and
 the denominator subset (\code{m_subsample}) are both capped at
 10\,000 distinct background combinations -- the maximum the model can
 usefully exploit even for very large rasters. A floor of
-\code{max(500, 50 \cdot 2^p)} rows is used as a heuristic minimum
+\code{max(500, 50 * 2^p)} rows is used as a heuristic minimum
 representative sample (Silverman 1986; Wand & Jones 1995); below this
 floor a \code{warning()} is emitted.
 }

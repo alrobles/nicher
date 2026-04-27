@@ -40,7 +40,7 @@
 #' the denominator subset (\code{m_subsample}) are both capped at
 #' 10\,000 distinct background combinations -- the maximum the model can
 #' usefully exploit even for very large rasters. A floor of
-#' \code{max(500, 50 \cdot 2^p)} rows is used as a heuristic minimum
+#' \code{max(500, 50 * 2^p)} rows is used as a heuristic minimum
 #' representative sample (Silverman 1986; Wand & Jones 1995); below this
 #' floor a \code{warning()} is emitted.
 #'
@@ -111,10 +111,15 @@ optimize_niche <- function(env_occ,
 
   # Resolve `eta` from `...` so we can both forward it to the objective
   # functions (already done downstream) and persist it on the returned
-  # object for `predict.nicher()`.
+  # object for `predict.nicher()`. Validate upfront — fails fast before
+  # the optimizer wastes any compute on a malformed value.
   eta <- {
     .dots <- list(...)
     if (!is.null(.dots$eta)) .dots$eta else 1.0
+  }
+  if (!is.numeric(eta) || length(eta) != 1L ||
+      !is.finite(eta) || eta <= 0) {
+    stop("`eta` must be a single positive finite number.")
   }
 
   # ------------------------------------------------------------------
