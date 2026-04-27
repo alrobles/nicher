@@ -243,11 +243,12 @@ optimize_niche <- function(env_occ,
   # ------------------------------------------------------------------
   if (backend == "cpp" && best$convergence %in% c(1L, 2L)) {
     .validate_xptr_result(
-      best       = best,
-      env_occ    = env_occ,
-      env_m      = env_m,
-      likelihood = likelihood,
-      ctrl       = ctrl,
+      best            = best,
+      env_occ         = env_occ,
+      env_m           = env_m,
+      likelihood      = likelihood,
+      weighted_inputs = weighted_inputs,
+      ctrl            = ctrl,
       ...
     )
   }
@@ -350,15 +351,29 @@ optimize_niche <- function(env_occ,
 #'
 #' @keywords internal
 .validate_xptr_result <- function(best, env_occ, env_m,
-                                  likelihood, ctrl, ...) {
-  obj_fun <- switch(likelihood,
-    weighted      = loglik_niche_math_weighted,
-    presence_only = loglik_niche_math_presence_only
+                                  likelihood, ctrl,
+                                  weighted_inputs = NULL, ...) {
+  # Forward the SAME subsampled KDE inputs used by the optimizer so that the
+  # reference ucminf::ucminf evaluates the identical objective function.
+  # Otherwise (default cap = 10 000) any env_m larger than the cap would
+  # cause optimizer and validator to optimize different functions and fire
+  # spurious "pointer-safety" warnings.
+  fn <- switch(likelihood,
+    presence_only = function(theta) {
+      loglik_niche_math_presence_only(theta, env_occ = env_occ,
+                                      neg = TRUE, ...)
+    },
+    weighted = function(theta) {
+      loglik_niche_math_weighted(
+        theta, env_occ = env_occ, env_m = env_m, neg = TRUE,
+        den_idx       = weighted_inputs$den_idx,
+        kde_idx       = weighted_inputs$kde_idx,
+        precomp_w_den = weighted_inputs$w_den,
+        ...
+      )
+    }
   )
   ref <- tryCatch({
-    fn <- function(theta) {
-      obj_fun(theta, env_occ = env_occ, env_m = env_m, neg = TRUE, ...)
-    }
     res <- ucminf::ucminf(par = best$theta, fn = fn,
                           control = list(maxeval = 500L), hessian = FALSE)
     -res$value
