@@ -21,8 +21,18 @@ jobs:
 
     - name: Install dependencies
       run: |
-        # Update R and install 'devtools' for package installation
-        sudo apt-get -y update && sudo apt-get -y install libcurl4-openssl-dev libssl-dev libgit2-dev
+        # System libs needed to build R source packages on the bare ubuntu-latest
+        # runner image. terra needs GDAL/PROJ/GEOS/SQLite; fs needs libuv1-dev;
+        # systemfonts needs fontconfig; httpuv (transitive via shiny -> devtools)
+        # also wants libuv1-dev. Without these, install.packages('devtools') and
+        # install.packages('terra') silently skip half their reverse-dependency
+        # tree and the workflow then fails to load nicher.
+        sudo apt-get -y update
+        sudo apt-get -y install \
+          libcurl4-openssl-dev libssl-dev libgit2-dev \
+          libgdal-dev libgeos-dev libproj-dev libsqlite3-dev gdal-bin proj-bin \
+          libuv1-dev libfontconfig1-dev libharfbuzz-dev libfribidi-dev \
+          libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
         Rscript -e 'install.packages(c("devtools", "terra"))'
 
     - name: Install nicher and dependencies
