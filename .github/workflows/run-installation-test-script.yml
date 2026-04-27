@@ -61,19 +61,17 @@ jobs:
           set.seed(123)
           env_m <- terra::spatSample(example_rasters, size = 1000, method = "regular", na.rm = TRUE)
           result_weighted <- optimize_niche(
-            env_occ      = env_occ,
-            env_m        = env_m,
-            num_starts   = 10,
-            start_method = "uniform",
-            likelihood   = "weighted")
+            env_occ    = env_occ,
+            env_m      = env_m,
+            num_starts = 10,
+            likelihood = "weighted")
           print(result_weighted$best$theta)
           print("Test weighted run completed successfully.")
           result_presence_only <- optimize_niche(
-            env_occ      = env_occ,
-            env_m        = env_m,
-            num_starts   = 10,
-            start_method = "uniform",
-            likelihood   = "presence_only")
+            env_occ    = env_occ,
+            env_m      = env_m,
+            num_starts = 10,
+            likelihood = "presence_only")
           print(result_presence_only$best$theta)
           print("Test presence-only run completed successfully.")
         '
