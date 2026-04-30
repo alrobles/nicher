@@ -61,6 +61,44 @@ double loglik_niche_math_weighted_grad_eigen(
     double gradstep_rel, double gradstep_abs,
     double* g_out);
 
+// Math-scale penalized weighted negative log-likelihood. Implements the
+// Jimenez & Soberon 2022 (Ecological Modelling 438:109982) Eq. 5 formula
+// EXACTLY, plus a weakly-informative ridge penalty on log_sigma that
+// stabilises the optimization against the well-known Patil & Ord (1976)
+// sigma -> infinity drift in the pure-ML weighted-distribution model.
+//
+//   -log L = 0.5 sum_i q1(x_i)
+//          - sum_i log w(x_i)
+//          + n_occ * log( sum_j w(y_j) * exp(-q2(y_j)/2) )
+//          + lambda * sum_k (log_sigma_k - log_sigma_center_k)^2
+//
+// `prior_log_sigma_center` has length p; `prior_log_sigma_lambda` is a
+// non-negative scalar (lambda = 0 reduces to plain paper Eq. 5).
+double loglik_niche_math_weighted_penalized_eigen(
+    const double* theta, int n_theta,
+    const Eigen::MatrixXd& env_occ,
+    const Eigen::MatrixXd& M_den,
+    const Eigen::VectorXd& w_occ,
+    const Eigen::VectorXd& w_den,
+    double eta,
+    const Eigen::VectorXd& prior_log_sigma_center,
+    double prior_log_sigma_lambda);
+
+// Hybrid analytic gradient for the penalized weighted kernel; same hybrid
+// strategy as loglik_niche_math_weighted_grad_eigen plus the closed-form
+// gradient of the ridge term on log_sigma.
+double loglik_niche_math_weighted_penalized_grad_eigen(
+    const double* theta, int n_theta,
+    const Eigen::MatrixXd& env_occ,
+    const Eigen::MatrixXd& M_den,
+    const Eigen::VectorXd& w_occ,
+    const Eigen::VectorXd& w_den,
+    double eta,
+    const Eigen::VectorXd& prior_log_sigma_center,
+    double prior_log_sigma_lambda,
+    double gradstep_rel, double gradstep_abs,
+    double* g_out);
+
 }
 
 #endif

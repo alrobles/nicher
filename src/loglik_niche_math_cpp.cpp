@@ -303,6 +303,230 @@ double loglik_niche_math_weighted_grad_eigen(
   return f;
 }
 
+// ---------------------------------------------------------------------------
+// Penalized weighted (math scale): paper Eq. 5 + ridge prior on log_sigma
+//
+// f(theta) = 0.5 sum_i ||y_i||^2  -  sum_i log w(x_i)  +  n_occ * Z
+//          + lambda * sum_k (log_sigma_k - log_sigma_center_k)^2
+//
+//   y_i = L^{-1} (x_i - mu),     z_j = L^{-1} (m_j - mu)
+//   Z   = log sum_j exp(a_j),    a_j = log w(m_j) - 0.5 ||z_j||^2
+//   pi_j = softmax(a_j), summing to 1.
+//
+// This is the formula written in Jimenez & Soberon 2022 (Ecological
+// Modelling 438:109982), Eq. 5, with a weakly-informative ridge penalty
+// added on the log-standard-deviations to prevent the well-known
+// Patil & Ord (1976) sigma -> infinity drift in the pure-ML solution.
+// The prior is centered at log_sigma_center (typically log(sd(env_occ))
+// computed by the R caller); lambda controls the strength.
+// ---------------------------------------------------------------------------
+
+double loglik_niche_math_weighted_penalized_eigen(
+    const double* theta, int n_theta,
+    const Eigen::MatrixXd& env_occ,
+    const Eigen::MatrixXd& M_den,
+    const Eigen::VectorXd& w_occ,
+    const Eigen::VectorXd& w_den,
+    double eta,
+    const Eigen::VectorXd& prior_log_sigma_center,
+    double prior_log_sigma_lambda) {
+  const int p = env_occ.cols();
+  const int n_v = p * (p - 1) / 2;
+  const int expected = 2 * p + n_v;
+  if (n_theta != expected) {
+    Rcpp::stop("theta length mismatch (got %d, expected %d for p=%d).",
+               n_theta, expected, p);
+  }
+  if (M_den.cols() != p) Rcpp::stop("M_den must have p columns");
+  if (w_occ.size() != env_occ.rows())
+    Rcpp::stop("w_occ length must equal nrow(env_occ).");
+  if (w_den.size() != M_den.rows())
+    Rcpp::stop("w_den length must equal nrow(M_den).");
+  if (prior_log_sigma_center.size() != p)
+    Rcpp::stop("prior_log_sigma_center length must equal p (got %d, expected %d).",
+               (int)prior_log_sigma_center.size(), p);
+  if (!(prior_log_sigma_lambda >= 0.0))
+    Rcpp::stop("prior_log_sigma_lambda must be non-negative.");
+
+  Eigen::VectorXd mu, sigma;
+  Eigen::MatrixXd L_corr, L_cov;
+  build_L_cov(theta, p, n_v, eta, mu, sigma, L_corr, L_cov);
+
+  const int n_occ = env_occ.rows();
+  const int n_den = M_den.rows();
+
+  Eigen::MatrixXd diff_occ(p, n_occ);
+  for (int i = 0; i < n_occ; ++i) diff_occ.col(i) = env_occ.row(i).transpose() - mu;
+  Eigen::MatrixXd y_occ = L_cov.triangularView<Eigen::Lower>().solve(diff_occ);
+  const double sum_q1 = y_occ.colwise().squaredNorm().sum();
+
+  Eigen::MatrixXd diff_den(p, n_den);
+  for (int j = 0; j < n_den; ++j) diff_den.col(j) = M_den.row(j).transpose() - mu;
+  Eigen::MatrixXd y_den = L_cov.triangularView<Eigen::Lower>().solve(diff_den);
+  Eigen::ArrayXd q2 = y_den.colwise().squaredNorm().array();
+
+  // Paper Eq. 5: a_j = log w(y_j) - 0.5 q2_j, and the outer sum has
+  //   - sum_i log w(x_i) (NOT + as in the legacy `weighted` formula).
+  Eigen::ArrayXd log_w_occ = w_occ.array().max(MIN_KDE_WEIGHT).log();
+  Eigen::ArrayXd log_w_den = w_den.array().max(MIN_KDE_WEIGHT).log();
+  Eigen::ArrayXd a = log_w_den - 0.5 * q2;
+
+  const double max_a = a.maxCoeff();
+  const double sum_exp = (a - max_a).exp().sum();
+  const double log_sum_exp = max_a + std::log(sum_exp);
+
+  // Ridge penalty on log_sigma. theta layout has log_sigma at offsets [p..2p-1].
+  double ridge = 0.0;
+  if (prior_log_sigma_lambda > 0.0) {
+    for (int k = 0; k < p; ++k) {
+      const double d = theta[p + k] - prior_log_sigma_center(k);
+      ridge += d * d;
+    }
+    ridge *= prior_log_sigma_lambda;
+  }
+
+  double neg_log = 0.5 * sum_q1
+                 - log_w_occ.sum()
+                 + static_cast<double>(n_occ) * log_sum_exp
+                 + ridge;
+  if (!std::isfinite(neg_log)) neg_log = OPTIM_PENALTY;
+  return neg_log;
+}
+
+double loglik_niche_math_weighted_penalized_grad_eigen(
+    const double* theta, int n_theta,
+    const Eigen::MatrixXd& env_occ,
+    const Eigen::MatrixXd& M_den,
+    const Eigen::VectorXd& w_occ,
+    const Eigen::VectorXd& w_den,
+    double eta,
+    const Eigen::VectorXd& prior_log_sigma_center,
+    double prior_log_sigma_lambda,
+    double gradstep_rel, double gradstep_abs,
+    double* g_out) {
+  const int p = env_occ.cols();
+  const int n_v = p * (p - 1) / 2;
+  const int expected = 2 * p + n_v;
+  if (n_theta != expected) {
+    Rcpp::stop("theta length mismatch (got %d, expected %d for p=%d).",
+               n_theta, expected, p);
+  }
+  if (prior_log_sigma_center.size() != p)
+    Rcpp::stop("prior_log_sigma_center length must equal p (got %d, expected %d).",
+               (int)prior_log_sigma_center.size(), p);
+  if (!(prior_log_sigma_lambda >= 0.0))
+    Rcpp::stop("prior_log_sigma_lambda must be non-negative.");
+
+  Eigen::VectorXd mu, sigma;
+  Eigen::MatrixXd L_corr, L_cov;
+  build_L_cov(theta, p, n_v, eta, mu, sigma, L_corr, L_cov);
+
+  const int n_occ = env_occ.rows();
+  const int n_den = M_den.rows();
+
+  Eigen::MatrixXd U_occ(p, n_occ);
+  for (int i = 0; i < n_occ; ++i)
+    U_occ.col(i) = (env_occ.row(i).transpose() - mu).cwiseQuotient(sigma);
+  Eigen::MatrixXd U_den(p, n_den);
+  for (int j = 0; j < n_den; ++j)
+    U_den.col(j) = (M_den.row(j).transpose() - mu).cwiseQuotient(sigma);
+
+  Eigen::MatrixXd Y_occ = L_corr.triangularView<Eigen::Lower>().solve(U_occ);
+  Eigen::MatrixXd Y_den = L_corr.triangularView<Eigen::Lower>().solve(U_den);
+
+  Eigen::MatrixXd V_occ = L_corr.transpose().triangularView<Eigen::Upper>().solve(Y_occ);
+  Eigen::MatrixXd V_den = L_corr.transpose().triangularView<Eigen::Upper>().solve(Y_den);
+
+  const double sum_q1 = Y_occ.colwise().squaredNorm().sum();
+  Eigen::ArrayXd q2 = Y_den.colwise().squaredNorm().array();
+
+  Eigen::ArrayXd log_w_occ = w_occ.array().max(MIN_KDE_WEIGHT).log();
+  Eigen::ArrayXd log_w_den = w_den.array().max(MIN_KDE_WEIGHT).log();
+  Eigen::ArrayXd a = log_w_den - 0.5 * q2;
+
+  const double max_a = a.maxCoeff();
+  const Eigen::ArrayXd ea = (a - max_a).exp();
+  const double sum_exp = ea.sum();
+  const double log_sum_exp = max_a + std::log(sum_exp);
+
+  double ridge = 0.0;
+  if (prior_log_sigma_lambda > 0.0) {
+    for (int k = 0; k < p; ++k) {
+      const double d = theta[p + k] - prior_log_sigma_center(k);
+      ridge += d * d;
+    }
+    ridge *= prior_log_sigma_lambda;
+  }
+
+  double f = 0.5 * sum_q1
+           - log_w_occ.sum()
+           + static_cast<double>(n_occ) * log_sum_exp
+           + ridge;
+  if (!std::isfinite(f)) {
+    f = OPTIM_PENALTY;
+    std::fill(g_out, g_out + n_theta, 0.0);
+    return f;
+  }
+
+  // Softmax weights pi_j (sum to 1)
+  Eigen::VectorXd pi = (ea / sum_exp).matrix();
+
+  // Gradient w.r.t. mu (log w terms are constant in theta, so identical
+  // structure to loglik_niche_math_weighted_grad_eigen).
+  Eigen::VectorXd sum_d_occ = env_occ.colwise().sum().transpose()
+                              - static_cast<double>(n_occ) * mu;
+  Eigen::VectorXd weighted_e = M_den.transpose() * pi - mu;
+  Eigen::VectorXd rhs = -sum_d_occ + static_cast<double>(n_occ) * weighted_e;
+
+  Eigen::VectorXd grad_mu = L_cov.triangularView<Eigen::Lower>().solve(rhs);
+  grad_mu = L_cov.transpose().triangularView<Eigen::Upper>().solve(grad_mu);
+
+  // Gradient w.r.t. log_sigma (Gaussian part, then add ridge derivative).
+  Eigen::ArrayXXd UV_occ = U_occ.array() * V_occ.array();
+  Eigen::ArrayXXd UV_den = U_den.array() * V_den.array();
+  Eigen::VectorXd term_pres = UV_occ.matrix().rowwise().sum();
+  Eigen::VectorXd term_den  = UV_den.matrix() * pi;
+  Eigen::VectorXd grad_s = -term_pres + static_cast<double>(n_occ) * term_den;
+  if (prior_log_sigma_lambda > 0.0) {
+    for (int k = 0; k < p; ++k) {
+      grad_s(k) += 2.0 * prior_log_sigma_lambda *
+                   (theta[p + k] - prior_log_sigma_center(k));
+    }
+  }
+
+  // Gradient w.r.t. v block via central FD (same recipe as the unpenalized
+  // weighted gradient; the ridge does not depend on v).
+  std::vector<double> theta_pert(theta, theta + n_theta);
+  Eigen::VectorXd grad_v(n_v);
+  for (int k = 0; k < n_v; ++k) {
+    const int idx = 2 * p + k;
+    const double xk = theta_pert[idx];
+    const double dx = std::abs(xk) * gradstep_rel + gradstep_abs;
+
+    theta_pert[idx] = xk + dx;
+    const double f_plus = loglik_niche_math_weighted_penalized_eigen(
+        theta_pert.data(), n_theta, env_occ, M_den, w_occ, w_den, eta,
+        prior_log_sigma_center, prior_log_sigma_lambda);
+
+    theta_pert[idx] = xk - dx;
+    const double f_minus = loglik_niche_math_weighted_penalized_eigen(
+        theta_pert.data(), n_theta, env_occ, M_den, w_occ, w_den, eta,
+        prior_log_sigma_center, prior_log_sigma_lambda);
+
+    theta_pert[idx] = xk;
+    grad_v(k) = (f_plus - f_minus) / (2.0 * dx);
+  }
+
+  for (int i = 0; i < p; ++i) g_out[i] = grad_mu(i);
+  for (int i = 0; i < p; ++i) g_out[p + i] = grad_s(i);
+  for (int k = 0; k < n_v; ++k) g_out[2 * p + k] = grad_v(k);
+
+  for (int i = 0; i < n_theta; ++i) {
+    if (!std::isfinite(g_out[i])) g_out[i] = 0.0;
+  }
+  return f;
+}
+
 } // namespace nicher
 
 // ===========================================================================
@@ -372,6 +596,70 @@ List loglik_niche_math_weighted_grad_cpp(
   NumericVector g(theta.size());
   double f = nicher::loglik_niche_math_weighted_grad_eigen(
       &theta[0], theta.size(), occ, mden, wocc, wden, eta,
+      gradstep_rel, gradstep_abs, &g[0]);
+
+  return List::create(_["value"] = f, _["gradient"] = g);
+}
+
+// [[Rcpp::export]]
+double loglik_niche_math_weighted_penalized_cpp(
+    NumericVector theta,
+    NumericMatrix env_occ,
+    NumericMatrix M_den,
+    NumericVector w_occ,
+    NumericVector w_den,
+    NumericVector prior_log_sigma_center,
+    double prior_log_sigma_lambda,
+    double eta = 1.0) {
+  Eigen::Map<Eigen::MatrixXd> occ_map(
+      Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(env_occ));
+  Eigen::Map<Eigen::MatrixXd> mden_map(
+      Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(M_den));
+  Eigen::Map<Eigen::VectorXd> wocc_map(
+      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_occ));
+  Eigen::Map<Eigen::VectorXd> wden_map(
+      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_den));
+  Eigen::Map<Eigen::VectorXd> pc_map(
+      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(prior_log_sigma_center));
+
+  Eigen::MatrixXd occ = occ_map, mden = mden_map;
+  Eigen::VectorXd wocc = wocc_map, wden = wden_map, pc = pc_map;
+
+  return nicher::loglik_niche_math_weighted_penalized_eigen(
+      &theta[0], theta.size(), occ, mden, wocc, wden, eta,
+      pc, prior_log_sigma_lambda);
+}
+
+// [[Rcpp::export]]
+List loglik_niche_math_weighted_penalized_grad_cpp(
+    NumericVector theta,
+    NumericMatrix env_occ,
+    NumericMatrix M_den,
+    NumericVector w_occ,
+    NumericVector w_den,
+    NumericVector prior_log_sigma_center,
+    double prior_log_sigma_lambda,
+    double eta = 1.0,
+    double gradstep_rel = 1e-6,
+    double gradstep_abs = 1e-8) {
+  Eigen::Map<Eigen::MatrixXd> occ_map(
+      Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(env_occ));
+  Eigen::Map<Eigen::MatrixXd> mden_map(
+      Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(M_den));
+  Eigen::Map<Eigen::VectorXd> wocc_map(
+      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_occ));
+  Eigen::Map<Eigen::VectorXd> wden_map(
+      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_den));
+  Eigen::Map<Eigen::VectorXd> pc_map(
+      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(prior_log_sigma_center));
+
+  Eigen::MatrixXd occ = occ_map, mden = mden_map;
+  Eigen::VectorXd wocc = wocc_map, wden = wden_map, pc = pc_map;
+
+  NumericVector g(theta.size());
+  double f = nicher::loglik_niche_math_weighted_penalized_grad_eigen(
+      &theta[0], theta.size(), occ, mden, wocc, wden, eta,
+      pc, prior_log_sigma_lambda,
       gradstep_rel, gradstep_abs, &g[0]);
 
   return List::create(_["value"] = f, _["gradient"] = g);
