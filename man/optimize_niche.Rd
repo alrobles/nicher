@@ -9,12 +9,15 @@ optimize_niche(
   env_m,
   num_starts = 100L,
   breadth = 0.1,
-  likelihood = c("weighted", "presence_only"),
+  likelihood = c("weighted", "weighted_penalized", "presence_only"),
   backend = c("cpp", "r"),
   grad = c("auto", "analytic", "central", "forward"),
   m_subsample = NULL,
   m_kde_subsample = NULL,
   seed = NULL,
+  warm_start = TRUE,
+  prior_log_sigma_lambda = 1,
+  prior_log_sigma_center = NULL,
   control = list(),
   verbose = FALSE,
   ...
@@ -24,15 +27,16 @@ optimize_niche(
 \item{env_occ}{Data frame of environmental values at presence points.}
 
 \item{env_m}{Data frame of background environmental values. Required for
-\code{likelihood = "weighted"}; ignored for \code{"presence_only"}.}
+\code{likelihood = "weighted"} and \code{"weighted_penalized"};
+ignored for \code{"presence_only"}.}
 
 \item{num_starts}{Integer. Number of Sobol starting points.}
 
 \item{breadth}{Numeric in (0, 0.5). Controls the quantile range used to
 define starting bounds for \code{mu} parameters. Default \code{0.1}.}
 
-\item{likelihood}{One of \code{"weighted"} (default) or
-\code{"presence_only"}.}
+\item{likelihood}{One of \code{"weighted"} (default), \code{"weighted_penalized"}
+or \code{"presence_only"}.}
 
 \item{backend}{One of \code{"cpp"} (default) or \code{"r"} (deprecated;
 see Backends section).}
@@ -46,6 +50,32 @@ see Backends section).}
 Resolved to \code{min(nrow(env_m), 10000)} when \code{NULL} (default).}
 
 \item{seed}{Optional integer to make subsampling deterministic.}
+
+\item{warm_start}{Logical. When \code{likelihood} is \code{"weighted"} or
+\code{"weighted_penalized"}, run a quick presence-only fit first and
+prepend its \code{theta} as one extra starting point for the weighted
+multi-start. Cheap insurance against bad multistart luck on rough or
+multimodal weighted likelihoods (e.g. when \code{env_m} contains
+regions far from the occurrence cloud); does not replace the Sobol
+starts. Ignored for \code{likelihood = "presence_only"}.
+Default \code{TRUE}.}
+
+\item{prior_log_sigma_lambda}{Numeric scalar (\code{>= 0}), strength of
+the ridge penalty on \eqn{\log \sigma} used by
+\code{likelihood = "weighted_penalized"}. The penalty is
+\eqn{\lambda \sum_k (\log \sigma_k - \log \hat\sigma_k)^2} with
+\eqn{\log \hat\sigma_k = \log(\mathrm{sd}(\text{env\_occ}[, k]))}.
+Default \code{1.0} (weak). Larger values pull
+\eqn{\sigma} more strongly toward the empirical scale of the occurrence
+cloud; \code{0} reduces the model to pure ML weighted normal (Eq. 5)
+and is not recommended (subject to Patil & Ord 1976 drift). Ignored
+for other likelihoods.}
+
+\item{prior_log_sigma_center}{Optional numeric vector of length
+\code{ncol(env_occ)} giving the centre of the ridge prior on
+\eqn{\log \sigma}. \code{NULL} (default) sets it to
+\code{log(apply(env_occ, 2, sd))}. Ignored for likelihoods other than
+\code{"weighted_penalized"}.}
 
 \item{control}{Named list of control parameters for
 \code{ucminfcpp::ucminf_xptr()} (cpp backend) or \code{ucminf::ucminf()}
@@ -73,12 +103,29 @@ Runs multi-start optimization over a Sobol low-discrepancy sequence
 by \code{env_occ} and \code{breadth}.
 }
 \details{
-Two likelihood models are supported:
+Three likelihood models are supported:
 \itemize{
-  \item \code{"weighted"}: weighted-normal model with KDE correction
-        (Jiménez & Soberón 2022).
+  \item \code{"weighted"} (default): KDE-bias-corrected weighted-normal
+        model. The KDE of M down-weights occurrences sitting in densely
+        sampled background (a sampling-bias correction). Empirically
+        stable, no \eqn{\sigma \to \infty} drift, and converges
+        cleanly on bundled examples; this is what nicher ships as
+        the production formula.
+  \item \code{"weighted_penalized"}: implements Eq. 5 of Jiménez &
+        Soberón (2022, Ecological Modelling 438:109982) exactly --
+        pure ML estimation of a weighted normal density on M --
+        plus a weakly-informative ridge prior on \eqn{\log \sigma}
+        that prevents the well-known Patil & Ord (1976)
+        \eqn{\sigma \to \infty} drift in the un-regularised MLE. Use
+        this when M is multimodal or has long tails relative to the
+        occurrence cloud (e.g. bio12 in the bundled
+        \code{example_vicugna} dataset). For best results, also
+        rescale \code{env_occ} / \code{env_m} so all variables have
+        comparable spread (e.g. z-score or quantile-rank).
   \item \code{"presence_only"}: model using only presence points,
-        no background correction.
+        no background correction. Unimodal likelihood, useful as a
+        sanity check or to seed the weighted multistart (see
+        \code{warm_start}).
 }
 }
 \section{Backends}{

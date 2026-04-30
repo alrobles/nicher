@@ -4,12 +4,29 @@
 #' (via \pkg{pomp}) of starting points covering the parameter space implied
 #' by \code{env_occ} and \code{breadth}.
 #'
-#' Two likelihood models are supported:
+#' Three likelihood models are supported:
 #' \itemize{
-#'   \item \code{"weighted"}: weighted-normal model with KDE correction
-#'         (Jiménez & Soberón 2022).
+#'   \item \code{"weighted"} (default): KDE-bias-corrected weighted-normal
+#'         model. The KDE of M down-weights occurrences sitting in densely
+#'         sampled background (a sampling-bias correction). Empirically
+#'         stable, no \eqn{\sigma \to \infty} drift, and converges
+#'         cleanly on bundled examples; this is what nicher ships as
+#'         the production formula.
+#'   \item \code{"weighted_penalized"}: implements Eq. 5 of Jiménez &
+#'         Soberón (2022, Ecological Modelling 438:109982) exactly --
+#'         pure ML estimation of a weighted normal density on M --
+#'         plus a weakly-informative ridge prior on \eqn{\log \sigma}
+#'         that prevents the well-known Patil & Ord (1976)
+#'         \eqn{\sigma \to \infty} drift in the un-regularised MLE. Use
+#'         this when M is multimodal or has long tails relative to the
+#'         occurrence cloud (e.g. bio12 in the bundled
+#'         \code{example_vicugna} dataset). For best results, also
+#'         rescale \code{env_occ} / \code{env_m} so all variables have
+#'         comparable spread (e.g. z-score or quantile-rank).
 #'   \item \code{"presence_only"}: model using only presence points,
-#'         no background correction.
+#'         no background correction. Unimodal likelihood, useful as a
+#'         sanity check or to seed the weighted multistart (see
+#'         \code{warm_start}).
 #' }
 #'
 #' @section Backends:
@@ -46,12 +63,13 @@
 #'
 #' @param env_occ Data frame of environmental values at presence points.
 #' @param env_m Data frame of background environmental values. Required for
-#'   \code{likelihood = "weighted"}; ignored for \code{"presence_only"}.
+#'   \code{likelihood = "weighted"} and \code{"weighted_penalized"};
+#'   ignored for \code{"presence_only"}.
 #' @param num_starts Integer. Number of Sobol starting points.
 #' @param breadth Numeric in (0, 0.5). Controls the quantile range used to
 #'   define starting bounds for \code{mu} parameters. Default \code{0.1}.
-#' @param likelihood One of \code{"weighted"} (default) or
-#'   \code{"presence_only"}.
+#' @param likelihood One of \code{"weighted"} (default), \code{"weighted_penalized"}
+#'   or \code{"presence_only"}.
 #' @param backend One of \code{"cpp"} (default) or \code{"r"} (deprecated;
 #'   see Backends section).
 #' @param grad Gradient strategy: \code{"auto"} (default) selects
@@ -61,6 +79,29 @@
 #' @param m_subsample,m_kde_subsample Optional integer or fraction in (0, 1].
 #'   Resolved to \code{min(nrow(env_m), 10000)} when \code{NULL} (default).
 #' @param seed Optional integer to make subsampling deterministic.
+#' @param warm_start Logical. When \code{likelihood} is \code{"weighted"} or
+#'   \code{"weighted_penalized"}, run a quick presence-only fit first and
+#'   prepend its \code{theta} as one extra starting point for the weighted
+#'   multi-start. Cheap insurance against bad multistart luck on rough or
+#'   multimodal weighted likelihoods (e.g. when \code{env_m} contains
+#'   regions far from the occurrence cloud); does not replace the Sobol
+#'   starts. Ignored for \code{likelihood = "presence_only"}.
+#'   Default \code{TRUE}.
+#' @param prior_log_sigma_lambda Numeric scalar (\code{>= 0}), strength of
+#'   the ridge penalty on \eqn{\log \sigma} used by
+#'   \code{likelihood = "weighted_penalized"}. The penalty is
+#'   \eqn{\lambda \sum_k (\log \sigma_k - \log \hat\sigma_k)^2} with
+#'   \eqn{\log \hat\sigma_k = \log(\mathrm{sd}(\text{env\_occ}[, k]))}.
+#'   Default \code{1.0} (weak). Larger values pull
+#'   \eqn{\sigma} more strongly toward the empirical scale of the occurrence
+#'   cloud; \code{0} reduces the model to pure ML weighted normal (Eq. 5)
+#'   and is not recommended (subject to Patil & Ord 1976 drift). Ignored
+#'   for other likelihoods.
+#' @param prior_log_sigma_center Optional numeric vector of length
+#'   \code{ncol(env_occ)} giving the centre of the ridge prior on
+#'   \eqn{\log \sigma}. \code{NULL} (default) sets it to
+#'   \code{log(apply(env_occ, 2, sd))}. Ignored for likelihoods other than
+#'   \code{"weighted_penalized"}.
 #' @param control Named list of control parameters for
 #'   \code{ucminfcpp::ucminf_xptr()} (cpp backend) or \code{ucminf::ucminf()}
 #'   (r backend). Recognized entries:
@@ -95,19 +136,27 @@ optimize_niche <- function(env_occ,
                            env_m,
                            num_starts = 100L,
                            breadth    = 0.1,
-                           likelihood = c("weighted", "presence_only"),
+                           likelihood = c("weighted",
+                                          "weighted_penalized",
+                                          "presence_only"),
                            backend    = c("cpp", "r"),
                            grad       = c("auto", "analytic",
                                           "central", "forward"),
                            m_subsample     = NULL,
                            m_kde_subsample = NULL,
                            seed            = NULL,
+                           warm_start      = TRUE,
+                           prior_log_sigma_lambda = 1.0,
+                           prior_log_sigma_center = NULL,
                            control = list(),
                            verbose = FALSE,
                            ...) {
   likelihood <- match.arg(likelihood)
   backend    <- match.arg(backend)
   grad       <- match.arg(grad)
+
+  # Convenience: treat the weighted family uniformly where logic is shared.
+  is_weighted_family <- likelihood %in% c("weighted", "weighted_penalized")
 
   # Resolve `eta` from `...` so we can both forward it to the objective
   # functions (already done downstream) and persist it on the returned
@@ -139,6 +188,39 @@ optimize_niche <- function(env_occ,
     stop("breadth must be a single number in (0, 0.5)")
   }
 
+  # Validate ridge-prior strength
+  if (!is.numeric(prior_log_sigma_lambda) ||
+      length(prior_log_sigma_lambda) != 1L ||
+      !is.finite(prior_log_sigma_lambda) ||
+      prior_log_sigma_lambda < 0) {
+    stop("`prior_log_sigma_lambda` must be a single non-negative finite number.")
+  }
+
+  # Resolve / validate ridge-prior centre. For likelihood == "weighted_penalized"
+  # we materialise it now (before warm-start, before optimisation) so that the
+  # warm-start child call and every Sobol start see the same centre.
+  p_occ <- ncol(env_occ)
+  if (is.null(prior_log_sigma_center)) {
+    if (likelihood == "weighted_penalized") {
+      sds <- apply(as.matrix(env_occ), 2L, stats::sd, na.rm = TRUE)
+      if (any(!is.finite(sds)) || any(sds <= 0)) {
+        stop("Cannot derive default `prior_log_sigma_center`: some env_occ ",
+             "columns have zero or non-finite sd. Pass it explicitly.")
+      }
+      prior_log_sigma_center <- log(sds)
+      names(prior_log_sigma_center) <- colnames(env_occ)
+    } else {
+      prior_log_sigma_center <- rep(0.0, p_occ)
+    }
+  } else {
+    if (!is.numeric(prior_log_sigma_center) ||
+        length(prior_log_sigma_center) != p_occ ||
+        any(!is.finite(prior_log_sigma_center))) {
+      stop("`prior_log_sigma_center` must be a finite numeric vector of ",
+           "length ncol(env_occ).")
+    }
+  }
+
   if (backend == "r") {
     lifecycle::deprecate_soft(
       when = "2.1.0",
@@ -154,8 +236,16 @@ optimize_niche <- function(env_occ,
 
   # Resolve grad="auto"
   resolved_grad <- if (grad == "auto") {
-    if (likelihood == "weighted" && backend == "cpp") "analytic" else "central"
+    if (is_weighted_family && backend == "cpp") "analytic" else "central"
   } else grad
+
+  # The legacy R backend has no R-side weighted_penalized objective wired up
+  # (the cpp parity wrapper handles validation in .validate_xptr_result, but
+  # the R backend's per-start helper runs ucminf::ucminf with a pure-R fn).
+  # Force cpp for "weighted_penalized" to keep the R backend simple.
+  if (backend == "r" && likelihood == "weighted_penalized") {
+    stop('likelihood = "weighted_penalized" requires backend = "cpp".')
+  }
 
   # ------------------------------------------------------------------
   # Sobol starts
@@ -188,10 +278,10 @@ optimize_niche <- function(env_occ,
   ctrl <- utils::modifyList(default_ctrl, control)
 
   # ------------------------------------------------------------------
-  # Resolve KDE subsamples / weights ONCE per fit (weighted only)
+  # Resolve KDE subsamples / weights ONCE per fit (weighted family only)
   # ------------------------------------------------------------------
   weighted_inputs <- NULL
-  if (likelihood == "weighted") {
+  if (is_weighted_family) {
     weighted_inputs <- .resolve_weighted_inputs(
       env_occ         = env_occ,
       env_m           = env_m,
@@ -199,6 +289,54 @@ optimize_niche <- function(env_occ,
       m_kde_subsample = m_kde_subsample,
       seed            = seed
     )
+  }
+
+  # ------------------------------------------------------------------
+  # Warm-start (weighted only): prepend the presence-only optimum
+  # ------------------------------------------------------------------
+  # The presence-only likelihood is unimodal and converges cleanly even on
+  # multimodal env_m (e.g. example_vicugna where bio12 in M is bimodal but
+  # in env_occ is unimodal). Its theta lives in the same parameter space as
+  # the weighted model (same mu, log_sigma, v layout) so we can hand it
+  # straight to the weighted optimizer as one additional starting point.
+  # Cheap insurance against bad multistart luck on rough weighted surfaces;
+  # does NOT replace the Sobol starts.
+  if (warm_start && is_weighted_family) {
+    if (verbose) message("Warm-start: running presence-only fit ...")
+    po_fit <- tryCatch(
+      optimize_niche(
+        env_occ    = env_occ,
+        env_m      = NULL,
+        num_starts = min(20L, as.integer(num_starts)),
+        breadth    = breadth,
+        likelihood = "presence_only",
+        backend    = backend,
+        grad       = if (grad == "auto") "central" else grad,
+        seed       = seed,
+        warm_start = FALSE,
+        control    = control,
+        verbose    = FALSE,
+        ...
+      ),
+      error = function(e) {
+        warning("Warm-start presence-only fit failed: ", conditionMessage(e),
+                "; continuing with Sobol starts only.")
+        NULL
+      }
+    )
+    if (!is.null(po_fit) && po_fit$best$convergence %in% c(1L, 2L)) {
+      warm_theta <- po_fit$best$theta
+      if (length(warm_theta) == length(starts_list[[1L]])) {
+        names(warm_theta) <- names(starts_list[[1L]])
+        starts_list <- c(list(warm_theta), starts_list)
+        if (verbose) {
+          message(sprintf(
+            "Warm-start theta added (PO loglik = %.6f).",
+            po_fit$best$loglik
+          ))
+        }
+      }
+    }
   }
 
   # ------------------------------------------------------------------
@@ -218,6 +356,8 @@ optimize_niche <- function(env_occ,
       likelihood      = likelihood,
       grad            = resolved_grad,
       weighted_inputs = weighted_inputs,
+      prior_log_sigma_center = prior_log_sigma_center,
+      prior_log_sigma_lambda = prior_log_sigma_lambda,
       ...
     )
   }
@@ -262,6 +402,8 @@ optimize_niche <- function(env_occ,
       likelihood      = likelihood,
       weighted_inputs = weighted_inputs,
       ctrl            = ctrl,
+      prior_log_sigma_center = prior_log_sigma_center,
+      prior_log_sigma_lambda = prior_log_sigma_lambda,
       ...
     )
   }
@@ -367,7 +509,10 @@ optimize_niche <- function(env_occ,
 #' @keywords internal
 .validate_xptr_result <- function(best, env_occ, env_m,
                                   likelihood, ctrl,
-                                  weighted_inputs = NULL, ...) {
+                                  weighted_inputs = NULL,
+                                  prior_log_sigma_center = NULL,
+                                  prior_log_sigma_lambda = 0.0,
+                                  ...) {
   # Forward the SAME subsampled KDE inputs used by the optimizer so that the
   # reference ucminf::ucminf evaluates the identical objective function.
   # Otherwise (default cap = 10 000) any env_m larger than the cap would
@@ -386,6 +531,26 @@ optimize_niche <- function(env_occ,
         precomp_w_den = weighted_inputs$w_den,
         ...
       )
+    },
+    weighted_penalized = {
+      # Use the cpp parity wrapper directly for weighted_penalized; there
+      # is no pure-R reference implementation. The validator only needs a
+      # function that evaluates the same objective, so the parity helper
+      # is fine here.
+      env_m_mat <- as.matrix(env_m)
+      M_den <- env_m_mat[weighted_inputs$den_idx, , drop = FALSE]
+      function(theta) {
+        loglik_niche_math_weighted_penalized_cpp(
+          theta = theta,
+          env_occ = as.matrix(env_occ),
+          M_den   = M_den,
+          w_occ   = weighted_inputs$w_occ,
+          w_den   = weighted_inputs$w_den,
+          prior_log_sigma_center = as.numeric(prior_log_sigma_center),
+          prior_log_sigma_lambda = prior_log_sigma_lambda,
+          eta = if (!is.null(list(...)$eta)) list(...)$eta else 1.0
+        )
+      }
     }
   )
   ref <- tryCatch({
@@ -415,6 +580,8 @@ optimize_niche <- function(env_occ,
 .optimize_niche_helper_cpp <- function(param, env_occ, env_m, control,
                                        likelihood, grad,
                                        weighted_inputs = NULL,
+                                       prior_log_sigma_center = NULL,
+                                       prior_log_sigma_lambda = 0.0,
                                        ...) {
   param_names <- names(param)
   param <- as.numeric(param)
@@ -430,11 +597,23 @@ optimize_niche <- function(env_occ,
   env_m_mat   <- if (!is.null(env_m)) as.matrix(env_m) else NULL
 
   den_idx <- kde_idx <- precomp_w_occ <- precomp_w_den <- NULL
-  if (likelihood == "weighted" && !is.null(weighted_inputs)) {
+  if (likelihood %in% c("weighted", "weighted_penalized") &&
+      !is.null(weighted_inputs)) {
     den_idx       <- weighted_inputs$den_idx
     kde_idx       <- weighted_inputs$kde_idx
     precomp_w_occ <- weighted_inputs$w_occ
     precomp_w_den <- weighted_inputs$w_den
+  }
+
+  # Only the penalized variant cares about the prior; passing NULL/0 is a
+  # no-op for the others.
+  if (likelihood == "weighted_penalized") {
+    plsc <- if (!is.null(prior_log_sigma_center))
+              as.numeric(prior_log_sigma_center) else NULL
+    plsl <- as.numeric(prior_log_sigma_lambda)
+  } else {
+    plsc <- NULL
+    plsl <- 0.0
   }
 
   gs <- if (!is.null(control$gradstep)) control$gradstep else c(1e-6, 1e-8)
@@ -448,7 +627,9 @@ optimize_niche <- function(env_occ,
     precomp_w_occ = precomp_w_occ,
     precomp_w_den = precomp_w_den,
     grad          = grad,
-    gradstep      = gs
+    gradstep      = gs,
+    prior_log_sigma_center = plsc,
+    prior_log_sigma_lambda = plsl
   )
 
   control_args <- control
@@ -487,6 +668,8 @@ optimize_niche <- function(env_occ,
 .optimize_niche_helper_r <- function(param, env_occ, env_m, control,
                                      likelihood, grad,
                                      weighted_inputs = NULL,
+                                     prior_log_sigma_center = NULL,
+                                     prior_log_sigma_lambda = 0.0,
                                      ...) {
   param_names <- names(param)
   param <- as.numeric(param)

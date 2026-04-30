@@ -40,7 +40,12 @@ NumericMatrix cvine_cholesky(NumericVector v, int d, double eta);
 
 namespace {
 
-enum LikType { LIK_UNWEIGHTED = 0, LIK_WEIGHTED = 1, LIK_PRESENCE_ONLY = 2 };
+enum LikType {
+  LIK_UNWEIGHTED        = 0,
+  LIK_WEIGHTED          = 1,
+  LIK_PRESENCE_ONLY     = 2,
+  LIK_WEIGHTED_PENALIZED = 3
+};
 enum GradMode { GRAD_ANALYTIC = 0, GRAD_CENTRAL = 1, GRAD_FORWARD = 2 };
 
 struct XptrClosureState {
@@ -58,6 +63,10 @@ struct XptrClosureState {
   Eigen::MatrixXd M_den;             // weighted: denominator slice (n_den x p)
   Eigen::VectorXd w_occ;             // weighted: KDE at presence rows
   Eigen::VectorXd w_den;             // weighted: KDE at denominator rows
+
+  // Penalized weighted: ridge prior on log_sigma. Length p; lambda >= 0.
+  Eigen::VectorXd prior_log_sigma_center;
+  double          prior_log_sigma_lambda;
 };
 
 using NicheObjFunType = std::function<void(const std::vector<double>&,
@@ -108,6 +117,11 @@ static double eval_value(const std::vector<double>& x,
       return nicher::loglik_niche_math_weighted_eigen(
           x.data(), (int)x.size(), s.env_occ, s.M_den,
           s.w_occ, s.w_den, s.eta);
+    case LIK_WEIGHTED_PENALIZED:
+      return nicher::loglik_niche_math_weighted_penalized_eigen(
+          x.data(), (int)x.size(), s.env_occ, s.M_den,
+          s.w_occ, s.w_den, s.eta,
+          s.prior_log_sigma_center, s.prior_log_sigma_lambda);
     case LIK_UNWEIGHTED:
     default:
       return eval_unweighted_legacy(x, s);
@@ -156,24 +170,29 @@ SEXP create_niche_obj_ptr(
     Nullable<NumericVector> precomp_w_occ = R_NilValue,
     Nullable<NumericVector> precomp_w_den = R_NilValue,
     std::string             grad          = "central",
-    NumericVector           gradstep      = NumericVector::create(1e-6, 1e-8)) {
+    NumericVector           gradstep      = NumericVector::create(1e-6, 1e-8),
+    Nullable<NumericVector> prior_log_sigma_center = R_NilValue,
+    double                  prior_log_sigma_lambda = 0.0) {
 
   if (gradstep.size() != 2) Rcpp::stop("gradstep must have length 2");
   if (!(gradstep[0] >= 0) || !(gradstep[1] >= 0))
     Rcpp::stop("gradstep components must be non-negative.");
   if (gradstep[0] == 0.0 && gradstep[1] == 0.0)
     Rcpp::stop("gradstep cannot be both zero");
+  if (!(prior_log_sigma_lambda >= 0.0))
+    Rcpp::stop("prior_log_sigma_lambda must be non-negative.");
 
   LikType lt;
-  if (likelihood == "unweighted")          lt = LIK_UNWEIGHTED;
-  else if (likelihood == "weighted")       lt = LIK_WEIGHTED;
-  else if (likelihood == "presence_only")  lt = LIK_PRESENCE_ONLY;
+  if (likelihood == "unweighted")              lt = LIK_UNWEIGHTED;
+  else if (likelihood == "weighted")           lt = LIK_WEIGHTED;
+  else if (likelihood == "presence_only")      lt = LIK_PRESENCE_ONLY;
+  else if (likelihood == "weighted_penalized") lt = LIK_WEIGHTED_PENALIZED;
   else Rcpp::stop("Unknown likelihood type: %s", likelihood.c_str());
 
   GradMode gm;
   if (grad == "analytic") {
-    if (lt != LIK_WEIGHTED) {
-      // analytic gradient currently only implemented for the weighted model;
+    if (lt != LIK_WEIGHTED && lt != LIK_WEIGHTED_PENALIZED) {
+      // analytic gradient currently only implemented for the weighted family;
       // silently downgrade to central FD for the others (cheap, no regress).
       gm = GRAD_CENTRAL;
     } else {
@@ -200,6 +219,25 @@ SEXP create_niche_obj_ptr(
   state->grad_mode   = gm;
   state->gradstep_rel = gradstep[0];
   state->gradstep_abs = gradstep[1];
+  state->prior_log_sigma_lambda = prior_log_sigma_lambda;
+
+  // Prior centre. Required if likelihood == "weighted_penalized" AND
+  // lambda > 0; for all other configurations we still allocate a length-p
+  // zero vector so the kernel size checks pass cheaply.
+  if (prior_log_sigma_center.isNotNull()) {
+    NumericVector pc(prior_log_sigma_center);
+    if (pc.size() != env_occ.ncol())
+      Rcpp::stop("prior_log_sigma_center length (%d) must equal ncol(env_occ) (%d).",
+                 (int)pc.size(), (int)env_occ.ncol());
+    state->prior_log_sigma_center = Eigen::VectorXd(pc.size());
+    for (int k = 0; k < pc.size(); ++k)
+      state->prior_log_sigma_center(k) = pc[k];
+  } else {
+    if (lt == LIK_WEIGHTED_PENALIZED && prior_log_sigma_lambda > 0.0)
+      Rcpp::stop("prior_log_sigma_center must be supplied when "
+                 "likelihood='weighted_penalized' and prior_log_sigma_lambda > 0.");
+    state->prior_log_sigma_center = Eigen::VectorXd::Zero(env_occ.ncol());
+  }
 
   // Snapshot env_occ
   state->env_occ = Eigen::MatrixXd(env_occ.nrow(), env_occ.ncol());
@@ -213,7 +251,7 @@ SEXP create_niche_obj_ptr(
     state->env_m_full = Eigen::MatrixXd(M.nrow(), M.ncol());
     std::memcpy(state->env_m_full.data(), M.begin(),
                 sizeof(double) * M.size());
-  } else if (lt == LIK_WEIGHTED) {
+  } else if (lt == LIK_WEIGHTED || lt == LIK_WEIGHTED_PENALIZED) {
     NumericMatrix M(env_m);
     if (M.ncol() != state->p) Rcpp::stop("env_m must have same columns as env_occ");
     Eigen::Map<Eigen::MatrixXd> M_eig(
@@ -293,6 +331,15 @@ SEXP create_niche_obj_ptr(
                 x.data(), n,
                 state->env_occ, state->M_den, state->w_occ, state->w_den,
                 state->eta,
+                state->gradstep_rel, state->gradstep_abs,
+                g.data());
+        } else if (state->grad_mode == GRAD_ANALYTIC &&
+                   state->lik_type == LIK_WEIGHTED_PENALIZED) {
+          f = nicher::loglik_niche_math_weighted_penalized_grad_eigen(
+                x.data(), n,
+                state->env_occ, state->M_den, state->w_occ, state->w_den,
+                state->eta,
+                state->prior_log_sigma_center, state->prior_log_sigma_lambda,
                 state->gradstep_rel, state->gradstep_abs,
                 g.data());
         } else {

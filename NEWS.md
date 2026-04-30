@@ -2,6 +2,51 @@
 
 ## New features
 
+### Penalized weighted-likelihood (`likelihood = "weighted_penalized"`)
+
+* New `likelihood = "weighted_penalized"` option for `optimize_niche()`.
+  Implements Eq. 5 of Jiménez & Soberón (2022, *Ecological Modelling*
+  **438**: 109982) exactly -- pure ML estimation of a weighted normal
+  density on M -- plus a weakly-informative ridge penalty on
+  `log sigma`:
+  ```
+  penalty = lambda * sum_k (log sigma_k - log sigma_hat_k)^2
+  ```
+  with `log sigma_hat_k = log(sd(env_occ[, k]))`. The penalty
+  prevents the well-known Patil & Ord (1976) `sigma -> infinity` drift
+  that affects the un-regularised paper MLE on datasets where the
+  background `env_m` is multimodal or has long tails relative to the
+  occurrence cloud (e.g. `bio12` in the bundled `example_vicugna`
+  dataset).
+* The existing `likelihood = "weighted"` (KDE-bias-corrected formula)
+  remains the default and is unchanged for backward compatibility. Use
+  `"weighted_penalized"` when you specifically want the paper-faithful
+  formula with regularisation.
+* Two new arguments on `optimize_niche()`:
+    * `prior_log_sigma_lambda` -- ridge strength (default `1.0`,
+      weakly informative). `0` disables the penalty (not recommended).
+    * `prior_log_sigma_center` -- prior centre on `log sigma`; defaults
+      to `log(apply(env_occ, 2, sd))`.
+* For best results with `"weighted_penalized"` on real-world bioclim
+  data, also rescale `env_occ` / `env_m` so all variables have
+  comparable spread (e.g. z-score or quantile-rank both before
+  fitting). The penalty is in `log sigma` units and a rescaling
+  brings the per-axis scales into the same range.
+
+### Warm-start for the weighted family
+
+* New `warm_start = TRUE` argument on `optimize_niche()` (default
+  enabled). When `likelihood` is `"weighted"` or
+  `"weighted_penalized"`, a quick presence-only fit is run first
+  (~20 starts) and its `theta` is prepended as one extra starting
+  point for the weighted multi-start. The presence-only likelihood is
+  unimodal and converges cleanly, so this is cheap insurance against
+  bad multistart luck on rough or multimodal weighted likelihoods --
+  it does **not** replace the Sobol starts.
+* Failure to converge in the presence-only sub-fit is downgraded to
+  a `warning()`; the weighted multi-start continues with the Sobol
+  starts only.
+
 ### ggplot2 plotting engine for 2-D fitted niches (E-space)
 
 * New `autoplot.nicher()` S3 method on `ggplot2::autoplot` returns a

@@ -11,6 +11,8 @@
   likelihood,
   ctrl,
   weighted_inputs = NULL,
+  prior_log_sigma_center = NULL,
+  prior_log_sigma_lambda = 0,
   ...
 )
 }
