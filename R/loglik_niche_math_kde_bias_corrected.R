@@ -1,13 +1,13 @@
 #' Negative log-likelihood (weighted-normal, math scale) with explicit index control
 #'
-#' This version extends the original \code{loglik_niche_math_weighted()} by allowing
+#' This version extends the original \code{loglik_niche_math_kde_bias_corrected()} by allowing
 #' the user to pass explicit subsampling indices (\code{den_idx}, \code{kde_idx})
 #' and precomputed KDE weights (\code{precomp_w_den}) directly, enabling
 #' high-performance workflows where costly KDE denominators are computed only once.
 #'
 #' Internally this function calls
-#' \code{\link{loglik_niche_math_weighted_integrated}}, which routes the work to
-#' the native C++ implementation \code{loglik_niche_weighted_integrated_cpp}.
+#' \code{\link{loglik_niche_math_kde_bias_corrected_integrated}}, which routes the work to
+#' the native C++ implementation \code{loglik_niche_kde_bias_corrected_cpp}.
 #'
 #' ## Parameter logic
 #'
@@ -62,7 +62,7 @@
 #'   example_env_m_2d[kde_idx, ]
 #' )
 #'
-#' loglik_niche_math_weighted(
+#' loglik_niche_math_kde_bias_corrected(
 #'   theta = start_theta(example_env_occ_2d),
 #'   env_occ = example_env_occ_2d,
 #'   env_m = example_env_m_2d,
@@ -71,7 +71,7 @@
 #'   precomp_w_den = pre_w
 #' )
 #' }
-loglik_niche_math_weighted <- function(
+loglik_niche_math_kde_bias_corrected <- function(
   theta,
   env_occ,
   env_m,
@@ -98,7 +98,7 @@ loglik_niche_math_weighted <- function(
   # -------------------------------------------------------------------------
   if (!is.null(den_idx) || !is.null(kde_idx)) {
     return(
-      loglik_niche_math_weighted_integrated(
+      loglik_niche_math_kde_bias_corrected_integrated(
         theta = theta,
         env_occ = env_occ,
         env_m = env_m,
@@ -139,7 +139,7 @@ loglik_niche_math_weighted <- function(
   # -------------------------------------------------------------------------
   # Delegate to integrated C++ version
   # -------------------------------------------------------------------------
-  loglik_niche_math_weighted_integrated(
+  loglik_niche_math_kde_bias_corrected_integrated(
     theta         = theta,
     env_occ       = env_occ,
     env_m         = env_m,

@@ -39,7 +39,7 @@ double loglik_niche_math_presence_only_eigen(
 
 // Math-scale weighted negative log-likelihood with PRECOMPUTED KDE weights.
 // w_occ[i] is the KDE weight at presence row i; w_den[j] at denominator row j.
-double loglik_niche_math_weighted_eigen(
+double loglik_niche_math_kde_bias_corrected_eigen(
     const double* theta, int n_theta,
     const Eigen::MatrixXd& env_occ,
     const Eigen::MatrixXd& M_den,
@@ -51,7 +51,7 @@ double loglik_niche_math_weighted_eigen(
 //   - mu and log_sigma blocks: closed-form
 //   - v block (C-vine partials): central finite difference
 // Writes f and the n_theta-length gradient vector g_out. Returns f.
-double loglik_niche_math_weighted_grad_eigen(
+double loglik_niche_math_kde_bias_corrected_grad_eigen(
     const double* theta, int n_theta,
     const Eigen::MatrixXd& env_occ,
     const Eigen::MatrixXd& M_den,
@@ -74,7 +74,7 @@ double loglik_niche_math_weighted_grad_eigen(
 //
 // `prior_log_sigma_center` has length p; `prior_log_sigma_lambda` is a
 // non-negative scalar (lambda = 0 reduces to plain paper Eq. 5).
-double loglik_niche_math_weighted_penalized_eigen(
+double loglik_niche_math_weighted_eigen(
     const double* theta, int n_theta,
     const Eigen::MatrixXd& env_occ,
     const Eigen::MatrixXd& M_den,
@@ -85,9 +85,9 @@ double loglik_niche_math_weighted_penalized_eigen(
     double prior_log_sigma_lambda);
 
 // Hybrid analytic gradient for the penalized weighted kernel; same hybrid
-// strategy as loglik_niche_math_weighted_grad_eigen plus the closed-form
+// strategy as loglik_niche_math_kde_bias_corrected_grad_eigen plus the closed-form
 // gradient of the ridge term on log_sigma.
-double loglik_niche_math_weighted_penalized_grad_eigen(
+double loglik_niche_math_weighted_grad_eigen(
     const double* theta, int n_theta,
     const Eigen::MatrixXd& env_occ,
     const Eigen::MatrixXd& M_den,

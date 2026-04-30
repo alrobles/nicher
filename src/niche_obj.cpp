@@ -42,9 +42,9 @@ namespace {
 
 enum LikType {
   LIK_UNWEIGHTED        = 0,
-  LIK_WEIGHTED          = 1,
+  LIK_KDE_BIAS_CORRECTED          = 1,
   LIK_PRESENCE_ONLY     = 2,
-  LIK_WEIGHTED_PENALIZED = 3
+  LIK_WEIGHTED = 3
 };
 enum GradMode { GRAD_ANALYTIC = 0, GRAD_CENTRAL = 1, GRAD_FORWARD = 2 };
 
@@ -113,12 +113,12 @@ static double eval_value(const std::vector<double>& x,
     case LIK_PRESENCE_ONLY:
       return nicher::loglik_niche_math_presence_only_eigen(
           x.data(), (int)x.size(), s.env_occ, s.eta);
-    case LIK_WEIGHTED:
-      return nicher::loglik_niche_math_weighted_eigen(
+    case LIK_KDE_BIAS_CORRECTED:
+      return nicher::loglik_niche_math_kde_bias_corrected_eigen(
           x.data(), (int)x.size(), s.env_occ, s.M_den,
           s.w_occ, s.w_den, s.eta);
-    case LIK_WEIGHTED_PENALIZED:
-      return nicher::loglik_niche_math_weighted_penalized_eigen(
+    case LIK_WEIGHTED:
+      return nicher::loglik_niche_math_weighted_eigen(
           x.data(), (int)x.size(), s.env_occ, s.M_den,
           s.w_occ, s.w_den, s.eta,
           s.prior_log_sigma_center, s.prior_log_sigma_lambda);
@@ -184,14 +184,14 @@ SEXP create_niche_obj_ptr(
 
   LikType lt;
   if (likelihood == "unweighted")              lt = LIK_UNWEIGHTED;
-  else if (likelihood == "weighted")           lt = LIK_WEIGHTED;
+  else if (likelihood == "kde_bias_corrected")           lt = LIK_KDE_BIAS_CORRECTED;
   else if (likelihood == "presence_only")      lt = LIK_PRESENCE_ONLY;
-  else if (likelihood == "weighted_penalized") lt = LIK_WEIGHTED_PENALIZED;
+  else if (likelihood == "weighted") lt = LIK_WEIGHTED;
   else Rcpp::stop("Unknown likelihood type: %s", likelihood.c_str());
 
   GradMode gm;
   if (grad == "analytic") {
-    if (lt != LIK_WEIGHTED && lt != LIK_WEIGHTED_PENALIZED) {
+    if (lt != LIK_KDE_BIAS_CORRECTED && lt != LIK_WEIGHTED) {
       // analytic gradient currently only implemented for the weighted family;
       // silently downgrade to central FD for the others (cheap, no regress).
       gm = GRAD_CENTRAL;
@@ -221,7 +221,7 @@ SEXP create_niche_obj_ptr(
   state->gradstep_abs = gradstep[1];
   state->prior_log_sigma_lambda = prior_log_sigma_lambda;
 
-  // Prior centre. Required if likelihood == "weighted_penalized" AND
+  // Prior centre. Required if likelihood == "weighted" AND
   // lambda > 0; for all other configurations we still allocate a length-p
   // zero vector so the kernel size checks pass cheaply.
   if (prior_log_sigma_center.isNotNull()) {
@@ -233,9 +233,9 @@ SEXP create_niche_obj_ptr(
     for (int k = 0; k < pc.size(); ++k)
       state->prior_log_sigma_center(k) = pc[k];
   } else {
-    if (lt == LIK_WEIGHTED_PENALIZED && prior_log_sigma_lambda > 0.0)
+    if (lt == LIK_WEIGHTED && prior_log_sigma_lambda > 0.0)
       Rcpp::stop("prior_log_sigma_center must be supplied when "
-                 "likelihood='weighted_penalized' and prior_log_sigma_lambda > 0.");
+                 "likelihood='weighted' and prior_log_sigma_lambda > 0.");
     state->prior_log_sigma_center = Eigen::VectorXd::Zero(env_occ.ncol());
   }
 
@@ -251,7 +251,7 @@ SEXP create_niche_obj_ptr(
     state->env_m_full = Eigen::MatrixXd(M.nrow(), M.ncol());
     std::memcpy(state->env_m_full.data(), M.begin(),
                 sizeof(double) * M.size());
-  } else if (lt == LIK_WEIGHTED || lt == LIK_WEIGHTED_PENALIZED) {
+  } else if (lt == LIK_KDE_BIAS_CORRECTED || lt == LIK_WEIGHTED) {
     NumericMatrix M(env_m);
     if (M.ncol() != state->p) Rcpp::stop("env_m must have same columns as env_occ");
     Eigen::Map<Eigen::MatrixXd> M_eig(
@@ -326,16 +326,16 @@ SEXP create_niche_obj_ptr(
       const int n = (int)x.size();
       g.resize(n);
       try {
-        if (state->grad_mode == GRAD_ANALYTIC && state->lik_type == LIK_WEIGHTED) {
-          f = nicher::loglik_niche_math_weighted_grad_eigen(
+        if (state->grad_mode == GRAD_ANALYTIC && state->lik_type == LIK_KDE_BIAS_CORRECTED) {
+          f = nicher::loglik_niche_math_kde_bias_corrected_grad_eigen(
                 x.data(), n,
                 state->env_occ, state->M_den, state->w_occ, state->w_den,
                 state->eta,
                 state->gradstep_rel, state->gradstep_abs,
                 g.data());
         } else if (state->grad_mode == GRAD_ANALYTIC &&
-                   state->lik_type == LIK_WEIGHTED_PENALIZED) {
-          f = nicher::loglik_niche_math_weighted_penalized_grad_eigen(
+                   state->lik_type == LIK_WEIGHTED) {
+          f = nicher::loglik_niche_math_weighted_grad_eigen(
                 x.data(), n,
                 state->env_occ, state->M_den, state->w_occ, state->w_den,
                 state->eta,

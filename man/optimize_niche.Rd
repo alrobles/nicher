@@ -9,7 +9,7 @@ optimize_niche(
   env_m,
   num_starts = 100L,
   breadth = 0.1,
-  likelihood = c("weighted", "weighted_penalized", "presence_only"),
+  likelihood = c("weighted", "kde_bias_corrected", "presence_only"),
   backend = c("cpp", "r"),
   grad = c("auto", "analytic", "central", "forward"),
   m_subsample = NULL,
@@ -27,7 +27,7 @@ optimize_niche(
 \item{env_occ}{Data frame of environmental values at presence points.}
 
 \item{env_m}{Data frame of background environmental values. Required for
-\code{likelihood = "weighted"} and \code{"weighted_penalized"};
+\code{likelihood = "kde_bias_corrected"} and \code{"weighted"};
 ignored for \code{"presence_only"}.}
 
 \item{num_starts}{Integer. Number of Sobol starting points.}
@@ -35,8 +35,9 @@ ignored for \code{"presence_only"}.}
 \item{breadth}{Numeric in (0, 0.5). Controls the quantile range used to
 define starting bounds for \code{mu} parameters. Default \code{0.1}.}
 
-\item{likelihood}{One of \code{"weighted"} (default), \code{"weighted_penalized"}
-or \code{"presence_only"}.}
+\item{likelihood}{One of \code{"weighted"} (default; paper Eq. 5 + ridge),
+\code{"kde_bias_corrected"} (legacy KDE-bias-corrected formula), or
+\code{"presence_only"}.}
 
 \item{backend}{One of \code{"cpp"} (default) or \code{"r"} (deprecated;
 see Backends section).}
@@ -51,8 +52,8 @@ Resolved to \code{min(nrow(env_m), 10000)} when \code{NULL} (default).}
 
 \item{seed}{Optional integer to make subsampling deterministic.}
 
-\item{warm_start}{Logical. When \code{likelihood} is \code{"weighted"} or
-\code{"weighted_penalized"}, run a quick presence-only fit first and
+\item{warm_start}{Logical. When \code{likelihood} is \code{"kde_bias_corrected"} or
+\code{"weighted"}, run a quick presence-only fit first and
 prepend its \code{theta} as one extra starting point for the weighted
 multi-start. Cheap insurance against bad multistart luck on rough or
 multimodal weighted likelihoods (e.g. when \code{env_m} contains
@@ -62,7 +63,7 @@ Default \code{TRUE}.}
 
 \item{prior_log_sigma_lambda}{Numeric scalar (\code{>= 0}), strength of
 the ridge penalty on \eqn{\log \sigma} used by
-\code{likelihood = "weighted_penalized"}. The penalty is
+\code{likelihood = "weighted"}. The penalty is
 \eqn{\lambda \sum_k (\log \sigma_k - \log \hat\sigma_k)^2} with
 \eqn{\log \hat\sigma_k = \log(\mathrm{sd}(\text{env\_occ}[, k]))}.
 Default \code{1.0} (weak). Larger values pull
@@ -75,7 +76,7 @@ for other likelihoods.}
 \code{ncol(env_occ)} giving the centre of the ridge prior on
 \eqn{\log \sigma}. \code{NULL} (default) sets it to
 \code{log(apply(env_occ, 2, sd))}. Ignored for likelihoods other than
-\code{"weighted_penalized"}.}
+\code{"weighted"}.}
 
 \item{control}{Named list of control parameters for
 \code{ucminfcpp::ucminf_xptr()} (cpp backend) or \code{ucminf::ucminf()}
@@ -103,31 +104,55 @@ Runs multi-start optimization over a Sobol low-discrepancy sequence
 by \code{env_occ} and \code{breadth}.
 }
 \details{
-Three likelihood models are supported:
+The supported likelihood models are (\strong{breaking change in
+nicher 3.0.0:} the \code{"weighted"} likelihood now refers to the paper
+formula; the previous KDE-bias-corrected formula is now
+\code{"kde_bias_corrected"} -- see Migration below):
 \itemize{
-  \item \code{"weighted"} (default): KDE-bias-corrected weighted-normal
-        model. The KDE of M down-weights occurrences sitting in densely
-        sampled background (a sampling-bias correction). Empirically
-        stable, no \eqn{\sigma \to \infty} drift, and converges
-        cleanly on bundled examples; this is what nicher ships as
-        the production formula.
-  \item \code{"weighted_penalized"}: implements Eq. 5 of Jiménez &
-        Soberón (2022, Ecological Modelling 438:109982) exactly --
-        pure ML estimation of a weighted normal density on M --
-        plus a weakly-informative ridge prior on \eqn{\log \sigma}
-        that prevents the well-known Patil & Ord (1976)
-        \eqn{\sigma \to \infty} drift in the un-regularised MLE. Use
-        this when M is multimodal or has long tails relative to the
-        occurrence cloud (e.g. bio12 in the bundled
-        \code{example_vicugna} dataset). For best results, also
-        rescale \code{env_occ} / \code{env_m} so all variables have
-        comparable spread (e.g. z-score or quantile-rank).
+  \item \code{"weighted"} (default): paper-faithful weighted-normal model.
+        Implements Eq. 5 of Jiménez & Soberón (2022, Ecological
+        Modelling 438:109982) -- pure ML estimation of a weighted normal
+        density on M -- plus a weakly-informative ridge prior on
+        \eqn{\log \sigma} that prevents the well-known Patil & Ord
+        (1976) \eqn{\sigma \to \infty} drift in the un-regularised
+        MLE. The ridge strength is controlled by
+        \code{prior_log_sigma_lambda} (default \code{1.0}, weak); set
+        it to \code{0} for pure paper Eq. 5 (not recommended on
+        multimodal M).
+  \item \code{"kde_bias_corrected"}: legacy KDE-bias-corrected
+        weighted-normal formula. The KDE of M down-weights
+        occurrences sitting in densely sampled background (a
+        sampling-bias correction). Empirically stable, no
+        \eqn{\sigma \to \infty} drift, but does not match the
+        published Eq. 5. This is what nicher 2.x shipped as
+        \code{"weighted"}.
   \item \code{"presence_only"}: model using only presence points,
         no background correction. Unimodal likelihood, useful as a
         sanity check or to seed the weighted multistart (see
         \code{warm_start}).
 }
 }
+\section{Migration from nicher 2.x}{
+
+
+In nicher 2.x \code{likelihood = "weighted"} resolved to the
+KDE-bias-corrected formula, and the paper-faithful formula was opt-in
+via \code{likelihood = "weighted_penalized"}. In nicher 3.0 those names
+have been swapped, with no soft-deprecation alias. Concretely:
+\itemize{
+  \item Old \code{likelihood = "weighted"}
+        -> new \code{likelihood = "kde_bias_corrected"}
+        (preserves the previous behaviour).
+  \item Old \code{likelihood = "weighted_penalized"}
+        -> new \code{likelihood = "weighted"}
+        (now the default).
+}
+For multimodal or long-tailed \code{env_m}, also consider z-scoring
+\code{env_occ} and \code{env_m} so all variables have comparable
+spread (e.g. z-score or quantile-rank); the ridge prior is then
+uniform across axes.
+}
+
 \section{Backends}{
 
 
@@ -143,7 +168,7 @@ Three likelihood models are supported:
     analytic gradient).}
   \item{\code{backend = "r"} (deprecated)}{Optimizes via
     \code{ucminf::ucminf()} with the legacy R-level objective functions
-    (\code{loglik_niche_math_weighted()} or
+    (\code{loglik_niche_math_kde_bias_corrected()} or
     \code{loglik_niche_math_presence_only()}). Provided ONLY to allow
     side-by-side benchmarking with the C++ backend; will be removed in
     the next minor release.}

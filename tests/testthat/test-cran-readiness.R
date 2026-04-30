@@ -188,7 +188,7 @@ test_that("optimize_niche errors when env_m is missing for weighted model", {
       env_m      = NULL,
       num_starts = 2L,
       breadth    = 0.1,
-      likelihood = "weighted"
+      likelihood = "kde_bias_corrected"
     ),
     regexp = "env_m must be provided"
   )
@@ -204,7 +204,7 @@ test_that("optimize_niche errors when env_occ and env_m have different column na
       env_m      = example_env_m_2d,
       num_starts = 2L,
       breadth    = 0.1,
-      likelihood = "weighted"
+      likelihood = "kde_bias_corrected"
     ),
     regexp = "same variables"
   )

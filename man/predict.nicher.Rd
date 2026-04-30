@@ -60,7 +60,7 @@ the standardized Gaussian suitability map of Jimenez et al. (2022,
 Eq. 2) over an environmental \code{\link[terra]{SpatRaster}}.
 }
 \details{
-The same procedure is used for both the \code{"weighted"} and
+The same procedure is used for both the \code{"kde_bias_corrected"} and
 \code{"presence_only"} likelihoods — only the way \eqn{(\mu,
 \Sigma)} were estimated differs, never the suitability evaluation.
 
@@ -83,7 +83,7 @@ Internally:
     env_occ    = example_env_occ_2d,
     env_m      = example_env_m_2d,
     num_starts = 10L,
-    likelihood = "weighted"
+    likelihood = "kde_bias_corrected"
   )
   env <- terra::rast(matrix(rnorm(100), 10), nlyrs = 2L)
   names(env) <- colnames(example_env_occ_2d)

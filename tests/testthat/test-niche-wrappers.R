@@ -1,7 +1,7 @@
 # tests/testthat/test-niche-wrappers.R
 #
 # Tests for the single-start niche optimization wrappers:
-#   niche_presence_only(), niche_weighted()
+#   niche_presence_only(), niche_kde_bias_corrected()
 #
 # These tests use the built-in 3-D example datasets so that they run quickly
 # on CRAN. Heavier multi-start scenarios are guarded with skip_on_cran().
@@ -16,7 +16,7 @@ M3 <- as.matrix(example_env_m_3d)
 set.seed(42)
 theta0_3d <- start_theta(example_env_occ_3d)
 
-# Precomputed KDE weights for niche_weighted tests
+# Precomputed KDE weights for niche_kde_bias_corrected tests
 set.seed(123)
 den_idx3 <- sample.int(nrow(M3), 300L)
 kde_idx3 <- sample.int(nrow(M3), 600L)
@@ -57,10 +57,10 @@ test_that("niche_presence_only returns a finite log-likelihood", {
 })
 
 # ---------------------------------------------------------------------------
-# Test 5 – niche_weighted returns correct structure
+# Test 5 – niche_kde_bias_corrected returns correct structure
 # ---------------------------------------------------------------------------
-test_that("niche_weighted returns a list with value, conv, and theta", {
-  res <- niche_weighted(
+test_that("niche_kde_bias_corrected returns a list with value, conv, and theta", {
+  res <- niche_kde_bias_corrected(
     occ           = occ3,
     M             = M3,
     den_idx       = den_idx3,
@@ -87,10 +87,10 @@ test_that("niche_weighted returns a list with value, conv, and theta", {
 })
 
 # ---------------------------------------------------------------------------
-# Test 6 – niche_weighted returns a finite log-likelihood
+# Test 6 – niche_kde_bias_corrected returns a finite log-likelihood
 # ---------------------------------------------------------------------------
-test_that("niche_weighted returns a finite log-likelihood", {
-  res <- niche_weighted(
+test_that("niche_kde_bias_corrected returns a finite log-likelihood", {
+  res <- niche_kde_bias_corrected(
     occ           = occ3,
     M             = M3,
     den_idx       = den_idx3,
@@ -100,16 +100,16 @@ test_that("niche_weighted returns a finite log-likelihood", {
   )
 
   expect_true(is.finite(res$value),
-    label = "niche_weighted value is finite"
+    label = "niche_kde_bias_corrected value is finite"
   )
 })
 
 # ---------------------------------------------------------------------------
 # Test 7 – precomp_w_den length mismatch raises an informative error
 # ---------------------------------------------------------------------------
-test_that("niche_weighted errors when precomp_w_den length does not match den_idx", {
+test_that("niche_kde_bias_corrected errors when precomp_w_den length does not match den_idx", {
   expect_error(
-    niche_weighted(
+    niche_kde_bias_corrected(
       occ           = occ3,
       M             = M3,
       den_idx       = den_idx3,
@@ -135,9 +135,9 @@ test_that("wrappers error on non-finite starting values", {
   )
 
   expect_error(
-    niche_weighted(occ3, M3, den_idx3, kde_idx3, pre3, start = bad_start),
+    niche_kde_bias_corrected(occ3, M3, den_idx3, kde_idx3, pre3, start = bad_start),
     regexp = "finite",
-    label  = "niche_weighted errors on Inf start"
+    label  = "niche_kde_bias_corrected errors on Inf start"
   )
 })
 
@@ -166,7 +166,7 @@ test_that("multi-start loop completes without error for PO and W (3D)", {
     )
 
     # Weighted
-    w <- niche_weighted(
+    w <- niche_kde_bias_corrected(
       occ           = occ3,
       M             = M3,
       den_idx       = den_idx3,

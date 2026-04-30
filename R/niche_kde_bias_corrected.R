@@ -54,12 +54,12 @@
 #' kde_idx <- sample.int(nrow(M), 600L)
 #' w_den   <- kde_gaussian(M[den_idx, ], M[kde_idx, ])
 #' theta0  <- start_theta(example_env_occ_3d)
-#' res <- niche_weighted(occ, M, den_idx, kde_idx, w_den, start = theta0)
+#' res <- niche_kde_bias_corrected(occ, M, den_idx, kde_idx, w_den, start = theta0)
 #' res$value
 #' }
 #'
 #' @export
-niche_weighted <- function(occ, M, den_idx, kde_idx, precomp_w_den,
+niche_kde_bias_corrected <- function(occ, M, den_idx, kde_idx, precomp_w_den,
                            eta = 1, start = NULL, ...) {
   # Validate precomputed denominators
   if (length(den_idx) != length(precomp_w_den)) {
@@ -75,7 +75,7 @@ niche_weighted <- function(occ, M, den_idx, kde_idx, precomp_w_den,
   xptr <- create_niche_obj_ptr(
     env_occ        = as.matrix(occ),
     env_m          = as.matrix(M),
-    likelihood     = "weighted",
+    likelihood     = "kde_bias_corrected",
     den_idx        = den_idx,
     kde_idx        = kde_idx,
     precomp_w_den  = precomp_w_den,

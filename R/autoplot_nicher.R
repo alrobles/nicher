@@ -131,7 +131,7 @@ autoplot.nicher <- function(object,
 #'   )
 #'   fit_w  <- optimize_niche(
 #'     env_occ = example_env_occ_2d, env_m = example_env_m_2d,
-#'     loglik = "weighted", num_starts = 10L
+#'     loglik = "kde_bias_corrected", num_starts = 10L
 #'   )
 #'   nicher_compare_plot(
 #'     models  = list(presence_only = fit_po, weighted = fit_w),

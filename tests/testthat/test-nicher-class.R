@@ -8,7 +8,7 @@
 # Shared test data: build a small nicher object for unit tests
 # ---------------------------------------------------------------------------
 
-.make_mock_nicher <- function(logliks, convs, likelihood = "weighted") {
+.make_mock_nicher <- function(logliks, convs, likelihood = "kde_bias_corrected") {
   n <- length(logliks)
   solutions <- data.frame(
     start_id    = seq_len(n),

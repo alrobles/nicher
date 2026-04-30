@@ -4,30 +4,52 @@
 #' (via \pkg{pomp}) of starting points covering the parameter space implied
 #' by \code{env_occ} and \code{breadth}.
 #'
-#' Three likelihood models are supported:
+#' The supported likelihood models are (\strong{breaking change in
+#' nicher 3.0.0:} the \code{"weighted"} likelihood now refers to the paper
+#' formula; the previous KDE-bias-corrected formula is now
+#' \code{"kde_bias_corrected"} -- see Migration below):
 #' \itemize{
-#'   \item \code{"weighted"} (default): KDE-bias-corrected weighted-normal
-#'         model. The KDE of M down-weights occurrences sitting in densely
-#'         sampled background (a sampling-bias correction). Empirically
-#'         stable, no \eqn{\sigma \to \infty} drift, and converges
-#'         cleanly on bundled examples; this is what nicher ships as
-#'         the production formula.
-#'   \item \code{"weighted_penalized"}: implements Eq. 5 of Jiménez &
-#'         Soberón (2022, Ecological Modelling 438:109982) exactly --
-#'         pure ML estimation of a weighted normal density on M --
-#'         plus a weakly-informative ridge prior on \eqn{\log \sigma}
-#'         that prevents the well-known Patil & Ord (1976)
-#'         \eqn{\sigma \to \infty} drift in the un-regularised MLE. Use
-#'         this when M is multimodal or has long tails relative to the
-#'         occurrence cloud (e.g. bio12 in the bundled
-#'         \code{example_vicugna} dataset). For best results, also
-#'         rescale \code{env_occ} / \code{env_m} so all variables have
-#'         comparable spread (e.g. z-score or quantile-rank).
+#'   \item \code{"weighted"} (default): paper-faithful weighted-normal model.
+#'         Implements Eq. 5 of Jiménez & Soberón (2022, Ecological
+#'         Modelling 438:109982) -- pure ML estimation of a weighted normal
+#'         density on M -- plus a weakly-informative ridge prior on
+#'         \eqn{\log \sigma} that prevents the well-known Patil & Ord
+#'         (1976) \eqn{\sigma \to \infty} drift in the un-regularised
+#'         MLE. The ridge strength is controlled by
+#'         \code{prior_log_sigma_lambda} (default \code{1.0}, weak); set
+#'         it to \code{0} for pure paper Eq. 5 (not recommended on
+#'         multimodal M).
+#'   \item \code{"kde_bias_corrected"}: legacy KDE-bias-corrected
+#'         weighted-normal formula. The KDE of M down-weights
+#'         occurrences sitting in densely sampled background (a
+#'         sampling-bias correction). Empirically stable, no
+#'         \eqn{\sigma \to \infty} drift, but does not match the
+#'         published Eq. 5. This is what nicher 2.x shipped as
+#'         \code{"weighted"}.
 #'   \item \code{"presence_only"}: model using only presence points,
 #'         no background correction. Unimodal likelihood, useful as a
 #'         sanity check or to seed the weighted multistart (see
 #'         \code{warm_start}).
 #' }
+#'
+#' @section Migration from nicher 2.x:
+#'
+#' In nicher 2.x \code{likelihood = "weighted"} resolved to the
+#' KDE-bias-corrected formula, and the paper-faithful formula was opt-in
+#' via \code{likelihood = "weighted_penalized"}. In nicher 3.0 those names
+#' have been swapped, with no soft-deprecation alias. Concretely:
+#' \itemize{
+#'   \item Old \code{likelihood = "weighted"}
+#'         -> new \code{likelihood = "kde_bias_corrected"}
+#'         (preserves the previous behaviour).
+#'   \item Old \code{likelihood = "weighted_penalized"}
+#'         -> new \code{likelihood = "weighted"}
+#'         (now the default).
+#' }
+#' For multimodal or long-tailed \code{env_m}, also consider z-scoring
+#' \code{env_occ} and \code{env_m} so all variables have comparable
+#' spread (e.g. z-score or quantile-rank); the ridge prior is then
+#' uniform across axes.
 #'
 #' @section Backends:
 #'
@@ -43,7 +65,7 @@
 #'     analytic gradient).}
 #'   \item{\code{backend = "r"} (deprecated)}{Optimizes via
 #'     \code{ucminf::ucminf()} with the legacy R-level objective functions
-#'     (\code{loglik_niche_math_weighted()} or
+#'     (\code{loglik_niche_math_kde_bias_corrected()} or
 #'     \code{loglik_niche_math_presence_only()}). Provided ONLY to allow
 #'     side-by-side benchmarking with the C++ backend; will be removed in
 #'     the next minor release.}
@@ -63,13 +85,14 @@
 #'
 #' @param env_occ Data frame of environmental values at presence points.
 #' @param env_m Data frame of background environmental values. Required for
-#'   \code{likelihood = "weighted"} and \code{"weighted_penalized"};
+#'   \code{likelihood = "kde_bias_corrected"} and \code{"weighted"};
 #'   ignored for \code{"presence_only"}.
 #' @param num_starts Integer. Number of Sobol starting points.
 #' @param breadth Numeric in (0, 0.5). Controls the quantile range used to
 #'   define starting bounds for \code{mu} parameters. Default \code{0.1}.
-#' @param likelihood One of \code{"weighted"} (default), \code{"weighted_penalized"}
-#'   or \code{"presence_only"}.
+#' @param likelihood One of \code{"weighted"} (default; paper Eq. 5 + ridge),
+#'   \code{"kde_bias_corrected"} (legacy KDE-bias-corrected formula), or
+#'   \code{"presence_only"}.
 #' @param backend One of \code{"cpp"} (default) or \code{"r"} (deprecated;
 #'   see Backends section).
 #' @param grad Gradient strategy: \code{"auto"} (default) selects
@@ -79,8 +102,8 @@
 #' @param m_subsample,m_kde_subsample Optional integer or fraction in (0, 1].
 #'   Resolved to \code{min(nrow(env_m), 10000)} when \code{NULL} (default).
 #' @param seed Optional integer to make subsampling deterministic.
-#' @param warm_start Logical. When \code{likelihood} is \code{"weighted"} or
-#'   \code{"weighted_penalized"}, run a quick presence-only fit first and
+#' @param warm_start Logical. When \code{likelihood} is \code{"kde_bias_corrected"} or
+#'   \code{"weighted"}, run a quick presence-only fit first and
 #'   prepend its \code{theta} as one extra starting point for the weighted
 #'   multi-start. Cheap insurance against bad multistart luck on rough or
 #'   multimodal weighted likelihoods (e.g. when \code{env_m} contains
@@ -89,7 +112,7 @@
 #'   Default \code{TRUE}.
 #' @param prior_log_sigma_lambda Numeric scalar (\code{>= 0}), strength of
 #'   the ridge penalty on \eqn{\log \sigma} used by
-#'   \code{likelihood = "weighted_penalized"}. The penalty is
+#'   \code{likelihood = "weighted"}. The penalty is
 #'   \eqn{\lambda \sum_k (\log \sigma_k - \log \hat\sigma_k)^2} with
 #'   \eqn{\log \hat\sigma_k = \log(\mathrm{sd}(\text{env\_occ}[, k]))}.
 #'   Default \code{1.0} (weak). Larger values pull
@@ -101,7 +124,7 @@
 #'   \code{ncol(env_occ)} giving the centre of the ridge prior on
 #'   \eqn{\log \sigma}. \code{NULL} (default) sets it to
 #'   \code{log(apply(env_occ, 2, sd))}. Ignored for likelihoods other than
-#'   \code{"weighted_penalized"}.
+#'   \code{"weighted"}.
 #' @param control Named list of control parameters for
 #'   \code{ucminfcpp::ucminf_xptr()} (cpp backend) or \code{ucminf::ucminf()}
 #'   (r backend). Recognized entries:
@@ -137,7 +160,7 @@ optimize_niche <- function(env_occ,
                            num_starts = 100L,
                            breadth    = 0.1,
                            likelihood = c("weighted",
-                                          "weighted_penalized",
+                                          "kde_bias_corrected",
                                           "presence_only"),
                            backend    = c("cpp", "r"),
                            grad       = c("auto", "analytic",
@@ -156,7 +179,7 @@ optimize_niche <- function(env_occ,
   grad       <- match.arg(grad)
 
   # Convenience: treat the weighted family uniformly where logic is shared.
-  is_weighted_family <- likelihood %in% c("weighted", "weighted_penalized")
+  is_weighted_family <- likelihood %in% c("kde_bias_corrected", "weighted")
 
   # Resolve `eta` from `...` so we can both forward it to the objective
   # functions (already done downstream) and persist it on the returned
@@ -196,12 +219,12 @@ optimize_niche <- function(env_occ,
     stop("`prior_log_sigma_lambda` must be a single non-negative finite number.")
   }
 
-  # Resolve / validate ridge-prior centre. For likelihood == "weighted_penalized"
+  # Resolve / validate ridge-prior centre. For likelihood == "weighted"
   # we materialise it now (before warm-start, before optimisation) so that the
   # warm-start child call and every Sobol start see the same centre.
   p_occ <- ncol(env_occ)
   if (is.null(prior_log_sigma_center)) {
-    if (likelihood == "weighted_penalized") {
+    if (likelihood == "weighted") {
       sds <- apply(as.matrix(env_occ), 2L, stats::sd, na.rm = TRUE)
       if (any(!is.finite(sds)) || any(sds <= 0)) {
         stop("Cannot derive default `prior_log_sigma_center`: some env_occ ",
@@ -239,12 +262,13 @@ optimize_niche <- function(env_occ,
     if (is_weighted_family && backend == "cpp") "analytic" else "central"
   } else grad
 
-  # The legacy R backend has no R-side weighted_penalized objective wired up
-  # (the cpp parity wrapper handles validation in .validate_xptr_result, but
-  # the R backend's per-start helper runs ucminf::ucminf with a pure-R fn).
-  # Force cpp for "weighted_penalized" to keep the R backend simple.
-  if (backend == "r" && likelihood == "weighted_penalized") {
-    stop('likelihood = "weighted_penalized" requires backend = "cpp".')
+  # The legacy R backend has no R-side `weighted` (paper Eq. 5 + ridge)
+  # objective wired up; only the C++ kernel implements it. The cpp parity
+  # wrapper handles validation in .validate_xptr_result, but the R backend's
+  # per-start helper runs ucminf::ucminf with a pure-R fn. Force cpp for
+  # "weighted" to keep the R backend simple.
+  if (backend == "r" && likelihood == "weighted") {
+    stop('likelihood = "weighted" requires backend = "cpp".')
   }
 
   # ------------------------------------------------------------------
@@ -523,8 +547,8 @@ optimize_niche <- function(env_occ,
       loglik_niche_math_presence_only(theta, env_occ = env_occ,
                                       neg = TRUE, ...)
     },
-    weighted = function(theta) {
-      loglik_niche_math_weighted(
+    kde_bias_corrected = function(theta) {
+      loglik_niche_math_kde_bias_corrected(
         theta, env_occ = env_occ, env_m = env_m, neg = TRUE,
         den_idx       = weighted_inputs$den_idx,
         kde_idx       = weighted_inputs$kde_idx,
@@ -532,15 +556,15 @@ optimize_niche <- function(env_occ,
         ...
       )
     },
-    weighted_penalized = {
-      # Use the cpp parity wrapper directly for weighted_penalized; there
-      # is no pure-R reference implementation. The validator only needs a
-      # function that evaluates the same objective, so the parity helper
-      # is fine here.
+    weighted = {
+      # Use the cpp parity wrapper directly for the paper-faithful
+      # weighted likelihood; there is no pure-R reference implementation.
+      # The validator only needs a function that evaluates the same
+      # objective, so the parity helper is fine here.
       env_m_mat <- as.matrix(env_m)
       M_den <- env_m_mat[weighted_inputs$den_idx, , drop = FALSE]
       function(theta) {
-        loglik_niche_math_weighted_penalized_cpp(
+        loglik_niche_math_weighted_cpp(
           theta = theta,
           env_occ = as.matrix(env_occ),
           M_den   = M_den,
@@ -597,7 +621,7 @@ optimize_niche <- function(env_occ,
   env_m_mat   <- if (!is.null(env_m)) as.matrix(env_m) else NULL
 
   den_idx <- kde_idx <- precomp_w_occ <- precomp_w_den <- NULL
-  if (likelihood %in% c("weighted", "weighted_penalized") &&
+  if (likelihood %in% c("kde_bias_corrected", "weighted") &&
       !is.null(weighted_inputs)) {
     den_idx       <- weighted_inputs$den_idx
     kde_idx       <- weighted_inputs$kde_idx
@@ -607,7 +631,7 @@ optimize_niche <- function(env_occ,
 
   # Only the penalized variant cares about the prior; passing NULL/0 is a
   # no-op for the others.
-  if (likelihood == "weighted_penalized") {
+  if (likelihood == "weighted") {
     plsc <- if (!is.null(prior_log_sigma_center))
               as.numeric(prior_log_sigma_center) else NULL
     plsl <- as.numeric(prior_log_sigma_lambda)
@@ -679,12 +703,12 @@ optimize_niche <- function(env_occ,
   dots <- list(...)
   eta <- if (!is.null(dots$eta)) dots$eta else 1.0
 
-  fn <- if (likelihood == "weighted") {
+  fn <- if (likelihood == "kde_bias_corrected") {
     den_idx       <- if (!is.null(weighted_inputs)) weighted_inputs$den_idx else NULL
     kde_idx       <- if (!is.null(weighted_inputs)) weighted_inputs$kde_idx else NULL
     precomp_w_den <- if (!is.null(weighted_inputs)) weighted_inputs$w_den   else NULL
     function(theta) {
-      loglik_niche_math_weighted(
+      loglik_niche_math_kde_bias_corrected(
         theta, env_occ = env_occ, env_m = env_m, eta = eta, neg = TRUE,
         den_idx = den_idx, kde_idx = kde_idx,
         precomp_w_den = precomp_w_den

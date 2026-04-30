@@ -16,7 +16,7 @@ test_that(".validate_xptr_result evaluates the same subsampled objective the opt
       env_m      = M_big,
       num_starts = 2L,
       breadth    = 0.1,
-      likelihood = "weighted",
+      likelihood = "kde_bias_corrected",
       backend    = "cpp",
       seed       = 1L,
       control    = list(maxeval = 200L)
