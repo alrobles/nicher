@@ -4,7 +4,7 @@
 //
 // These are the kernels driven by `ucminfcpp::ucminf_xptr` via the closure
 // built in `create_niche_obj_ptr` (see src/niche_obj.cpp). Compared with
-// `loglik_niche_chol_cpp` and `loglik_niche_weighted_integrated_cpp`, they:
+// `loglik_niche_chol_cpp` and `loglik_niche_kde_bias_corrected_cpp`, they:
 //
 //   * accept the math-scale parameter vector `theta` directly as a
 //     `const double*` (no Rcpp::NumericVector / Rcpp::NumericMatrix
@@ -98,7 +98,7 @@ double loglik_niche_math_presence_only_eigen(
 // Weighted (math scale, with precomputed KDE weights)
 // ---------------------------------------------------------------------------
 
-double loglik_niche_math_weighted_eigen(
+double loglik_niche_math_kde_bias_corrected_eigen(
     const double* theta, int n_theta,
     const Eigen::MatrixXd& env_occ,
     const Eigen::MatrixXd& M_den,
@@ -137,7 +137,7 @@ double loglik_niche_math_weighted_eigen(
   Eigen::ArrayXd q2 = y_den.colwise().squaredNorm().array();
 
   // Log-likelihood (negative). KDE weights are clamped before log() to
-  // mirror the existing C++ kernel (loglik_niche_weighted_integrated_cpp).
+  // mirror the existing C++ kernel (loglik_niche_kde_bias_corrected_cpp).
   Eigen::ArrayXd log_w_occ = w_occ.array().max(MIN_KDE_WEIGHT).log();
   Eigen::ArrayXd log_w_den = w_den.array().max(MIN_KDE_WEIGHT).log();
   Eigen::ArrayXd a = -0.5 * q2 - log_w_den;
@@ -183,7 +183,7 @@ double loglik_niche_math_weighted_eigen(
 // KDE is fixed so each sub-evaluation is one full kernel call.
 // ---------------------------------------------------------------------------
 
-double loglik_niche_math_weighted_grad_eigen(
+double loglik_niche_math_kde_bias_corrected_grad_eigen(
     const double* theta, int n_theta,
     const Eigen::MatrixXd& env_occ,
     const Eigen::MatrixXd& M_den,
@@ -225,7 +225,7 @@ double loglik_niche_math_weighted_grad_eigen(
   Eigen::MatrixXd V_occ = L_corr.transpose().triangularView<Eigen::Upper>().solve(Y_occ);
   Eigen::MatrixXd V_den = L_corr.transpose().triangularView<Eigen::Upper>().solve(Y_den);
 
-  // --- 3. f value (matches loglik_niche_math_weighted_eigen exactly) -----
+  // --- 3. f value (matches loglik_niche_math_kde_bias_corrected_eigen exactly) -----
   const double sum_q1 = Y_occ.colwise().squaredNorm().sum();
   Eigen::ArrayXd q2 = Y_den.colwise().squaredNorm().array();
 
@@ -280,11 +280,11 @@ double loglik_niche_math_weighted_grad_eigen(
     const double dx = std::abs(xk) * gradstep_rel + gradstep_abs;
 
     theta_pert[idx] = xk + dx;
-    const double f_plus = loglik_niche_math_weighted_eigen(
+    const double f_plus = loglik_niche_math_kde_bias_corrected_eigen(
         theta_pert.data(), n_theta, env_occ, M_den, w_occ, w_den, eta);
 
     theta_pert[idx] = xk - dx;
-    const double f_minus = loglik_niche_math_weighted_eigen(
+    const double f_minus = loglik_niche_math_kde_bias_corrected_eigen(
         theta_pert.data(), n_theta, env_occ, M_den, w_occ, w_den, eta);
 
     theta_pert[idx] = xk;
@@ -321,7 +321,7 @@ double loglik_niche_math_weighted_grad_eigen(
 // computed by the R caller); lambda controls the strength.
 // ---------------------------------------------------------------------------
 
-double loglik_niche_math_weighted_penalized_eigen(
+double loglik_niche_math_weighted_eigen(
     const double* theta, int n_theta,
     const Eigen::MatrixXd& env_occ,
     const Eigen::MatrixXd& M_den,
@@ -393,7 +393,7 @@ double loglik_niche_math_weighted_penalized_eigen(
   return neg_log;
 }
 
-double loglik_niche_math_weighted_penalized_grad_eigen(
+double loglik_niche_math_weighted_grad_eigen(
     const double* theta, int n_theta,
     const Eigen::MatrixXd& env_occ,
     const Eigen::MatrixXd& M_den,
@@ -472,7 +472,7 @@ double loglik_niche_math_weighted_penalized_grad_eigen(
   Eigen::VectorXd pi = (ea / sum_exp).matrix();
 
   // Gradient w.r.t. mu (log w terms are constant in theta, so identical
-  // structure to loglik_niche_math_weighted_grad_eigen).
+  // structure to loglik_niche_math_kde_bias_corrected_grad_eigen).
   Eigen::VectorXd sum_d_occ = env_occ.colwise().sum().transpose()
                               - static_cast<double>(n_occ) * mu;
   Eigen::VectorXd weighted_e = M_den.transpose() * pi - mu;
@@ -504,12 +504,12 @@ double loglik_niche_math_weighted_penalized_grad_eigen(
     const double dx = std::abs(xk) * gradstep_rel + gradstep_abs;
 
     theta_pert[idx] = xk + dx;
-    const double f_plus = loglik_niche_math_weighted_penalized_eigen(
+    const double f_plus = loglik_niche_math_weighted_eigen(
         theta_pert.data(), n_theta, env_occ, M_den, w_occ, w_den, eta,
         prior_log_sigma_center, prior_log_sigma_lambda);
 
     theta_pert[idx] = xk - dx;
-    const double f_minus = loglik_niche_math_weighted_penalized_eigen(
+    const double f_minus = loglik_niche_math_weighted_eigen(
         theta_pert.data(), n_theta, env_occ, M_den, w_occ, w_den, eta,
         prior_log_sigma_center, prior_log_sigma_lambda);
 
@@ -548,7 +548,7 @@ double loglik_niche_math_presence_only_cpp(
 }
 
 // [[Rcpp::export]]
-double loglik_niche_math_weighted_cpp(
+double loglik_niche_math_kde_bias_corrected_cpp(
     NumericVector theta,
     NumericMatrix env_occ,
     NumericMatrix M_den,
@@ -567,8 +567,67 @@ double loglik_niche_math_weighted_cpp(
   Eigen::MatrixXd occ = occ_map, mden = mden_map;
   Eigen::VectorXd wocc = wocc_map, wden = wden_map;
 
-  return nicher::loglik_niche_math_weighted_eigen(
+  return nicher::loglik_niche_math_kde_bias_corrected_eigen(
       &theta[0], theta.size(), occ, mden, wocc, wden, eta);
+}
+
+// [[Rcpp::export]]
+List loglik_niche_math_kde_bias_corrected_grad_cpp(
+    NumericVector theta,
+    NumericMatrix env_occ,
+    NumericMatrix M_den,
+    NumericVector w_occ,
+    NumericVector w_den,
+    double eta = 1.0,
+    double gradstep_rel = 1e-6,
+    double gradstep_abs = 1e-8) {
+  Eigen::Map<Eigen::MatrixXd> occ_map(
+      Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(env_occ));
+  Eigen::Map<Eigen::MatrixXd> mden_map(
+      Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(M_den));
+  Eigen::Map<Eigen::VectorXd> wocc_map(
+      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_occ));
+  Eigen::Map<Eigen::VectorXd> wden_map(
+      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_den));
+
+  Eigen::MatrixXd occ = occ_map, mden = mden_map;
+  Eigen::VectorXd wocc = wocc_map, wden = wden_map;
+
+  NumericVector g(theta.size());
+  double f = nicher::loglik_niche_math_kde_bias_corrected_grad_eigen(
+      &theta[0], theta.size(), occ, mden, wocc, wden, eta,
+      gradstep_rel, gradstep_abs, &g[0]);
+
+  return List::create(_["value"] = f, _["gradient"] = g);
+}
+
+// [[Rcpp::export]]
+double loglik_niche_math_weighted_cpp(
+    NumericVector theta,
+    NumericMatrix env_occ,
+    NumericMatrix M_den,
+    NumericVector w_occ,
+    NumericVector w_den,
+    NumericVector prior_log_sigma_center,
+    double prior_log_sigma_lambda,
+    double eta = 1.0) {
+  Eigen::Map<Eigen::MatrixXd> occ_map(
+      Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(env_occ));
+  Eigen::Map<Eigen::MatrixXd> mden_map(
+      Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(M_den));
+  Eigen::Map<Eigen::VectorXd> wocc_map(
+      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_occ));
+  Eigen::Map<Eigen::VectorXd> wden_map(
+      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_den));
+  Eigen::Map<Eigen::VectorXd> pc_map(
+      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(prior_log_sigma_center));
+
+  Eigen::MatrixXd occ = occ_map, mden = mden_map;
+  Eigen::VectorXd wocc = wocc_map, wden = wden_map, pc = pc_map;
+
+  return nicher::loglik_niche_math_weighted_eigen(
+      &theta[0], theta.size(), occ, mden, wocc, wden, eta,
+      pc, prior_log_sigma_lambda);
 }
 
 // [[Rcpp::export]]
@@ -578,6 +637,8 @@ List loglik_niche_math_weighted_grad_cpp(
     NumericMatrix M_den,
     NumericVector w_occ,
     NumericVector w_den,
+    NumericVector prior_log_sigma_center,
+    double prior_log_sigma_lambda,
     double eta = 1.0,
     double gradstep_rel = 1e-6,
     double gradstep_abs = 1e-8) {
@@ -589,75 +650,14 @@ List loglik_niche_math_weighted_grad_cpp(
       Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_occ));
   Eigen::Map<Eigen::VectorXd> wden_map(
       Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_den));
+  Eigen::Map<Eigen::VectorXd> pc_map(
+      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(prior_log_sigma_center));
 
   Eigen::MatrixXd occ = occ_map, mden = mden_map;
-  Eigen::VectorXd wocc = wocc_map, wden = wden_map;
+  Eigen::VectorXd wocc = wocc_map, wden = wden_map, pc = pc_map;
 
   NumericVector g(theta.size());
   double f = nicher::loglik_niche_math_weighted_grad_eigen(
-      &theta[0], theta.size(), occ, mden, wocc, wden, eta,
-      gradstep_rel, gradstep_abs, &g[0]);
-
-  return List::create(_["value"] = f, _["gradient"] = g);
-}
-
-// [[Rcpp::export]]
-double loglik_niche_math_weighted_penalized_cpp(
-    NumericVector theta,
-    NumericMatrix env_occ,
-    NumericMatrix M_den,
-    NumericVector w_occ,
-    NumericVector w_den,
-    NumericVector prior_log_sigma_center,
-    double prior_log_sigma_lambda,
-    double eta = 1.0) {
-  Eigen::Map<Eigen::MatrixXd> occ_map(
-      Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(env_occ));
-  Eigen::Map<Eigen::MatrixXd> mden_map(
-      Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(M_den));
-  Eigen::Map<Eigen::VectorXd> wocc_map(
-      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_occ));
-  Eigen::Map<Eigen::VectorXd> wden_map(
-      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_den));
-  Eigen::Map<Eigen::VectorXd> pc_map(
-      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(prior_log_sigma_center));
-
-  Eigen::MatrixXd occ = occ_map, mden = mden_map;
-  Eigen::VectorXd wocc = wocc_map, wden = wden_map, pc = pc_map;
-
-  return nicher::loglik_niche_math_weighted_penalized_eigen(
-      &theta[0], theta.size(), occ, mden, wocc, wden, eta,
-      pc, prior_log_sigma_lambda);
-}
-
-// [[Rcpp::export]]
-List loglik_niche_math_weighted_penalized_grad_cpp(
-    NumericVector theta,
-    NumericMatrix env_occ,
-    NumericMatrix M_den,
-    NumericVector w_occ,
-    NumericVector w_den,
-    NumericVector prior_log_sigma_center,
-    double prior_log_sigma_lambda,
-    double eta = 1.0,
-    double gradstep_rel = 1e-6,
-    double gradstep_abs = 1e-8) {
-  Eigen::Map<Eigen::MatrixXd> occ_map(
-      Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(env_occ));
-  Eigen::Map<Eigen::MatrixXd> mden_map(
-      Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(M_den));
-  Eigen::Map<Eigen::VectorXd> wocc_map(
-      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_occ));
-  Eigen::Map<Eigen::VectorXd> wden_map(
-      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_den));
-  Eigen::Map<Eigen::VectorXd> pc_map(
-      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(prior_log_sigma_center));
-
-  Eigen::MatrixXd occ = occ_map, mden = mden_map;
-  Eigen::VectorXd wocc = wocc_map, wden = wden_map, pc = pc_map;
-
-  NumericVector g(theta.size());
-  double f = nicher::loglik_niche_math_weighted_penalized_grad_eigen(
       &theta[0], theta.size(), occ, mden, wocc, wden, eta,
       pc, prior_log_sigma_lambda,
       gradstep_rel, gradstep_abs, &g[0]);

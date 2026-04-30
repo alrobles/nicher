@@ -18,9 +18,9 @@ test_that("hybrid analytic gradient matches central FD", {
       dx <- abs(theta[i]) * 1e-6 + 1e-8
       th_p <- theta; th_p[i] <- theta[i] + dx
       th_m <- theta; th_m[i] <- theta[i] - dx
-      fp <- nicher:::loglik_niche_math_weighted_cpp(
+      fp <- nicher:::loglik_niche_math_kde_bias_corrected_cpp(
         th_p, occ, M_den, w_occ, w_den, eta = 1)
-      fm <- nicher:::loglik_niche_math_weighted_cpp(
+      fm <- nicher:::loglik_niche_math_kde_bias_corrected_cpp(
         th_m, occ, M_den, w_occ, w_den, eta = 1)
       g[i] <- (fp - fm) / (2 * dx)
     }
@@ -30,7 +30,7 @@ test_that("hybrid analytic gradient matches central FD", {
   for (k in seq_len(5L)) {
     theta <- start_theta(occ) + stats::rnorm(length(start_theta(occ)),
                                              sd = 0.05)
-    res <- nicher:::loglik_niche_math_weighted_grad_cpp(
+    res <- nicher:::loglik_niche_math_kde_bias_corrected_grad_cpp(
       theta, occ, M_den, w_occ, w_den, eta = 1)
     g_fd <- fd_grad(theta)
 
@@ -62,11 +62,11 @@ test_that("penalized weighted hybrid analytic gradient matches central FD", {
       dx <- abs(theta[i]) * 1e-6 + 1e-8
       th_p <- theta; th_p[i] <- theta[i] + dx
       th_m <- theta; th_m[i] <- theta[i] - dx
-      fp <- nicher:::loglik_niche_math_weighted_penalized_cpp(
+      fp <- nicher:::loglik_niche_math_weighted_cpp(
         th_p, occ, M_den, w_occ, w_den,
         prior_log_sigma_center = log_sd, prior_log_sigma_lambda = lam,
         eta = 1)
-      fm <- nicher:::loglik_niche_math_weighted_penalized_cpp(
+      fm <- nicher:::loglik_niche_math_weighted_cpp(
         th_m, occ, M_den, w_occ, w_den,
         prior_log_sigma_center = log_sd, prior_log_sigma_lambda = lam,
         eta = 1)
@@ -78,7 +78,7 @@ test_that("penalized weighted hybrid analytic gradient matches central FD", {
   for (k in seq_len(5L)) {
     theta <- start_theta(occ) + stats::rnorm(length(start_theta(occ)),
                                              sd = 0.05)
-    res <- nicher:::loglik_niche_math_weighted_penalized_grad_cpp(
+    res <- nicher:::loglik_niche_math_weighted_grad_cpp(
       theta, occ, M_den, w_occ, w_den,
       prior_log_sigma_center = log_sd, prior_log_sigma_lambda = lam,
       eta = 1)

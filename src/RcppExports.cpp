@@ -63,6 +63,24 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// loglik_niche_kde_bias_corrected_cpp
+double loglik_niche_kde_bias_corrected_cpp(NumericVector mu, NumericMatrix L, NumericMatrix env_occ, NumericMatrix env_m, Nullable<IntegerVector> den_idx, Nullable<IntegerVector> kde_idx, Nullable<NumericVector> precomp_w_den, bool neg);
+RcppExport SEXP _nicher_loglik_niche_kde_bias_corrected_cpp(SEXP muSEXP, SEXP LSEXP, SEXP env_occSEXP, SEXP env_mSEXP, SEXP den_idxSEXP, SEXP kde_idxSEXP, SEXP precomp_w_denSEXP, SEXP negSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type L(LSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type env_occ(env_occSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type env_m(env_mSEXP);
+    Rcpp::traits::input_parameter< Nullable<IntegerVector> >::type den_idx(den_idxSEXP);
+    Rcpp::traits::input_parameter< Nullable<IntegerVector> >::type kde_idx(kde_idxSEXP);
+    Rcpp::traits::input_parameter< Nullable<NumericVector> >::type precomp_w_den(precomp_w_denSEXP);
+    Rcpp::traits::input_parameter< bool >::type neg(negSEXP);
+    rcpp_result_gen = Rcpp::wrap(loglik_niche_kde_bias_corrected_cpp(mu, L, env_occ, env_m, den_idx, kde_idx, precomp_w_den, neg));
+    return rcpp_result_gen;
+END_RCPP
+}
 // loglik_niche_math_presence_only_cpp
 double loglik_niche_math_presence_only_cpp(NumericVector theta, NumericMatrix env_occ, double eta);
 RcppExport SEXP _nicher_loglik_niche_math_presence_only_cpp(SEXP thetaSEXP, SEXP env_occSEXP, SEXP etaSEXP) {
@@ -76,9 +94,9 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// loglik_niche_math_weighted_cpp
-double loglik_niche_math_weighted_cpp(NumericVector theta, NumericMatrix env_occ, NumericMatrix M_den, NumericVector w_occ, NumericVector w_den, double eta);
-RcppExport SEXP _nicher_loglik_niche_math_weighted_cpp(SEXP thetaSEXP, SEXP env_occSEXP, SEXP M_denSEXP, SEXP w_occSEXP, SEXP w_denSEXP, SEXP etaSEXP) {
+// loglik_niche_math_kde_bias_corrected_cpp
+double loglik_niche_math_kde_bias_corrected_cpp(NumericVector theta, NumericMatrix env_occ, NumericMatrix M_den, NumericVector w_occ, NumericVector w_den, double eta);
+RcppExport SEXP _nicher_loglik_niche_math_kde_bias_corrected_cpp(SEXP thetaSEXP, SEXP env_occSEXP, SEXP M_denSEXP, SEXP w_occSEXP, SEXP w_denSEXP, SEXP etaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -88,49 +106,49 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< NumericVector >::type w_occ(w_occSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type w_den(w_denSEXP);
     Rcpp::traits::input_parameter< double >::type eta(etaSEXP);
-    rcpp_result_gen = Rcpp::wrap(loglik_niche_math_weighted_cpp(theta, env_occ, M_den, w_occ, w_den, eta));
+    rcpp_result_gen = Rcpp::wrap(loglik_niche_math_kde_bias_corrected_cpp(theta, env_occ, M_den, w_occ, w_den, eta));
+    return rcpp_result_gen;
+END_RCPP
+}
+// loglik_niche_math_kde_bias_corrected_grad_cpp
+List loglik_niche_math_kde_bias_corrected_grad_cpp(NumericVector theta, NumericMatrix env_occ, NumericMatrix M_den, NumericVector w_occ, NumericVector w_den, double eta, double gradstep_rel, double gradstep_abs);
+RcppExport SEXP _nicher_loglik_niche_math_kde_bias_corrected_grad_cpp(SEXP thetaSEXP, SEXP env_occSEXP, SEXP M_denSEXP, SEXP w_occSEXP, SEXP w_denSEXP, SEXP etaSEXP, SEXP gradstep_relSEXP, SEXP gradstep_absSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type env_occ(env_occSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type M_den(M_denSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type w_occ(w_occSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type w_den(w_denSEXP);
+    Rcpp::traits::input_parameter< double >::type eta(etaSEXP);
+    Rcpp::traits::input_parameter< double >::type gradstep_rel(gradstep_relSEXP);
+    Rcpp::traits::input_parameter< double >::type gradstep_abs(gradstep_absSEXP);
+    rcpp_result_gen = Rcpp::wrap(loglik_niche_math_kde_bias_corrected_grad_cpp(theta, env_occ, M_den, w_occ, w_den, eta, gradstep_rel, gradstep_abs));
+    return rcpp_result_gen;
+END_RCPP
+}
+// loglik_niche_math_weighted_cpp
+double loglik_niche_math_weighted_cpp(NumericVector theta, NumericMatrix env_occ, NumericMatrix M_den, NumericVector w_occ, NumericVector w_den, NumericVector prior_log_sigma_center, double prior_log_sigma_lambda, double eta);
+RcppExport SEXP _nicher_loglik_niche_math_weighted_cpp(SEXP thetaSEXP, SEXP env_occSEXP, SEXP M_denSEXP, SEXP w_occSEXP, SEXP w_denSEXP, SEXP prior_log_sigma_centerSEXP, SEXP prior_log_sigma_lambdaSEXP, SEXP etaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type env_occ(env_occSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type M_den(M_denSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type w_occ(w_occSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type w_den(w_denSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type prior_log_sigma_center(prior_log_sigma_centerSEXP);
+    Rcpp::traits::input_parameter< double >::type prior_log_sigma_lambda(prior_log_sigma_lambdaSEXP);
+    Rcpp::traits::input_parameter< double >::type eta(etaSEXP);
+    rcpp_result_gen = Rcpp::wrap(loglik_niche_math_weighted_cpp(theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta));
     return rcpp_result_gen;
 END_RCPP
 }
 // loglik_niche_math_weighted_grad_cpp
-List loglik_niche_math_weighted_grad_cpp(NumericVector theta, NumericMatrix env_occ, NumericMatrix M_den, NumericVector w_occ, NumericVector w_den, double eta, double gradstep_rel, double gradstep_abs);
-RcppExport SEXP _nicher_loglik_niche_math_weighted_grad_cpp(SEXP thetaSEXP, SEXP env_occSEXP, SEXP M_denSEXP, SEXP w_occSEXP, SEXP w_denSEXP, SEXP etaSEXP, SEXP gradstep_relSEXP, SEXP gradstep_absSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type theta(thetaSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type env_occ(env_occSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type M_den(M_denSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type w_occ(w_occSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type w_den(w_denSEXP);
-    Rcpp::traits::input_parameter< double >::type eta(etaSEXP);
-    Rcpp::traits::input_parameter< double >::type gradstep_rel(gradstep_relSEXP);
-    Rcpp::traits::input_parameter< double >::type gradstep_abs(gradstep_absSEXP);
-    rcpp_result_gen = Rcpp::wrap(loglik_niche_math_weighted_grad_cpp(theta, env_occ, M_den, w_occ, w_den, eta, gradstep_rel, gradstep_abs));
-    return rcpp_result_gen;
-END_RCPP
-}
-// loglik_niche_math_weighted_penalized_cpp
-double loglik_niche_math_weighted_penalized_cpp(NumericVector theta, NumericMatrix env_occ, NumericMatrix M_den, NumericVector w_occ, NumericVector w_den, NumericVector prior_log_sigma_center, double prior_log_sigma_lambda, double eta);
-RcppExport SEXP _nicher_loglik_niche_math_weighted_penalized_cpp(SEXP thetaSEXP, SEXP env_occSEXP, SEXP M_denSEXP, SEXP w_occSEXP, SEXP w_denSEXP, SEXP prior_log_sigma_centerSEXP, SEXP prior_log_sigma_lambdaSEXP, SEXP etaSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type theta(thetaSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type env_occ(env_occSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type M_den(M_denSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type w_occ(w_occSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type w_den(w_denSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type prior_log_sigma_center(prior_log_sigma_centerSEXP);
-    Rcpp::traits::input_parameter< double >::type prior_log_sigma_lambda(prior_log_sigma_lambdaSEXP);
-    Rcpp::traits::input_parameter< double >::type eta(etaSEXP);
-    rcpp_result_gen = Rcpp::wrap(loglik_niche_math_weighted_penalized_cpp(theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta));
-    return rcpp_result_gen;
-END_RCPP
-}
-// loglik_niche_math_weighted_penalized_grad_cpp
-List loglik_niche_math_weighted_penalized_grad_cpp(NumericVector theta, NumericMatrix env_occ, NumericMatrix M_den, NumericVector w_occ, NumericVector w_den, NumericVector prior_log_sigma_center, double prior_log_sigma_lambda, double eta, double gradstep_rel, double gradstep_abs);
-RcppExport SEXP _nicher_loglik_niche_math_weighted_penalized_grad_cpp(SEXP thetaSEXP, SEXP env_occSEXP, SEXP M_denSEXP, SEXP w_occSEXP, SEXP w_denSEXP, SEXP prior_log_sigma_centerSEXP, SEXP prior_log_sigma_lambdaSEXP, SEXP etaSEXP, SEXP gradstep_relSEXP, SEXP gradstep_absSEXP) {
+List loglik_niche_math_weighted_grad_cpp(NumericVector theta, NumericMatrix env_occ, NumericMatrix M_den, NumericVector w_occ, NumericVector w_den, NumericVector prior_log_sigma_center, double prior_log_sigma_lambda, double eta, double gradstep_rel, double gradstep_abs);
+RcppExport SEXP _nicher_loglik_niche_math_weighted_grad_cpp(SEXP thetaSEXP, SEXP env_occSEXP, SEXP M_denSEXP, SEXP w_occSEXP, SEXP w_denSEXP, SEXP prior_log_sigma_centerSEXP, SEXP prior_log_sigma_lambdaSEXP, SEXP etaSEXP, SEXP gradstep_relSEXP, SEXP gradstep_absSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -144,7 +162,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type eta(etaSEXP);
     Rcpp::traits::input_parameter< double >::type gradstep_rel(gradstep_relSEXP);
     Rcpp::traits::input_parameter< double >::type gradstep_abs(gradstep_absSEXP);
-    rcpp_result_gen = Rcpp::wrap(loglik_niche_math_weighted_penalized_grad_cpp(theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta, gradstep_rel, gradstep_abs));
+    rcpp_result_gen = Rcpp::wrap(loglik_niche_math_weighted_grad_cpp(theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta, gradstep_rel, gradstep_abs));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -158,24 +176,6 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< NumericMatrix >::type L(LSEXP);
     Rcpp::traits::input_parameter< NumericMatrix >::type env_occ(env_occSEXP);
     rcpp_result_gen = Rcpp::wrap(loglik_niche_presence_only_cpp(mu, L, env_occ));
-    return rcpp_result_gen;
-END_RCPP
-}
-// loglik_niche_weighted_integrated_cpp
-double loglik_niche_weighted_integrated_cpp(NumericVector mu, NumericMatrix L, NumericMatrix env_occ, NumericMatrix env_m, Nullable<IntegerVector> den_idx, Nullable<IntegerVector> kde_idx, Nullable<NumericVector> precomp_w_den, bool neg);
-RcppExport SEXP _nicher_loglik_niche_weighted_integrated_cpp(SEXP muSEXP, SEXP LSEXP, SEXP env_occSEXP, SEXP env_mSEXP, SEXP den_idxSEXP, SEXP kde_idxSEXP, SEXP precomp_w_denSEXP, SEXP negSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type mu(muSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type L(LSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type env_occ(env_occSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type env_m(env_mSEXP);
-    Rcpp::traits::input_parameter< Nullable<IntegerVector> >::type den_idx(den_idxSEXP);
-    Rcpp::traits::input_parameter< Nullable<IntegerVector> >::type kde_idx(kde_idxSEXP);
-    Rcpp::traits::input_parameter< Nullable<NumericVector> >::type precomp_w_den(precomp_w_denSEXP);
-    Rcpp::traits::input_parameter< bool >::type neg(negSEXP);
-    rcpp_result_gen = Rcpp::wrap(loglik_niche_weighted_integrated_cpp(mu, L, env_occ, env_m, den_idx, kde_idx, precomp_w_den, neg));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -223,13 +223,13 @@ static const R_CallMethodDef CallEntries[] = {
     {"_nicher_kde_gaussian_2d_cpp", (DL_FUNC) &_nicher_kde_gaussian_2d_cpp, 2},
     {"_nicher_kde_gaussian_eigen_cpp", (DL_FUNC) &_nicher_kde_gaussian_eigen_cpp, 2},
     {"_nicher_loglik_niche_chol_cpp", (DL_FUNC) &_nicher_loglik_niche_chol_cpp, 4},
+    {"_nicher_loglik_niche_kde_bias_corrected_cpp", (DL_FUNC) &_nicher_loglik_niche_kde_bias_corrected_cpp, 8},
     {"_nicher_loglik_niche_math_presence_only_cpp", (DL_FUNC) &_nicher_loglik_niche_math_presence_only_cpp, 3},
-    {"_nicher_loglik_niche_math_weighted_cpp", (DL_FUNC) &_nicher_loglik_niche_math_weighted_cpp, 6},
-    {"_nicher_loglik_niche_math_weighted_grad_cpp", (DL_FUNC) &_nicher_loglik_niche_math_weighted_grad_cpp, 8},
-    {"_nicher_loglik_niche_math_weighted_penalized_cpp", (DL_FUNC) &_nicher_loglik_niche_math_weighted_penalized_cpp, 8},
-    {"_nicher_loglik_niche_math_weighted_penalized_grad_cpp", (DL_FUNC) &_nicher_loglik_niche_math_weighted_penalized_grad_cpp, 10},
+    {"_nicher_loglik_niche_math_kde_bias_corrected_cpp", (DL_FUNC) &_nicher_loglik_niche_math_kde_bias_corrected_cpp, 6},
+    {"_nicher_loglik_niche_math_kde_bias_corrected_grad_cpp", (DL_FUNC) &_nicher_loglik_niche_math_kde_bias_corrected_grad_cpp, 8},
+    {"_nicher_loglik_niche_math_weighted_cpp", (DL_FUNC) &_nicher_loglik_niche_math_weighted_cpp, 8},
+    {"_nicher_loglik_niche_math_weighted_grad_cpp", (DL_FUNC) &_nicher_loglik_niche_math_weighted_grad_cpp, 10},
     {"_nicher_loglik_niche_presence_only_cpp", (DL_FUNC) &_nicher_loglik_niche_presence_only_cpp, 3},
-    {"_nicher_loglik_niche_weighted_integrated_cpp", (DL_FUNC) &_nicher_loglik_niche_weighted_integrated_cpp, 8},
     {"_nicher_create_niche_obj_ptr", (DL_FUNC) &_nicher_create_niche_obj_ptr, 12},
     {"_nicher_niche_suitability_cpp", (DL_FUNC) &_nicher_niche_suitability_cpp, 6},
     {NULL, NULL, 0}

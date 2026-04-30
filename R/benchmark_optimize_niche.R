@@ -11,10 +11,10 @@
 #'
 #' @param env_occ Data frame of presence-point environmental values.
 #' @param env_m Data frame of background environmental values
-#'   (required for \code{likelihood = "weighted"}).
+#'   (required for \code{likelihood = "kde_bias_corrected"}).
 #' @param num_starts Integer. Number of Sobol starting points
 #'   (default \code{10L}; small to keep the legacy backend fast).
-#' @param likelihood One of \code{"weighted"} or \code{"presence_only"}.
+#' @param likelihood One of \code{"kde_bias_corrected"} or \code{"presence_only"}.
 #' @param seed Integer seed (passed to both runs for identical sampling).
 #' @param control Named list of control parameters
 #'   (forwarded to \code{optimize_niche()}).
@@ -36,7 +36,7 @@
 #'   env_occ    = example_env_occ_2d,
 #'   env_m      = example_env_m_2d,
 #'   num_starts = 5L,
-#'   likelihood = "weighted",
+#'   likelihood = "kde_bias_corrected",
 #'   seed       = 1L
 #' )
 #' print(bench)
@@ -44,7 +44,7 @@
 benchmark_optimize_niche <- function(env_occ,
                                      env_m      = NULL,
                                      num_starts = 10L,
-                                     likelihood = c("weighted",
+                                     likelihood = c("kde_bias_corrected",
                                                     "presence_only"),
                                      seed       = NULL,
                                      control    = list(),

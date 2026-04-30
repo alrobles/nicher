@@ -1,10 +1,45 @@
-# nicher 2.3.0
+# nicher 3.0.0
+
+## Breaking changes
+
+### Hard rename of the weighted likelihood family
+
+The `likelihood` strings accepted by `optimize_niche()` have been
+**renamed and reordered** so that the **paper-faithful formula
+(Jiménez & Soberón 2022, Eq. 5) is now the default**. This is a
+breaking API change with no soft-deprecation alias: code passing
+`likelihood = "weighted"` to nicher 2.x will silently get a different
+formula in nicher 3.0, and code passing
+`likelihood = "weighted_penalized"` will error.
+
+| nicher 2.x                          | nicher 3.0                          | What it computes                                                          |
+|-------------------------------------|-------------------------------------|---------------------------------------------------------------------------|
+| `likelihood = "weighted"` (default) | `likelihood = "kde_bias_corrected"` | Legacy KDE-bias-corrected formula (production formula in 2.x)             |
+| `likelihood = "weighted_penalized"` | `likelihood = "weighted"` (default) | Paper-faithful weighted normal (Eq. 5) + ridge prior on `log sigma`       |
+
+To preserve the previous behaviour exactly, change
+`likelihood = "weighted"` to `likelihood = "kde_bias_corrected"`.
+To opt into the paper-faithful default, change
+`likelihood = "weighted_penalized"` to `likelihood = "weighted"`.
+
+### Why the rename?
+
+The 2.x `likelihood = "weighted"` did *not* implement Eq. 5 of
+Jiménez & Soberón (2022) -- it computed a sampling-bias-corrected
+presence-only likelihood with a sign-flipped denominator term
+(`exp(-q2/2) / w(y_j)` instead of `w(y_j) * exp(-q2/2)`). Both
+formulas have valid statistical interpretations (the 2.x formula is
+empirically more stable; the paper formula is the published one),
+but it is misleading to call the non-paper formula `"weighted"`.
+The paper formula takes the canonical name in 3.0; the legacy
+formula gets a descriptive name reflecting what it actually
+computes.
 
 ## New features
 
-### Penalized weighted-likelihood (`likelihood = "weighted_penalized"`)
+### Paper-faithful weighted-likelihood (`likelihood = "weighted"`)
 
-* New `likelihood = "weighted_penalized"` option for `optimize_niche()`.
+* `likelihood = "weighted"` is now the default for `optimize_niche()`.
   Implements Eq. 5 of Jiménez & Soberón (2022, *Ecological Modelling*
   **438**: 109982) exactly -- pure ML estimation of a weighted normal
   density on M -- plus a weakly-informative ridge penalty on
@@ -17,17 +52,17 @@
   that affects the un-regularised paper MLE on datasets where the
   background `env_m` is multimodal or has long tails relative to the
   occurrence cloud (e.g. `bio12` in the bundled `example_vicugna`
-  dataset).
-* The existing `likelihood = "weighted"` (KDE-bias-corrected formula)
-  remains the default and is unchanged for backward compatibility. Use
-  `"weighted_penalized"` when you specifically want the paper-faithful
-  formula with regularisation.
+  dataset). Set `prior_log_sigma_lambda = 0` to disable the ridge and
+  recover pure paper Eq. 5 (not recommended on multimodal M).
+* The legacy KDE-bias-corrected formula remains available under
+  `likelihood = "kde_bias_corrected"`. It is empirically stable and is
+  what nicher 2.x users were running by default.
 * Two new arguments on `optimize_niche()`:
     * `prior_log_sigma_lambda` -- ridge strength (default `1.0`,
       weakly informative). `0` disables the penalty (not recommended).
     * `prior_log_sigma_center` -- prior centre on `log sigma`; defaults
       to `log(apply(env_occ, 2, sd))`.
-* For best results with `"weighted_penalized"` on real-world bioclim
+* For best results with `"weighted"` on real-world bioclim
   data, also rescale `env_occ` / `env_m` so all variables have
   comparable spread (e.g. z-score or quantile-rank both before
   fitting). The penalty is in `log sigma` units and a rescaling
@@ -36,8 +71,8 @@
 ### Warm-start for the weighted family
 
 * New `warm_start = TRUE` argument on `optimize_niche()` (default
-  enabled). When `likelihood` is `"weighted"` or
-  `"weighted_penalized"`, a quick presence-only fit is run first
+  enabled). When `likelihood` is `"kde_bias_corrected"` or
+  `"weighted"`, a quick presence-only fit is run first
   (~20 starts) and its `theta` is prepended as one extra starting
   point for the weighted multi-start. The presence-only likelihood is
   unimodal and converges cleanly, so this is cheap insurance against
@@ -157,7 +192,7 @@
   `\Sexpr[results=rd, stage=render]{lifecycle::badge("...")}` recipe.
 * `R/optimize_niche.R`: replaced bare `\cdot` with `*` inside `\code{}`
   (Rd does not honour `\cdot` outside `\eqn{}`).
-* `R/niche_weighted.R`: replaced dangling `\link{create_niche_obj_ptr}`
+* `R/niche_kde_bias_corrected.R`: replaced dangling `\link{create_niche_obj_ptr}`
   with plain `\code{}` — the helper is internal and has no Rd file.
 * `vignettes/nicher-intro.Rmd` now builds correctly during
   `R CMD build`, populating `inst/doc/`.
@@ -185,7 +220,7 @@
   termination, matching the convention used by the 2D R-vs-C++ test.
 * `test-benchmark-optimizers.R`: removed `label = ` argument from
   `expect_s3_class()` (unsupported in installed testthat).
-* `niche_weighted()` and `niche_presence_only()` now emit informative
+* `niche_kde_bias_corrected()` and `niche_presence_only()` now emit informative
   errors for `precomp_w_den` length mismatches and non-finite `start`
   values; the corresponding `test-niche-wrappers.R` cases now exercise
   these paths via named arguments rather than relying on positional
@@ -254,8 +289,8 @@
 
 * New pure-C++ math-scale kernels:
   - `loglik_niche_math_presence_only_cpp()`
-  - `loglik_niche_math_weighted_cpp()` (with precomputed KDE weights)
-  - `loglik_niche_math_weighted_grad_cpp()` (hybrid analytic gradient)
+  - `loglik_niche_math_kde_bias_corrected_cpp()` (with precomputed KDE weights)
+  - `loglik_niche_math_kde_bias_corrected_grad_cpp()` (hybrid analytic gradient)
   These power the C++ backend and bypass `Rcpp::NumericMatrix` allocations
   inside the optimizer's inner loop.
 * New Eigen-native `nicher::cvine_cholesky_eigen()` helper.

@@ -13,7 +13,7 @@ new_nicher(solutions, best, likelihood, n_starts, var_names = NULL, eta = 1)
 \item{best}{A list with the best solution:
 \code{theta}, \code{loglik}, \code{convergence}.}
 
-\item{likelihood}{Character. One of \code{"weighted"} or
+\item{likelihood}{Character. One of \code{"kde_bias_corrected"} or
 \code{"presence_only"}.}
 
 \item{n_starts}{Integer. Total number of starting points used.}

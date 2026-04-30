@@ -1,11 +1,11 @@
-// src/loglik_niche_weighted_integrated_cpp.cpp
+// src/loglik_niche_kde_bias_corrected_cpp.cpp
 #include "nicher_types.h"
 
 using namespace Rcpp;
 using namespace nicher; // for KDE helper functions
 
 // [[Rcpp::export]]
-double loglik_niche_weighted_integrated_cpp(
+double loglik_niche_kde_bias_corrected_cpp(
     NumericVector mu,
     NumericMatrix L,
     NumericMatrix env_occ,

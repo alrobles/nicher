@@ -5,7 +5,7 @@ test_that("optimize_niche backend='cpp' and 'r' agree on the same Sobol starts",
   fit_cpp <- suppressWarnings(optimize_niche(
     env_occ = occ, env_m = M,
     num_starts = 5L, breadth = 0.1,
-    likelihood = "weighted",
+    likelihood = "kde_bias_corrected",
     backend    = "cpp",
     seed       = 1L,
     control    = list(maxeval = 500L)
@@ -14,7 +14,7 @@ test_that("optimize_niche backend='cpp' and 'r' agree on the same Sobol starts",
   fit_r <- suppressWarnings(optimize_niche(
     env_occ = occ, env_m = M,
     num_starts = 5L, breadth = 0.1,
-    likelihood = "weighted",
+    likelihood = "kde_bias_corrected",
     backend    = "r",
     seed       = 1L,
     control    = list(maxeval = 500L)
@@ -36,34 +36,34 @@ test_that("optimize_niche rejects malformed eta upfront (no compute wasted)", {
   # Each of these should fail before any optimization runs.
   expect_error(
     optimize_niche(env_occ = occ, env_m = M, num_starts = 5L,
-                   likelihood = "weighted", eta = -1),
+                   likelihood = "kde_bias_corrected", eta = -1),
     regexp = "eta.*positive finite"
   )
   expect_error(
     optimize_niche(env_occ = occ, env_m = M, num_starts = 5L,
-                   likelihood = "weighted", eta = NA_real_),
+                   likelihood = "kde_bias_corrected", eta = NA_real_),
     regexp = "eta.*positive finite"
   )
   expect_error(
     optimize_niche(env_occ = occ, env_m = M, num_starts = 5L,
-                   likelihood = "weighted", eta = c(1, 2)),
+                   likelihood = "kde_bias_corrected", eta = c(1, 2)),
     regexp = "eta.*positive finite"
   )
   expect_error(
     optimize_niche(env_occ = occ, env_m = M, num_starts = 5L,
-                   likelihood = "weighted", eta = "1"),
+                   likelihood = "kde_bias_corrected", eta = "1"),
     regexp = "eta.*positive finite"
   )
 })
 
-test_that("optimize_niche likelihood='weighted_penalized' converges and respects prior", {
+test_that("optimize_niche likelihood='weighted' converges and respects prior", {
   occ <- example_env_occ_2d
   M   <- example_env_m_2d
 
   fit <- suppressWarnings(optimize_niche(
     env_occ    = occ, env_m = M,
     num_starts = 5L, breadth = 0.1,
-    likelihood = "weighted_penalized",
+    likelihood = "weighted",
     backend    = "cpp",
     seed       = 1L,
     warm_start = TRUE,
@@ -86,22 +86,22 @@ test_that("optimize_niche rejects bad prior arguments upfront", {
   M   <- example_env_m_2d
   expect_error(
     optimize_niche(env_occ = occ, env_m = M, num_starts = 2L,
-                   likelihood = "weighted_penalized",
+                   likelihood = "weighted",
                    prior_log_sigma_lambda = -1),
     regexp = "prior_log_sigma_lambda"
   )
   expect_error(
     optimize_niche(env_occ = occ, env_m = M, num_starts = 2L,
-                   likelihood = "weighted_penalized",
+                   likelihood = "weighted",
                    prior_log_sigma_center = c(1, 2, 3)),
     regexp = "prior_log_sigma_center"
   )
-  # Backend = "r" not supported for weighted_penalized
+  # Backend = "r" not supported for the paper-faithful "weighted" likelihood
   expect_error(
     optimize_niche(env_occ = occ, env_m = M, num_starts = 2L,
-                   likelihood = "weighted_penalized",
+                   likelihood = "weighted",
                    backend = "r"),
-    regexp = "weighted_penalized.*cpp"
+    regexp = "weighted.*cpp"
   )
 })
 
@@ -111,7 +111,7 @@ test_that("backend='r' emits a lifecycle deprecation warning", {
   expect_warning(
     optimize_niche(
       env_occ = occ, env_m = M,
-      num_starts = 2L, likelihood = "weighted",
+      num_starts = 2L, likelihood = "kde_bias_corrected",
       backend = "r", seed = 1L,
       control = list(maxeval = 100L)
     ),

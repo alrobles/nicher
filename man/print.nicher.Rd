@@ -25,7 +25,7 @@ result <- optimize_niche(
   env_occ    = example_env_occ_2d,
   env_m      = example_env_m_2d,
   num_starts = 10L,
-  likelihood = "weighted"
+  likelihood = "kde_bias_corrected"
 )
 print(result)
 }

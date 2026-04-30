@@ -1,4 +1,4 @@
-# R/loglik_niche_math_weighted_integrated.R
+# R/loglik_niche_math_kde_bias_corrected_integrated.R
 #' Negative log-likelihood (weighted-normal) integrated C++ version
 #'
 #' Computes the weighted-normal log-likelihood (Jiménez & Soberón 2022) entirely
@@ -24,7 +24,7 @@
 #' @examples
 #' \dontrun{
 #' theta <- start_theta(example_env_occ_2d)
-#' ll <- loglik_niche_math_weighted_integrated(
+#' ll <- loglik_niche_math_kde_bias_corrected_integrated(
 #'   theta   = theta,
 #'   env_occ = example_env_occ_2d,
 #'   env_m   = example_env_m_2d,
@@ -35,7 +35,7 @@
 #' }
 #'
 #' @export
-loglik_niche_math_weighted_integrated <- function(theta, env_occ, env_m, eta = 1, neg = TRUE,
+loglik_niche_math_kde_bias_corrected_integrated <- function(theta, env_occ, env_m, eta = 1, neg = TRUE,
                                                   den_idx = NULL, kde_idx = NULL,
                                                   precomp_w_den = NULL) {
   p <- ncol(env_occ)
@@ -59,5 +59,5 @@ loglik_niche_math_weighted_integrated <- function(theta, env_occ, env_m, eta = 1
   if (!is.null(precomp_w_den)) precomp_w_den <- as.numeric(precomp_w_den)
 
   # Call C++ with the new argument
-  loglik_niche_weighted_integrated_cpp(mu, L_cov, env_occ, env_m, den_idx, kde_idx, precomp_w_den, neg)
+  loglik_niche_kde_bias_corrected_cpp(mu, L_cov, env_occ, env_m, den_idx, kde_idx, precomp_w_den, neg)
 }

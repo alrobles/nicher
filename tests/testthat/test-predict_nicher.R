@@ -19,7 +19,7 @@ test_that("predict.nicher returns a one-layer SpatRaster in (0, 1]", {
     env_occ    = example_env_occ_2d,
     env_m      = example_env_m_2d,
     num_starts = 4L,
-    likelihood = "weighted",
+    likelihood = "kde_bias_corrected",
     verbose    = FALSE
   )
   expect_identical(fit$var_names, colnames(example_env_occ_2d))
@@ -57,7 +57,7 @@ test_that("predict.nicher errors when env is missing required layer names", {
     env_occ    = example_env_occ_2d,
     env_m      = example_env_m_2d,
     num_starts = 3L,
-    likelihood = "weighted",
+    likelihood = "kde_bias_corrected",
     verbose    = FALSE
   )
   env_bad <- env_from_m(example_env_m_2d, fit$var_names, seed = 12L)
@@ -78,7 +78,7 @@ test_that("predict.nicher uses the eta stored on the fit (regression)", {
     env_occ    = example_env_occ_2d,
     env_m      = example_env_m_2d,
     num_starts = 3L,
-    likelihood = "weighted",
+    likelihood = "kde_bias_corrected",
     eta        = 2.5,
     verbose    = FALSE
   )
@@ -121,7 +121,7 @@ test_that("suitability evaluated at the fitted mu equals 1", {
     env_occ    = example_env_occ_2d,
     env_m      = example_env_m_2d,
     num_starts = 3L,
-    likelihood = "weighted",
+    likelihood = "kde_bias_corrected",
     verbose    = FALSE
   )
   theta  <- fit$best$theta
