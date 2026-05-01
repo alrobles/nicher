@@ -10,7 +10,7 @@ optimize_niche(
   num_starts = 100L,
   breadth = 0.1,
   likelihood = c("weighted", "kde_bias_corrected", "presence_only", "skew_normal",
-    "skew_normal_weighted"),
+    "skew_normal_weighted", "skew_t", "skew_t_weighted"),
   backend = c("cpp", "r"),
   grad = c("auto", "analytic", "central", "forward"),
   m_subsample = NULL,
@@ -29,8 +29,9 @@ optimize_niche(
 
 \item{env_m}{Data frame of background environmental values. Required for
 \code{likelihood} in \code{"kde_bias_corrected"}, \code{"weighted"},
-or \code{"skew_normal_weighted"}; ignored for \code{"presence_only"}
-and \code{"skew_normal"}.}
+\code{"skew_normal_weighted"}, or \code{"skew_t_weighted"};
+ignored for \code{"presence_only"}, \code{"skew_normal"}, and
+\code{"skew_t"}.}
 
 \item{num_starts}{Integer. Number of Sobol starting points.}
 
@@ -40,8 +41,12 @@ define starting bounds for \code{mu} parameters. Default \code{0.1}.}
 \item{likelihood}{One of \code{"weighted"} (default; paper Eq. 5 + ridge),
 \code{"kde_bias_corrected"} (legacy KDE-bias-corrected formula),
 \code{"presence_only"}, \code{"skew_normal"} (presence-only
-multivariate skew-normal), or \code{"skew_normal_weighted"} (paper
-Eq. 5 with skew-normal density + ridge prior on log sigma).}
+multivariate skew-normal), \code{"skew_normal_weighted"} (paper
+Eq. 5 with skew-normal density + ridge prior on log sigma),
+\code{"skew_t"} (presence-only multivariate non-central skew-t
+via 32-node Gauss-Laguerre quadrature), or
+\code{"skew_t_weighted"} (paper Eq. 5 with NCST density + ridge
+prior).}
 
 \item{backend}{One of \code{"cpp"} (default) or \code{"r"} (deprecated;
 see Backends section).}
@@ -147,11 +152,27 @@ formula; the previous KDE-bias-corrected formula is now
         existing \eqn{(\mu, \Sigma)} parameters. \eqn{\alpha = 0}
         recovers the symmetric Gaussian niche exactly.
         Sobol-start machinery samples \eqn{\alpha_k} in
-        \eqn{[-3, 3]} (Azzalini & Capitanio 1999, \S 5).
+        \eqn{[-3, 3]} (Azzalini & Capitanio 1999, Sec. 5).
   \item \code{"skew_normal_weighted"}: paper Eq. 5 with the SN
         density in place of the Gaussian, plus the same ridge
         prior on \eqn{\log \sigma} used by \code{"weighted"}.
         Defaults inherit from \code{"weighted"}.
+  \item \code{"skew_t"}: presence-only fit of the multivariate
+        non-central skew-t (NCST) density (Branco & Dey 2001, J.
+        Multivariate Analysis 79(1):99-113):
+        \deqn{T = \mu + X \sqrt{r/Y}, \quad X \sim SN_p(0, \Sigma, \alpha),
+                                               Y \sim \chi^2_r.}
+        Adds a single degrees-of-freedom parameter \code{log_r}
+        on top of the skew-normal layout. Smaller \eqn{r} = heavier
+        tails; \eqn{r \to \infty} recovers \code{"skew_normal"}.
+        The marginal density has no closed form, so it is computed
+        by 32-node Gauss-Laguerre quadrature on the \eqn{\chi^2_r}
+        mixing variable. Sobol-start machinery samples \code{log_r}
+        in \eqn{[\log 2, \log 100]}.
+  \item \code{"skew_t_weighted"}: paper Eq. 5 with the NCST
+        density in place of the Gaussian, plus the same ridge prior
+        on \eqn{\log \sigma} used by \code{"weighted"}. Defaults
+        inherit from \code{"weighted"}.
 }
 }
 \section{Migration from nicher 2.x}{

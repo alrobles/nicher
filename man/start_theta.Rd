@@ -4,7 +4,7 @@
 \alias{start_theta}
 \title{Starting values for niche model on math scale}
 \usage{
-start_theta(env_occ, skew = FALSE)
+start_theta(env_occ, skew = FALSE, skew_t = FALSE)
 }
 \arguments{
 \item{env_occ}{Data frame with environmental values at presence points.}
@@ -15,6 +15,11 @@ start (\code{skew = FALSE}, the default) is used for
 \code{"presence_only"}, \code{"weighted"}, and
 \code{"kde_bias_corrected"}; the skew start is used for
 \code{"skew_normal"} and \code{"skew_normal_weighted"}.}
+
+\item{skew_t}{Logical. If \code{TRUE}, append \code{log(10)} for the
+skew-t degrees-of-freedom parameter \code{log_r} after the alpha
+block (used for \code{"skew_t"} and \code{"skew_t_weighted"}).
+Implies \code{skew = TRUE}.}
 }
 \value{
 Numeric vector of starting values for `theta`.
@@ -25,4 +30,5 @@ Starting values for niche model on math scale
 \examples{
 start_theta(example_env_occ_2d)
 start_theta(example_env_occ_2d, skew = TRUE)
+start_theta(example_env_occ_2d, skew_t = TRUE)
 }

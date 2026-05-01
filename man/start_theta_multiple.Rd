@@ -9,7 +9,8 @@ start_theta_multiple(
   num_starts = 100,
   quant_vec = c(0.1, 0.5, 0.9),
   method = "sobol",
-  skew = FALSE
+  skew = FALSE,
+  skew_t = FALSE
 )
 }
 \arguments{
@@ -26,6 +27,11 @@ start_theta_multiple(
 default range \code{[-3, 3]}. Use this for the
 \code{"skew_normal"} / \code{"skew_normal_weighted"} likelihoods.
 Default \code{FALSE}.}
+
+\item{skew_t}{Logical. If \code{TRUE}, additionally append a single
+\code{log_r} parameter (default range \code{[log 2, log 100]})
+after the alpha block. Use for \code{"skew_t"} /
+\code{"skew_t_weighted"}. Implies \code{skew = TRUE}.}
 }
 \value{
 A data frame of dimension num_starts × num_parameters.

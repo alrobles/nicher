@@ -4,7 +4,12 @@
 \alias{get_range_df_niche}
 \title{Generate reasonable ranges for starting parameters (math scale)}
 \usage{
-get_range_df_niche(env_data, quant_vec = c(0.1, 0.5, 0.9), skew = FALSE)
+get_range_df_niche(
+  env_data,
+  quant_vec = c(0.1, 0.5, 0.9),
+  skew = FALSE,
+  skew_t = FALSE
+)
 }
 \arguments{
 \item{env_data}{Numeric matrix or data frame of environmental values.}
@@ -15,6 +20,13 @@ get_range_df_niche(env_data, quant_vec = c(0.1, 0.5, 0.9), skew = FALSE)
 (\code{alpha_1, ..., alpha_p}) to the parameter vector with the
 default Sobol range \code{[-3, 0, 3]}. Default \code{FALSE}
 preserves the Gaussian-only behaviour of nicher 2.x.}
+
+\item{skew_t}{Logical. If \code{TRUE}, append a single \code{log_r}
+parameter (degrees-of-freedom for the multivariate non-central
+skew-t) AFTER the alpha block. The Sobol range is
+\code{[log 2, log 10, log 100]}; the optimizer is then free to
+move \code{log_r} anywhere on the real line. Implies
+\code{skew = TRUE}.}
 }
 \value{
 A data frame with rows = parameter names and columns

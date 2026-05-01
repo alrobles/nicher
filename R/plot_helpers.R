@@ -3,6 +3,36 @@
 # geom_nicher_*. None are exported.
 
 # ---------------------------------------------------------------------------
+# 20-node standard Gauss-Laguerre quadrature (nodes / weights from
+# numpy.polynomial.laguerre.laggauss(20)). Used by
+# geom_nicher_isosuitability() to evaluate the NCST suitability integral
+# on a 2-D plotting grid. The optimization-side C++ kernel uses 32 nodes
+# for tighter accuracy on higher-dim fits; 20 nodes is more than enough
+# for the (smooth) plotting integrand.
+# ---------------------------------------------------------------------------
+.gl_quad_20 <- function() {
+  nodes <- c(
+    7.0539889691988739e-02, 3.7212681800161157e-01, 9.1658210248327376e-01,
+    1.7073065310283435e+00, 2.7491992553094322e+00, 4.0489253138508881e+00,
+    5.6151749708616174e+00, 7.4590174536710627e+00, 9.5943928695810978e+00,
+    1.2038802546964316e+01, 1.4814293442630740e+01, 1.7948895520519375e+01,
+    2.1478788240285009e+01, 2.5451702793186904e+01, 2.9932554631700611e+01,
+    3.5013434240479000e+01, 4.0833057056728570e+01, 4.7619994047346502e+01,
+    5.5810795750063896e+01, 6.6524416525615749e+01
+  )
+  weights <- c(
+    1.6874680185113369e-01, 2.9125436200606059e-01, 2.6668610286699662e-01,
+    1.6600245326950186e-01, 7.4826064668790743e-02, 2.4964417309282588e-02,
+    6.2025508445721095e-03, 1.1449623864768774e-03, 1.5574177302780828e-04,
+    1.5401440865224536e-05, 1.0864863665179549e-06, 5.3301209095566101e-08,
+    1.7579811790505475e-09, 3.7255024025121629e-11, 4.7675292515780503e-13,
+    3.3728442433624615e-15, 1.1550143395003684e-17, 1.5395221405823035e-20,
+    5.2864427255689281e-24, 1.6564566124990854e-28
+  )
+  list(nodes = nodes, weights = weights)
+}
+
+# ---------------------------------------------------------------------------
 # Recover (mu, Sigma) from a fitted nicher object.
 #
 # Mirrors the canonical recipe used by predict.nicher() at
@@ -20,17 +50,25 @@
   }
   k <- length(theta)
   lik <- if (!is.null(object$likelihood)) object$likelihood else ""
-  is_skew <- lik %in% c("skew_normal", "skew_normal_weighted")
+  is_skew   <- lik %in% c("skew_normal", "skew_normal_weighted",
+                          "skew_t", "skew_t_weighted")
+  is_skew_t <- lik %in% c("skew_t", "skew_t_weighted")
 
-  # Gaussian layout : k = 2p + p(p-1)/2  =>  p = (-3 + sqrt(9 + 8k)) / 2
-  # Skew layout     : k = 3p + p(p-1)/2  =>  p = (-5 + sqrt(25 + 8k)) / 2
-  if (is_skew) {
+  # Gaussian layout : k = 2p + p(p-1)/2          =>  p = (-3 + sqrt(9 + 8k))/2
+  # Skew-normal     : k = 3p + p(p-1)/2          =>  p = (-5 + sqrt(25 + 8k))/2
+  # Skew-t          : k = 3p + p(p-1)/2 + 1      =>  same as skew-normal but
+  #                                                  on (k-1) instead of k
+  if (is_skew_t) {
+    p_dbl <- (-5 + sqrt(25 + 8 * (k - 1L))) / 2
+  } else if (is_skew) {
     p_dbl <- (-5 + sqrt(25 + 8 * k)) / 2
   } else {
     p_dbl <- (-3 + sqrt(9 + 8 * k)) / 2
   }
   p <- as.integer(round(p_dbl))
-  expected_k <- if (is_skew)
+  expected_k <- if (is_skew_t)
+                  3L * p + p * (p - 1L) / 2L + 1L
+                else if (is_skew)
                   3L * p + p * (p - 1L) / 2L
                 else
                   2L * p + p * (p - 1L) / 2L
@@ -45,6 +83,8 @@
   v     <- if (n_v > 0L) theta[(2L * p + 1L):(2L * p + n_v)] else numeric(0)
   alpha <- if (is_skew) theta[(2L * p + n_v + 1L):(3L * p + n_v)]
            else         rep(0.0, p)
+  log_r <- if (is_skew_t) theta[3L * p + n_v + 1L]
+           else           NA_real_
 
   # Same eta-fallback as predict.nicher() for legacy fits without `eta`.
   eta_fit <- if (is.null(object$eta)) 1.0 else object$eta
@@ -56,7 +96,9 @@
     mu        = mu,
     Sigma     = Sigma,
     alpha     = alpha,
+    log_r     = log_r,
     is_skew   = is_skew,
+    is_skew_t = is_skew_t,
     p         = p,
     var_names = object$var_names,
     eta       = eta_fit

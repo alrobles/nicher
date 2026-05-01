@@ -84,6 +84,44 @@ computes.
   a `warning()`; the weighted multi-start continues with the Sobol
   starts only.
 
+### Skew-t niche likelihoods (`skew_t`, `skew_t_weighted`)
+
+* Two new heavy-tailed likelihood families on `optimize_niche()` that
+  fit a multivariate non-central skew-t niche (Branco & Dey 2001,
+  *J. Multivariate Anal.* **79**(1), 99--113):
+  ```
+  T = mu + X * sqrt(r / Y),   X ~ SN_p(0, Sigma, alpha),  Y ~ chi^2_r
+  ```
+  Adds a single positive degrees-of-freedom parameter `r > 0` to the
+  skew-normal parameter set (parameterised on `log r` for unconstrained
+  optimisation). As `r -> Inf` the family reduces to the skew-normal
+  exactly. The skew-t niche is useful when the environmental
+  conditions at occurrences have heavier tails than the Gaussian or
+  skew-normal allow -- a common situation when occurrences span large
+  geographic gradients.
+* The NCST density has no closed form; the per-point integral over the
+  chi-squared mixing variable is approximated by 32-node standard
+  Gauss--Laguerre quadrature (`Q = 32`, accuracy ~1e-8 over `r` in
+  `[2, 100]`). Cost per likelihood evaluation is ~`Q` Phi evaluations
+  per occurrence/background point relative to the Gaussian kernel.
+* `likelihood = "skew_t"`: presence-only fit (no `env_m` required).
+* `likelihood = "skew_t_weighted"`: paper Eq. 5 with the NCST density
+  in place of the Gaussian, plus the same ridge prior on `log sigma`
+  used by `"weighted"` and `"skew_normal_weighted"`. Defaults inherit
+  from `"skew_normal_weighted"`; pass `prior_log_sigma_lambda = 0` for
+  pure paper-faithful skew-t MLE.
+* New theta layout: `[mu (p), log_sigma (p), v (p(p-1)/2), alpha (p),
+  log_r (1)]` -- one extra parameter relative to the skew-normal
+  layout. The Sobol bound for `log r` defaults to
+  `[log 2, log 100]` (so `r` in `[2, 100]`), with the Sobol centre at
+  `log 10`.
+* Both families currently use finite-difference gradients (the C++
+  kernel evaluates the GL quadrature on every call; analytic gradients
+  through the integral are deferred).
+* `geom_nicher_isosuitability()` is fully aware of the skew-t theta
+  layout and contours the NCST density on a 2-D grid using a 20-node
+  Gauss--Laguerre approximation.
+
 ### Skew-normal niche likelihoods (`skew_normal`, `skew_normal_weighted`)
 
 * Two new likelihood families on `optimize_niche()` that fit a

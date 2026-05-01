@@ -197,6 +197,37 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// loglik_niche_math_skew_t_cpp
+double loglik_niche_math_skew_t_cpp(NumericVector theta, NumericMatrix env_occ, double eta);
+RcppExport SEXP _nicher_loglik_niche_math_skew_t_cpp(SEXP thetaSEXP, SEXP env_occSEXP, SEXP etaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type env_occ(env_occSEXP);
+    Rcpp::traits::input_parameter< double >::type eta(etaSEXP);
+    rcpp_result_gen = Rcpp::wrap(loglik_niche_math_skew_t_cpp(theta, env_occ, eta));
+    return rcpp_result_gen;
+END_RCPP
+}
+// loglik_niche_math_skew_t_weighted_cpp
+double loglik_niche_math_skew_t_weighted_cpp(NumericVector theta, NumericMatrix env_occ, NumericMatrix M_den, NumericVector w_occ, NumericVector w_den, NumericVector prior_log_sigma_center, double prior_log_sigma_lambda, double eta);
+RcppExport SEXP _nicher_loglik_niche_math_skew_t_weighted_cpp(SEXP thetaSEXP, SEXP env_occSEXP, SEXP M_denSEXP, SEXP w_occSEXP, SEXP w_denSEXP, SEXP prior_log_sigma_centerSEXP, SEXP prior_log_sigma_lambdaSEXP, SEXP etaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type env_occ(env_occSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type M_den(M_denSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type w_occ(w_occSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type w_den(w_denSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type prior_log_sigma_center(prior_log_sigma_centerSEXP);
+    Rcpp::traits::input_parameter< double >::type prior_log_sigma_lambda(prior_log_sigma_lambdaSEXP);
+    Rcpp::traits::input_parameter< double >::type eta(etaSEXP);
+    rcpp_result_gen = Rcpp::wrap(loglik_niche_math_skew_t_weighted_cpp(theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta));
+    return rcpp_result_gen;
+END_RCPP
+}
 // loglik_niche_presence_only_cpp
 double loglik_niche_presence_only_cpp(NumericVector mu, NumericMatrix L, NumericMatrix env_occ);
 RcppExport SEXP _nicher_loglik_niche_presence_only_cpp(SEXP muSEXP, SEXP LSEXP, SEXP env_occSEXP) {
@@ -262,6 +293,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_nicher_loglik_niche_math_weighted_grad_cpp", (DL_FUNC) &_nicher_loglik_niche_math_weighted_grad_cpp, 10},
     {"_nicher_loglik_niche_math_skew_normal_cpp", (DL_FUNC) &_nicher_loglik_niche_math_skew_normal_cpp, 3},
     {"_nicher_loglik_niche_math_skew_normal_weighted_cpp", (DL_FUNC) &_nicher_loglik_niche_math_skew_normal_weighted_cpp, 8},
+    {"_nicher_loglik_niche_math_skew_t_cpp", (DL_FUNC) &_nicher_loglik_niche_math_skew_t_cpp, 3},
+    {"_nicher_loglik_niche_math_skew_t_weighted_cpp", (DL_FUNC) &_nicher_loglik_niche_math_skew_t_weighted_cpp, 8},
     {"_nicher_loglik_niche_presence_only_cpp", (DL_FUNC) &_nicher_loglik_niche_presence_only_cpp, 3},
     {"_nicher_create_niche_obj_ptr", (DL_FUNC) &_nicher_create_niche_obj_ptr, 12},
     {"_nicher_niche_suitability_cpp", (DL_FUNC) &_nicher_niche_suitability_cpp, 6},
