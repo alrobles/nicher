@@ -10,12 +10,19 @@
 #'   (\code{alpha_1, ..., alpha_p}) to the parameter vector with the
 #'   default Sobol range \code{[-3, 0, 3]}. Default \code{FALSE}
 #'   preserves the Gaussian-only behaviour of nicher 2.x.
+#' @param skew_t Logical. If \code{TRUE}, append a single \code{log_r}
+#'   parameter (degrees-of-freedom for the multivariate non-central
+#'   skew-t) AFTER the alpha block. The Sobol range is
+#'   \code{[log 2, log 10, log 100]}; the optimizer is then free to
+#'   move \code{log_r} anywhere on the real line. Implies
+#'   \code{skew = TRUE}.
 #'
 #' @return A data frame with rows = parameter names and columns
 #'         lower, center, upper.
 #' @keywords internal
 get_range_df_niche <- function(env_data, quant_vec = c(0.1, 0.5, 0.9),
-                               skew = FALSE) {
+                               skew = FALSE, skew_t = FALSE) {
+  if (isTRUE(skew_t)) skew <- TRUE
   # --------------------------------------------------------------------
   # (1) COERCE env_data TO STRICTLY NUMERIC MATRIX (CRITICAL PATCH)
   # --------------------------------------------------------------------
@@ -34,14 +41,16 @@ get_range_df_niche <- function(env_data, quant_vec = c(0.1, 0.5, 0.9),
   # --------------------------------------------------------------------
   p <- ncol(env_data)
   n_alpha <- if (isTRUE(skew)) p else 0L
-  n_par <- 2 * p + p * (p - 1) / 2 + n_alpha
+  n_log_r <- if (isTRUE(skew_t)) 1L else 0L
+  n_par <- 2 * p + p * (p - 1) / 2 + n_alpha + n_log_r
 
   mu_names <- paste0("mu", seq_len(p))
   log_sigma_names <- paste0("log_sigma", seq_len(p))
   s_par_names <- if (p > 1) paste0("s_par", seq_len(p * (p - 1) / 2)) else character(0)
   alpha_names <- if (n_alpha > 0L) paste0("alpha", seq_len(p)) else character(0)
+  log_r_names <- if (n_log_r > 0L) "log_r" else character(0)
 
-  all_names <- c(mu_names, log_sigma_names, s_par_names, alpha_names)
+  all_names <- c(mu_names, log_sigma_names, s_par_names, alpha_names, log_r_names)
 
   ranges <- data.frame(
     lower = numeric(n_par),
@@ -88,6 +97,16 @@ get_range_df_niche <- function(env_data, quant_vec = c(0.1, 0.5, 0.9),
     for (nm in alpha_names) {
       ranges[nm, ] <- c(-3, 0, 3)
     }
+  }
+
+  # --------------------------------------------------------------------
+  # (5c) log_r (skew-t degrees of freedom) range: [log 2, log 10, log 100]
+  # Branco & Dey (2001), Section 4. r in [2, 100] covers very heavy tails
+  # (r=2: variance is undefined) through near-Gaussian (r=100: tails
+  # essentially indistinguishable from skew-normal at typical sample sizes).
+  # --------------------------------------------------------------------
+  if (length(log_r_names) > 0) {
+    ranges[log_r_names, ] <- c(log(2), log(10), log(100))
   }
 
   # --------------------------------------------------------------------

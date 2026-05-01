@@ -295,7 +295,36 @@ geom_nicher_isosuitability <- function(model,
   Sinv <- solve(ms$Sigma)
   q    <- rowSums((diff %*% Sinv) * diff)
 
-  if (ms$is_skew) {
+  if (ms$is_skew_t) {
+    # Skew-t suitability (NCST_p):
+    #   S(t) propto (2/A)^{(p+r)/2} * I(t),  A = 1 + q/r
+    #   I(t)  = integral_0^inf u^{(p+r)/2 - 1} e^{-u}
+    #             * Phi(z(t) sqrt(2 u / (A r))) du
+    # Normalised so S(mu) = 1: at t = mu, q = 0, A = 1, z = 0, so
+    #   I(mu) = 0.5 * Gamma((p+r)/2),  numerator constants cancel.
+    # Approximated by 20-node Gauss-Laguerre (ample for 2D grid plots;
+    # the expensive C++ kernel uses 32 nodes for 6-D fits).
+    r   <- exp(ms$log_r)
+    pdim <- 2L
+    a   <- (pdim + r) / 2.0
+    z   <- as.numeric(diff %*% (ms$alpha / sigma_eff))
+    A   <- 1.0 + q / r
+    # Hard-coded 20-node standard Gauss-Laguerre nodes/weights (laggauss(20)).
+    gl <- .gl_quad_20()
+    # For each grid row evaluate the integral via vectorised matrix product.
+    # Each column corresponds to a quadrature node.
+    log_u <- log(gl$nodes)
+    # u^{a-1} -> exp((a-1) log u). Build matrix [n_grid x Q] of arguments.
+    pnorm_arg <- outer(z / sqrt(A), sqrt(2 * gl$nodes / r))
+    # Integrand: u^{a-1} * Phi(z sqrt(2u/(A r))). The exp(-u) is folded
+    # into the Gauss-Laguerre weights already.
+    integrand <- exp((a - 1.0) * log_u)[col(pnorm_arg)] *
+                   stats::pnorm(pnorm_arg)
+    integral  <- as.numeric(integrand %*% gl$weights)
+    # I(mu) = 0.5 * Gamma(a) -> normalising constant.
+    I_mu <- 0.5 * gamma(a)
+    S    <- (2 / A)^a * integral / ((2)^a * I_mu)
+  } else if (ms$is_skew) {
     # Skew-normal suitability: phi_2(.; mu, Sigma) * Phi(alpha . omega^-1 d)
     # divided by its value at mu (where the Gaussian factor = 1 and
     # Phi(0) = 0.5), so S(mu) = 1 by construction.
@@ -304,6 +333,10 @@ geom_nicher_isosuitability <- function(model,
   } else {
     S <- exp(-0.5 * q)
   }
+  # Numerical safety: clip [0, 1] (small overshoot can occur when SN
+  # mode > mu, but contours of interest live within (0, 1)).
+  S[!is.finite(S)] <- 0
+  S <- pmin(pmax(S, 0), 1)
 
   d <- data.frame(grid_x, S = S)
   vn <- ms$var_names

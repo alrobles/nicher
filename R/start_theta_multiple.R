@@ -13,6 +13,10 @@
 #'   default range \code{[-3, 3]}. Use this for the
 #'   \code{"skew_normal"} / \code{"skew_normal_weighted"} likelihoods.
 #'   Default \code{FALSE}.
+#' @param skew_t Logical. If \code{TRUE}, additionally append a single
+#'   \code{log_r} parameter (default range \code{[log 2, log 100]})
+#'   after the alpha block. Use for \code{"skew_t"} /
+#'   \code{"skew_t_weighted"}. Implies \code{skew = TRUE}.
 #'
 #' @return A data frame of dimension num_starts × num_parameters.
 #' @examples
@@ -26,7 +30,8 @@
 start_theta_multiple <- function(env_data, num_starts = 100,
                                  quant_vec = c(0.1, 0.5, 0.9),
                                  method = "sobol",
-                                 skew = FALSE) {
+                                 skew = FALSE, skew_t = FALSE) {
+  if (isTRUE(skew_t)) skew <- TRUE
   # ------------------------------------------------------------------
   # 1. COERCE TO NUMERIC MATRIX (THIS IS THE KEY FIX)
   # ------------------------------------------------------------------
@@ -43,7 +48,8 @@ start_theta_multiple <- function(env_data, num_starts = 100,
   # ------------------------------------------------------------------
   # 2. Compute ranges (now always numeric)
   # ------------------------------------------------------------------
-  ranges <- get_range_df_niche(env_data, quant_vec, skew = skew)
+  ranges <- get_range_df_niche(env_data, quant_vec,
+                               skew = skew, skew_t = skew_t)
 
   lower <- as.numeric(ranges$lower)
   upper <- as.numeric(ranges$upper)
