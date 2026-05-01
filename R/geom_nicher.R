@@ -167,3 +167,163 @@ geom_nicher_ellipse <- function(model,
     params      = c(list(colour = colour, ...), lw)
   )
 }
+
+#' Iso-suitability contour layer derived from a fitted \code{nicher} model
+#'
+#' Builds a self-contained \code{ggplot2} layer that draws iso-suitability
+#' contours, i.e. level sets \eqn{S(x) = c} of the fitted niche
+#' suitability function over a 2-D environmental grid. Unlike
+#' \code{\link{geom_nicher_ellipse}}, which traces analytical ellipses
+#' and is therefore tied to the Gaussian (multivariate normal) niche
+#' geometry, this layer evaluates the model's \emph{actual} suitability
+#' function on a grid and contours the result. It works correctly for
+#' \strong{any} likelihood family supported by \code{optimize_niche()},
+#' including the skew-normal families (\code{"skew_normal"} and
+#' \code{"skew_normal_weighted"}) where the iso-suitability sets are
+#' \emph{not} ellipses.
+#'
+#' @section Why "iso-suitability" and not just "ellipse":
+#'   For a Gaussian niche, the suitability function
+#'   \eqn{S(x) \propto \exp(-\tfrac{1}{2} (x-\mu)^\top \Sigma^{-1}
+#'   (x-\mu))} has elliptical level sets; the family of contours
+#'   \eqn{S(x) = c} traces nested concentric ellipses around \eqn{\mu}.
+#'   For a skew-normal niche
+#'   \eqn{S(x) \propto \phi_2(x; \mu, \Sigma) \, \Phi(\alpha^\top
+#'   \omega^{-1} (x - \mu))} the \eqn{\Phi(\cdot)} factor breaks the
+#'   ellipse symmetry: contours bunch on the side that \eqn{\alpha}
+#'   pulls suitability toward, and stretch on the opposite side. The
+#'   contour at level \eqn{c} is still a closed curve enclosing
+#'   high-suitability environments, but it is no longer an ellipse and
+#'   has no closed-form parameterisation. The only honest visualisation
+#'   is to evaluate \eqn{S(x)} on a dense 2-D grid and contour the
+#'   result -- which is exactly what this layer does.
+#'
+#' @section Suitability normalisation:
+#'   Suitability is always normalised so that \eqn{S(\mu^*) = 1} at the
+#'   modal centre: for the Gaussian families that is the centre
+#'   \eqn{\mu}; for the skew-normal it is the location parameter
+#'   \eqn{\mu} from the SN \eqn{(\mu, \Sigma, \alpha)} parameterisation
+#'   (Azzalini & Capitanio 1999), which is generally \emph{not} the
+#'   global suitability maximum but is a well-defined reference point.
+#'   The contour level \code{level = 0.5} therefore always means
+#'   "regions where the niche is at least 50\% as suitable as the
+#'   reference centre".
+#'
+#' @param model A \code{nicher} object with \code{length(model$var_names)
+#'   == 2} (or, for legacy fits without \code{var_names}, a 2-D fit).
+#' @param level Numeric vector of contour levels in \eqn{(0, 1]}.
+#'   Default \code{c(0.95, 0.5, 0.05)}.
+#' @param n Integer grid resolution per axis. Default 121 (i.e. a
+#'   121 x 121 grid). Higher gives smoother contours at proportionally
+#'   higher cost.
+#' @param expand Numeric scalar in \eqn{(0, 1)}. The grid spans
+#'   \eqn{\mu \pm (1 + \mathtt{expand}) \cdot k \cdot \sigma_{\text{eff}}}
+#'   along each axis, where \eqn{k = 4} matches the typical 4-sigma
+#'   support of a Gaussian niche and \eqn{\sigma_{\text{eff}}} is the
+#'   marginal standard deviation. Default \code{0.1} (10\% padding).
+#' @param linewidth Path linewidth (or \code{size} on ggplot2 < 3.4.0).
+#' @param colour Path colour.
+#' @param ... Additional fixed parameters passed to
+#'   \code{\link[ggplot2]{geom_contour}}.
+#'
+#' @return A \code{ggplot2} layer.
+#'
+#' @references
+#' Azzalini, A. & Capitanio, A. (1999). Statistical applications of the
+#' multivariate skew normal distribution.
+#' \emph{Journal of the Royal Statistical Society, Series B},
+#' \bold{61}(3), 579--602.
+#'
+#' @examples
+#' \dontrun{
+#'   library(ggplot2)
+#'   fit <- optimize_niche(
+#'     env_occ    = example_env_occ_2d,
+#'     env_m      = example_env_m_2d,
+#'     num_starts = 10L,
+#'     likelihood = "skew_normal_weighted"
+#'   )
+#'   ggplot() +
+#'     geom_nicher_background(example_env_m_2d) +
+#'     geom_nicher_occ(example_env_occ_2d) +
+#'     geom_nicher_isosuitability(fit)
+#' }
+#' @export
+geom_nicher_isosuitability <- function(model,
+                                        level = c(0.95, 0.5, 0.05),
+                                        n = 121L,
+                                        expand = 0.1,
+                                        linewidth = 0.6,
+                                        colour = "firebrick",
+                                        ...) {
+  .require_ggplot2("geom_nicher_isosuitability")
+  .assert_nicher_2d(model, "model")
+  if (!is.numeric(level) || any(!is.finite(level)) ||
+      any(level <= 0) || any(level > 1)) {
+    stop("`level` must be a numeric vector in (0, 1].", call. = FALSE)
+  }
+  n <- as.integer(n)
+  if (length(n) != 1L || !is.finite(n) || n < 4L) {
+    stop("`n` must be a single integer >= 4.", call. = FALSE)
+  }
+  if (!is.numeric(expand) || length(expand) != 1L ||
+      !is.finite(expand) || expand < 0 || expand >= 1) {
+    stop("`expand` must be a single number in [0, 1).", call. = FALSE)
+  }
+
+  ms <- .recover_mu_sigma(model)
+
+  # Build a (mu, sigma_eff)-centred grid covering ~ 4 marginal sigmas plus
+  # padding. For SN niches the suitability mode is generally offset from
+  # mu, but the SN distribution's 99.x% mass still lives within ~4 sigma
+  # of mu, so this grid captures the level sets we care about. expand>0
+  # adds breathing room so contours don't clip the plotting bbox.
+  sigma_eff <- sqrt(diag(ms$Sigma))
+  k_sigma   <- 4.0 * (1.0 + expand)
+  x1 <- seq(ms$mu[1L] - k_sigma * sigma_eff[1L],
+            ms$mu[1L] + k_sigma * sigma_eff[1L], length.out = n)
+  x2 <- seq(ms$mu[2L] - k_sigma * sigma_eff[2L],
+            ms$mu[2L] + k_sigma * sigma_eff[2L], length.out = n)
+  grid_x <- expand.grid(x1 = x1, x2 = x2, KEEP.OUT.ATTRS = FALSE)
+
+  # Evaluate suitability on the grid. We do this in pure R because the
+  # grid is small (~10^4 points) and avoiding the C++ blockwise kernel
+  # keeps this layer self-contained (it must work in all configurations
+  # the model was fitted under).
+  diff <- as.matrix(grid_x) - matrix(ms$mu, nrow = nrow(grid_x),
+                                     ncol = 2L, byrow = TRUE)
+  Sinv <- solve(ms$Sigma)
+  q    <- rowSums((diff %*% Sinv) * diff)
+
+  if (ms$is_skew) {
+    # Skew-normal suitability: phi_2(.; mu, Sigma) * Phi(alpha . omega^-1 d)
+    # divided by its value at mu (where the Gaussian factor = 1 and
+    # Phi(0) = 0.5), so S(mu) = 1 by construction.
+    z   <- as.numeric(diff %*% (ms$alpha / sigma_eff))
+    S   <- exp(-0.5 * q) * stats::pnorm(z) / 0.5
+  } else {
+    S <- exp(-0.5 * q)
+  }
+
+  d <- data.frame(grid_x, S = S)
+  vn <- ms$var_names
+  if (!is.null(vn) && length(vn) == 2L) {
+    names(d)[1:2] <- vn
+  }
+  nm <- names(d)[1:2]
+
+  lw <- .linewidth_param(linewidth)
+  ggplot2::layer(
+    data        = d,
+    mapping     = ggplot2::aes(
+                    x = .data[[nm[1]]], y = .data[[nm[2]]],
+                    z = .data[["S"]]),
+    geom        = "contour",
+    stat        = "contour",
+    position    = "identity",
+    inherit.aes = FALSE,
+    show.legend = FALSE,
+    params      = c(list(breaks = sort(unique(level), decreasing = TRUE),
+                         colour = colour, ...), lw)
+  )
+}

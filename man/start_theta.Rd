@@ -4,10 +4,17 @@
 \alias{start_theta}
 \title{Starting values for niche model on math scale}
 \usage{
-start_theta(env_occ)
+start_theta(env_occ, skew = FALSE)
 }
 \arguments{
 \item{env_occ}{Data frame with environmental values at presence points.}
+
+\item{skew}{Logical. If \code{TRUE}, append \code{p} zeros for the
+skew parameters (\code{alpha_1, ..., alpha_p}). The Gaussian-only
+start (\code{skew = FALSE}, the default) is used for
+\code{"presence_only"}, \code{"weighted"}, and
+\code{"kde_bias_corrected"}; the skew start is used for
+\code{"skew_normal"} and \code{"skew_normal_weighted"}.}
 }
 \value{
 Numeric vector of starting values for `theta`.
@@ -17,4 +24,5 @@ Starting values for niche model on math scale
 }
 \examples{
 start_theta(example_env_occ_2d)
+start_theta(example_env_occ_2d, skew = TRUE)
 }

@@ -71,16 +71,69 @@ computes.
 ### Warm-start for the weighted family
 
 * New `warm_start = TRUE` argument on `optimize_niche()` (default
-  enabled). When `likelihood` is `"kde_bias_corrected"` or
-  `"weighted"`, a quick presence-only fit is run first
+  enabled). When `likelihood` is `"kde_bias_corrected"`, `"weighted"`,
+  or `"skew_normal_weighted"`, a quick presence-only fit is run first
   (~20 starts) and its `theta` is prepended as one extra starting
   point for the weighted multi-start. The presence-only likelihood is
   unimodal and converges cleanly, so this is cheap insurance against
   bad multistart luck on rough or multimodal weighted likelihoods --
-  it does **not** replace the Sobol starts.
+  it does **not** replace the Sobol starts. For `skew_normal_weighted`
+  the warm-start `theta` is padded with `alpha = 0`, which is the
+  Gaussian (symmetric) point in the skew-normal parameter space.
 * Failure to converge in the presence-only sub-fit is downgraded to
   a `warning()`; the weighted multi-start continues with the Sobol
   starts only.
+
+### Skew-normal niche likelihoods (`skew_normal`, `skew_normal_weighted`)
+
+* Two new likelihood families on `optimize_niche()` that fit a
+  multivariate skew-normal niche
+  (Azzalini & Capitanio 1999, *J. R. Stat. Soc. Ser. B* **61**(3),
+  579--602) instead of the symmetric Gaussian:
+  ```
+  S(x) ∝ φ_p(x − μ; Σ) · Φ( Σ_k α_k · (x_k − μ_k) / σ_k )
+  ```
+  Adds a length-`p` skewness vector `α ∈ ℝ^p` to the existing
+  `(μ, Σ)` parameters; `α_k = 0` for all `k` recovers the Gaussian
+  niche exactly. The skew niche is useful when the environmental
+  conditions at occurrences are not symmetric around the mode --
+  e.g. species that tolerate higher precipitation but avoid drier
+  conditions, or vice-versa.
+* `likelihood = "skew_normal"`: presence-only fit (no `env_m`
+  required). Closed-form Azzalini density; finite-difference
+  gradient (analytic Azzalini gradients deferred).
+* `likelihood = "skew_normal_weighted"`: paper Eq. 5 with the SN
+  density in place of the Gaussian, plus the same ridge prior on
+  `log sigma` used by `"weighted"` (default `lambda = 1.0`,
+  `prior_log_sigma_center = log(sd(env_occ))`). Defaults inherit
+  from `"weighted"`; pass `prior_log_sigma_lambda = 0` for pure
+  paper-faithful skew-normal MLE (not recommended on multimodal M).
+* The skew families currently require `backend = "cpp"`; the legacy
+  R backend has no pure-R reference implementation for them.
+* Recommended `α` interpretation: `|α_k| <= 3` covers the practically
+  useful skewness range per Azzalini & Capitanio (1999) §5; the
+  Sobol-start machinery samples `α_k` in `[-3, 3]`.
+
+### `geom_nicher_isosuitability()`: contour layer for arbitrary niche
+geometries
+
+* New `ggplot2` layer `geom_nicher_isosuitability(model, level, ...)`
+  that draws iso-suitability contours `S(x) = c` by evaluating the
+  fitted suitability function on a 2-D environmental grid and
+  contouring the result. Unlike `geom_nicher_ellipse()`, which traces
+  analytical ellipses tied to the Gaussian niche geometry, this layer
+  works for any likelihood family supported by `optimize_niche()`,
+  including the skew-normal families where iso-suitability sets are
+  **not** ellipses (the Φ(z) factor breaks ellipse symmetry).
+* Suitability is normalised so `S(μ) = 1` at the SN/Gaussian location
+  parameter, so `level = 0.5` always means "regions where the niche
+  is at least 50 % as suitable as the reference centre".
+* For Gaussian fits the contour at level `c` is a closed ellipse
+  identical to `geom_nicher_ellipse(level = c, level_type =
+  "suitability")`. For skew-normal fits the contours bunch on the
+  side that `α` pulls suitability toward and stretch on the opposite
+  side -- using `geom_nicher_ellipse()` on a skew-normal fit would
+  draw an ellipse that misrepresents the model.
 
 ### ggplot2 plotting engine for 2-D fitted niches (E-space)
 

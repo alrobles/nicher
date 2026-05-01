@@ -41,10 +41,12 @@ NumericMatrix cvine_cholesky(NumericVector v, int d, double eta);
 namespace {
 
 enum LikType {
-  LIK_UNWEIGHTED        = 0,
-  LIK_KDE_BIAS_CORRECTED          = 1,
-  LIK_PRESENCE_ONLY     = 2,
-  LIK_WEIGHTED = 3
+  LIK_UNWEIGHTED            = 0,
+  LIK_KDE_BIAS_CORRECTED    = 1,
+  LIK_PRESENCE_ONLY         = 2,
+  LIK_WEIGHTED              = 3,
+  LIK_SKEW_NORMAL           = 4,
+  LIK_SKEW_NORMAL_WEIGHTED  = 5
 };
 enum GradMode { GRAD_ANALYTIC = 0, GRAD_CENTRAL = 1, GRAD_FORWARD = 2 };
 
@@ -122,6 +124,14 @@ static double eval_value(const std::vector<double>& x,
           x.data(), (int)x.size(), s.env_occ, s.M_den,
           s.w_occ, s.w_den, s.eta,
           s.prior_log_sigma_center, s.prior_log_sigma_lambda);
+    case LIK_SKEW_NORMAL:
+      return nicher::loglik_niche_math_skew_normal_eigen(
+          x.data(), (int)x.size(), s.env_occ, s.eta);
+    case LIK_SKEW_NORMAL_WEIGHTED:
+      return nicher::loglik_niche_math_skew_normal_weighted_eigen(
+          x.data(), (int)x.size(), s.env_occ, s.M_den,
+          s.w_occ, s.w_den, s.eta,
+          s.prior_log_sigma_center, s.prior_log_sigma_lambda);
     case LIK_UNWEIGHTED:
     default:
       return eval_unweighted_legacy(x, s);
@@ -186,14 +196,17 @@ SEXP create_niche_obj_ptr(
   if (likelihood == "unweighted")              lt = LIK_UNWEIGHTED;
   else if (likelihood == "kde_bias_corrected")           lt = LIK_KDE_BIAS_CORRECTED;
   else if (likelihood == "presence_only")      lt = LIK_PRESENCE_ONLY;
-  else if (likelihood == "weighted") lt = LIK_WEIGHTED;
+  else if (likelihood == "weighted")           lt = LIK_WEIGHTED;
+  else if (likelihood == "skew_normal")         lt = LIK_SKEW_NORMAL;
+  else if (likelihood == "skew_normal_weighted") lt = LIK_SKEW_NORMAL_WEIGHTED;
   else Rcpp::stop("Unknown likelihood type: %s", likelihood.c_str());
 
   GradMode gm;
   if (grad == "analytic") {
     if (lt != LIK_KDE_BIAS_CORRECTED && lt != LIK_WEIGHTED) {
-      // analytic gradient currently only implemented for the weighted family;
-      // silently downgrade to central FD for the others (cheap, no regress).
+      // analytic gradient currently only implemented for the (Gaussian)
+      // weighted family; silently downgrade to central FD for the others
+      // (skew-normal, presence_only, unweighted; cheap, no regression).
       gm = GRAD_CENTRAL;
     } else {
       gm = GRAD_ANALYTIC;
@@ -206,7 +219,7 @@ SEXP create_niche_obj_ptr(
     Rcpp::stop("grad must be one of 'analytic', 'central', 'forward'");
   }
 
-  if (lt != LIK_PRESENCE_ONLY && env_m.isNull())
+  if (lt != LIK_PRESENCE_ONLY && lt != LIK_SKEW_NORMAL && env_m.isNull())
     Rcpp::stop("env_m must be provided for likelihood = '%s'.",
                likelihood.c_str());
 
@@ -233,9 +246,11 @@ SEXP create_niche_obj_ptr(
     for (int k = 0; k < pc.size(); ++k)
       state->prior_log_sigma_center(k) = pc[k];
   } else {
-    if (lt == LIK_WEIGHTED && prior_log_sigma_lambda > 0.0)
+    if ((lt == LIK_WEIGHTED || lt == LIK_SKEW_NORMAL_WEIGHTED) &&
+        prior_log_sigma_lambda > 0.0)
       Rcpp::stop("prior_log_sigma_center must be supplied when "
-                 "likelihood='weighted' and prior_log_sigma_lambda > 0.");
+                 "likelihood='%s' and prior_log_sigma_lambda > 0.",
+                 likelihood.c_str());
     state->prior_log_sigma_center = Eigen::VectorXd::Zero(env_occ.ncol());
   }
 
@@ -251,7 +266,8 @@ SEXP create_niche_obj_ptr(
     state->env_m_full = Eigen::MatrixXd(M.nrow(), M.ncol());
     std::memcpy(state->env_m_full.data(), M.begin(),
                 sizeof(double) * M.size());
-  } else if (lt == LIK_KDE_BIAS_CORRECTED || lt == LIK_WEIGHTED) {
+  } else if (lt == LIK_KDE_BIAS_CORRECTED || lt == LIK_WEIGHTED ||
+             lt == LIK_SKEW_NORMAL_WEIGHTED) {
     NumericMatrix M(env_m);
     if (M.ncol() != state->p) Rcpp::stop("env_m must have same columns as env_occ");
     Eigen::Map<Eigen::MatrixXd> M_eig(

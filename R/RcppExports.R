@@ -41,6 +41,14 @@ loglik_niche_math_weighted_grad_cpp <- function(theta, env_occ, M_den, w_occ, w_
     .Call(`_nicher_loglik_niche_math_weighted_grad_cpp`, theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta, gradstep_rel, gradstep_abs)
 }
 
+loglik_niche_math_skew_normal_cpp <- function(theta, env_occ, eta = 1.0) {
+    .Call(`_nicher_loglik_niche_math_skew_normal_cpp`, theta, env_occ, eta)
+}
+
+loglik_niche_math_skew_normal_weighted_cpp <- function(theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta = 1.0) {
+    .Call(`_nicher_loglik_niche_math_skew_normal_weighted_cpp`, theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta)
+}
+
 loglik_niche_presence_only_cpp <- function(mu, L, env_occ) {
     .Call(`_nicher_loglik_niche_presence_only_cpp`, mu, L, env_occ)
 }

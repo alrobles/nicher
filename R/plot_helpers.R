@@ -19,18 +19,32 @@
     stop("`object$best$theta` is missing or malformed.", call. = FALSE)
   }
   k <- length(theta)
-  # k = 2p + p(p-1)/2  =>  p^2 + 3p - 2k = 0  =>  p = (-3 + sqrt(9 + 8k)) / 2
-  p_dbl <- (-3 + sqrt(9 + 8 * k)) / 2
+  lik <- if (!is.null(object$likelihood)) object$likelihood else ""
+  is_skew <- lik %in% c("skew_normal", "skew_normal_weighted")
+
+  # Gaussian layout : k = 2p + p(p-1)/2  =>  p = (-3 + sqrt(9 + 8k)) / 2
+  # Skew layout     : k = 3p + p(p-1)/2  =>  p = (-5 + sqrt(25 + 8k)) / 2
+  if (is_skew) {
+    p_dbl <- (-5 + sqrt(25 + 8 * k)) / 2
+  } else {
+    p_dbl <- (-3 + sqrt(9 + 8 * k)) / 2
+  }
   p <- as.integer(round(p_dbl))
-  if (abs(p_dbl - p) > 1e-8 || p < 1L ||
-      length(theta) != 2L * p + p * (p - 1L) / 2L) {
-    stop("Cannot infer p from length(object$best$theta) = ", k, ".",
-         call. = FALSE)
+  expected_k <- if (is_skew)
+                  3L * p + p * (p - 1L) / 2L
+                else
+                  2L * p + p * (p - 1L) / 2L
+  if (abs(p_dbl - p) > 1e-8 || p < 1L || k != expected_k) {
+    stop("Cannot infer p from length(object$best$theta) = ", k,
+         " (likelihood = '", lik, "').", call. = FALSE)
   }
 
+  n_v <- p * (p - 1L) / 2L
   mu    <- theta[seq_len(p)]
   sigma <- exp(theta[(p + 1L):(2L * p)])
-  v     <- if (p > 1L) theta[(2L * p + 1L):k] else numeric(0)
+  v     <- if (n_v > 0L) theta[(2L * p + 1L):(2L * p + n_v)] else numeric(0)
+  alpha <- if (is_skew) theta[(2L * p + n_v + 1L):(3L * p + n_v)]
+           else         rep(0.0, p)
 
   # Same eta-fallback as predict.nicher() for legacy fits without `eta`.
   eta_fit <- if (is.null(object$eta)) 1.0 else object$eta
@@ -41,6 +55,8 @@
   list(
     mu        = mu,
     Sigma     = Sigma,
+    alpha     = alpha,
+    is_skew   = is_skew,
     p         = p,
     var_names = object$var_names,
     eta       = eta_fit

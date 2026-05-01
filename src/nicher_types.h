@@ -99,6 +99,39 @@ double loglik_niche_math_weighted_grad_eigen(
     double gradstep_rel, double gradstep_abs,
     double* g_out);
 
+// Math-scale skew-normal presence-only negative log-likelihood. Theta layout:
+//   [mu(0..p-1), log_sigma(0..p-1), v(0..p*(p-1)/2 - 1), alpha(0..p-1)]
+// (the additional alpha block extends the Gaussian theta by p parameters).
+//
+// Density: f_{SN}(x; mu, Sigma, alpha) = 2 * phi_k(x-mu; Sigma) * Phi(z(x))
+// where z(x) = sum_k alpha_k * (x_k - mu_k) / sigma_k.
+// Reference: Azzalini & Capitanio (1999), J. R. Stat. Soc. Ser. B 61(3).
+double loglik_niche_math_skew_normal_eigen(
+    const double* theta, int n_theta,
+    const Eigen::MatrixXd& env_occ, double eta);
+
+// Math-scale skew-normal weighted negative log-likelihood. Theta layout
+// matches loglik_niche_math_skew_normal_eigen above. Composes the
+// skew-normal base with paper Eq. 5 of Jimenez & Soberon (2022) plus a
+// ridge penalty on log_sigma:
+//
+//   -log L = 0.5 sum_i q1(x_i) - sum_i log Phi(z1_i)
+//          - sum_i log w(x_i)
+//          + n_occ * log( sum_j w(y_j) * exp(-q2(y_j)/2) * Phi(z2_j) )
+//          + lambda * sum_k (log_sigma_k - log_sigma_center_k)^2
+//
+// (Constants log 2 and (2 pi)^{-k/2} |Sigma|^{-1/2} cancel between
+// numerator and denominator log-sum-exp, just as in the Gaussian case.)
+double loglik_niche_math_skew_normal_weighted_eigen(
+    const double* theta, int n_theta,
+    const Eigen::MatrixXd& env_occ,
+    const Eigen::MatrixXd& M_den,
+    const Eigen::VectorXd& w_occ,
+    const Eigen::VectorXd& w_den,
+    double eta,
+    const Eigen::VectorXd& prior_log_sigma_center,
+    double prior_log_sigma_lambda);
+
 }
 
 #endif

@@ -527,6 +527,173 @@ double loglik_niche_math_weighted_grad_eigen(
   return f;
 }
 
+// ---------------------------------------------------------------------------
+// Skew-normal helpers
+// ---------------------------------------------------------------------------
+//
+// Theta layout for skew_normal (length n_theta = 3*p + p*(p-1)/2):
+//   [mu(0..p-1),  log_sigma(0..p-1),  v(0..p*(p-1)/2 - 1),  alpha(0..p-1)]
+//
+// Density: f_{SN}(x; mu, Sigma, alpha) = 2 * phi_k(x-mu; Sigma) * Phi(z(x))
+// where Phi is the univariate standard-normal CDF and
+//   z(x) = sum_k alpha_k * (x_k - mu_k) / sigma_k.
+// (Azzalini & Capitanio 1999, J. R. Stat. Soc. Ser. B 61(3): 579-602.)
+
+// log Phi(z), numerically stable (uses R's pnorm with log_p=TRUE)
+static inline double log_pnorm(double z) {
+  return R::pnorm(z, 0.0, 1.0, /*lower_tail=*/1, /*log_p=*/1);
+}
+
+// Compute z_i = sum_k alpha_k * (x_ki - mu_k) / sigma_k for every column of
+// (X - mu), where X has p rows and N columns.
+static inline Eigen::VectorXd skew_z(const Eigen::MatrixXd& diff,
+                                     const Eigen::VectorXd& sigma,
+                                     const Eigen::VectorXd& alpha) {
+  // alpha_over_sigma_k = alpha_k / sigma_k
+  Eigen::VectorXd a_over_s = alpha.array() / sigma.array();
+  // z_i = a_over_s^T diff_i
+  return diff.transpose() * a_over_s;
+}
+
+// Sum of log Phi(z_i) over the columns of `diff`.
+static inline double sum_log_pnorm(const Eigen::MatrixXd& diff,
+                                   const Eigen::VectorXd& sigma,
+                                   const Eigen::VectorXd& alpha) {
+  Eigen::VectorXd z = skew_z(diff, sigma, alpha);
+  double s = 0.0;
+  for (int i = 0; i < z.size(); ++i) s += log_pnorm(z(i));
+  return s;
+}
+
+// ---------------------------------------------------------------------------
+// Skew-normal presence-only (math scale)
+// ---------------------------------------------------------------------------
+
+double loglik_niche_math_skew_normal_eigen(
+    const double* theta, int n_theta,
+    const Eigen::MatrixXd& env_occ, double eta) {
+  const int p = env_occ.cols();
+  const int n_v = p * (p - 1) / 2;
+  const int expected = 3 * p + n_v;
+  if (n_theta != expected) {
+    Rcpp::stop("theta length mismatch (got %d, expected %d for p=%d skew-normal).",
+               n_theta, expected, p);
+  }
+
+  Eigen::VectorXd mu, sigma;
+  Eigen::MatrixXd L_corr, L_cov;
+  build_L_cov(theta, p, n_v, eta, mu, sigma, L_corr, L_cov);
+
+  Eigen::Map<const Eigen::VectorXd> alpha(theta + 2 * p + n_v, p);
+
+  const int n_occ = env_occ.rows();
+  Eigen::MatrixXd diff(p, n_occ);
+  for (int i = 0; i < n_occ; ++i) diff.col(i) = env_occ.row(i).transpose() - mu;
+
+  Eigen::MatrixXd y = L_cov.triangularView<Eigen::Lower>().solve(diff);
+  const double sum_q = y.colwise().squaredNorm().sum();
+
+  double log_det = 0.0;
+  for (int i = 0; i < p; ++i) log_det += std::log(L_cov(i, i));
+  log_det *= 2.0;
+
+  const double sum_log_phi = sum_log_pnorm(diff, sigma, alpha);
+
+  // Constants n*log(2) and -n*k/2*log(2*pi) drop out (no influence on the
+  // optimum and they would not match the Gaussian PO kernel which also
+  // drops the (2*pi) constant).
+  const double n = static_cast<double>(n_occ);
+  double neg_log = 0.5 * n * log_det + 0.5 * sum_q - sum_log_phi;
+  if (!std::isfinite(neg_log)) neg_log = OPTIM_PENALTY;
+  return neg_log;
+}
+
+// ---------------------------------------------------------------------------
+// Skew-normal weighted (math scale, with precomputed KDE weights, paper Eq. 5
+// + ridge prior on log_sigma)
+// ---------------------------------------------------------------------------
+
+double loglik_niche_math_skew_normal_weighted_eigen(
+    const double* theta, int n_theta,
+    const Eigen::MatrixXd& env_occ,
+    const Eigen::MatrixXd& M_den,
+    const Eigen::VectorXd& w_occ,
+    const Eigen::VectorXd& w_den,
+    double eta,
+    const Eigen::VectorXd& prior_log_sigma_center,
+    double prior_log_sigma_lambda) {
+  const int p = env_occ.cols();
+  const int n_v = p * (p - 1) / 2;
+  const int expected = 3 * p + n_v;
+  if (n_theta != expected) {
+    Rcpp::stop("theta length mismatch (got %d, expected %d for p=%d skew-normal).",
+               n_theta, expected, p);
+  }
+  if (M_den.cols() != p) Rcpp::stop("M_den must have p columns");
+  if (w_occ.size() != env_occ.rows())
+    Rcpp::stop("w_occ length must equal nrow(env_occ).");
+  if (w_den.size() != M_den.rows())
+    Rcpp::stop("w_den length must equal nrow(M_den).");
+  if (prior_log_sigma_center.size() != p)
+    Rcpp::stop("prior_log_sigma_center length must equal p (got %d, expected %d).",
+               (int)prior_log_sigma_center.size(), p);
+  if (!(prior_log_sigma_lambda >= 0.0))
+    Rcpp::stop("prior_log_sigma_lambda must be non-negative.");
+
+  Eigen::VectorXd mu, sigma;
+  Eigen::MatrixXd L_corr, L_cov;
+  build_L_cov(theta, p, n_v, eta, mu, sigma, L_corr, L_cov);
+
+  Eigen::Map<const Eigen::VectorXd> alpha(theta + 2 * p + n_v, p);
+
+  const int n_occ = env_occ.rows();
+  const int n_den = M_den.rows();
+
+  Eigen::MatrixXd diff_occ(p, n_occ);
+  for (int i = 0; i < n_occ; ++i) diff_occ.col(i) = env_occ.row(i).transpose() - mu;
+  Eigen::MatrixXd y_occ = L_cov.triangularView<Eigen::Lower>().solve(diff_occ);
+  const double sum_q1 = y_occ.colwise().squaredNorm().sum();
+  const double sum_log_phi_occ = sum_log_pnorm(diff_occ, sigma, alpha);
+
+  Eigen::MatrixXd diff_den(p, n_den);
+  for (int j = 0; j < n_den; ++j) diff_den.col(j) = M_den.row(j).transpose() - mu;
+  Eigen::MatrixXd y_den = L_cov.triangularView<Eigen::Lower>().solve(diff_den);
+  Eigen::ArrayXd q2 = y_den.colwise().squaredNorm().array();
+
+  // log Phi(z) for denominator points
+  Eigen::VectorXd z_den = skew_z(diff_den, sigma, alpha);
+  Eigen::ArrayXd log_phi_den(n_den);
+  for (int j = 0; j < n_den; ++j) log_phi_den(j) = log_pnorm(z_den(j));
+
+  Eigen::ArrayXd log_w_occ = w_occ.array().max(MIN_KDE_WEIGHT).log();
+  Eigen::ArrayXd log_w_den = w_den.array().max(MIN_KDE_WEIGHT).log();
+
+  // Inner integrand (log scale): log w_den + log Phi(z_den) - 0.5 q2
+  Eigen::ArrayXd a = log_w_den + log_phi_den - 0.5 * q2;
+
+  const double max_a = a.maxCoeff();
+  const double sum_exp = (a - max_a).exp().sum();
+  const double log_sum_exp = max_a + std::log(sum_exp);
+
+  // Ridge penalty on log_sigma. theta layout has log_sigma at offsets [p..2p-1].
+  double ridge = 0.0;
+  if (prior_log_sigma_lambda > 0.0) {
+    for (int k = 0; k < p; ++k) {
+      const double d = theta[p + k] - prior_log_sigma_center(k);
+      ridge += d * d;
+    }
+    ridge *= prior_log_sigma_lambda;
+  }
+
+  double neg_log = 0.5 * sum_q1
+                 - sum_log_phi_occ
+                 - log_w_occ.sum()
+                 + static_cast<double>(n_occ) * log_sum_exp
+                 + ridge;
+  if (!std::isfinite(neg_log)) neg_log = OPTIM_PENALTY;
+  return neg_log;
+}
+
 } // namespace nicher
 
 // ===========================================================================
@@ -663,4 +830,43 @@ List loglik_niche_math_weighted_grad_cpp(
       gradstep_rel, gradstep_abs, &g[0]);
 
   return List::create(_["value"] = f, _["gradient"] = g);
+}
+
+// [[Rcpp::export]]
+double loglik_niche_math_skew_normal_cpp(
+    NumericVector theta, NumericMatrix env_occ, double eta = 1.0) {
+  Eigen::Map<Eigen::MatrixXd> occ_map(
+      Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(env_occ));
+  Eigen::MatrixXd occ = occ_map;
+  return nicher::loglik_niche_math_skew_normal_eigen(
+      &theta[0], theta.size(), occ, eta);
+}
+
+// [[Rcpp::export]]
+double loglik_niche_math_skew_normal_weighted_cpp(
+    NumericVector theta,
+    NumericMatrix env_occ,
+    NumericMatrix M_den,
+    NumericVector w_occ,
+    NumericVector w_den,
+    NumericVector prior_log_sigma_center,
+    double prior_log_sigma_lambda,
+    double eta = 1.0) {
+  Eigen::Map<Eigen::MatrixXd> occ_map(
+      Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(env_occ));
+  Eigen::Map<Eigen::MatrixXd> mden_map(
+      Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(M_den));
+  Eigen::Map<Eigen::VectorXd> wocc_map(
+      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_occ));
+  Eigen::Map<Eigen::VectorXd> wden_map(
+      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_den));
+  Eigen::Map<Eigen::VectorXd> pc_map(
+      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(prior_log_sigma_center));
+
+  Eigen::MatrixXd occ = occ_map, mden = mden_map;
+  Eigen::VectorXd wocc = wocc_map, wden = wden_map, pc = pc_map;
+
+  return nicher::loglik_niche_math_skew_normal_weighted_eigen(
+      &theta[0], theta.size(), occ, mden, wocc, wden, eta,
+      pc, prior_log_sigma_lambda);
 }

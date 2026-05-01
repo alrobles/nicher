@@ -93,3 +93,159 @@ test_that("loglik_niche_math_weighted_cpp respects ridge prior", {
     expect_equal(f_at_centre_l5, f_at_centre_l0, tolerance = 1e-10)
   }
 })
+
+# ---------------------------------------------------------------------------
+# Skew-normal kernels (PR-A.1)
+# ---------------------------------------------------------------------------
+
+# R reference: closed-form Azzalini & Capitanio (1999) multivariate
+# skew-normal negative log-likelihood, dropping the 0.5*p*log(2*pi) and
+# n*log(2) constants that are also dropped in the C++ kernels (they cancel
+# in any score equation and in the weighted log-sum-exp denominator).
+.ref_neg_loglik_skew_normal <- function(theta, env_occ, eta = 1.0) {
+  p   <- ncol(env_occ)
+  n_v <- p * (p - 1L) / 2L
+  mu        <- theta[seq_len(p)]
+  log_sigma <- theta[(p + 1L):(2L * p)]
+  v         <- if (n_v > 0L) theta[(2L * p + 1L):(2L * p + n_v)] else numeric(0)
+  alpha     <- theta[(2L * p + n_v + 1L):(3L * p + n_v)]
+
+  sigma <- exp(log_sigma)
+  L_corr <- nicher:::cvine_cholesky_cpp(v, p, eta)
+  Sigma  <- diag(sigma, nrow = p) %*% (L_corr %*% t(L_corr)) %*% diag(sigma, nrow = p)
+  Sinv   <- solve(Sigma)
+
+  d  <- sweep(env_occ, 2L, mu, "-")
+  q1 <- rowSums((d %*% Sinv) * d)
+  z  <- as.numeric(d %*% (alpha / sigma))
+  log_phi <- stats::pnorm(z, log.p = TRUE)
+
+  log_det <- as.numeric(determinant(Sigma, logarithm = TRUE)$modulus)
+  n_occ <- nrow(env_occ)
+
+  0.5 * n_occ * log_det + 0.5 * sum(q1) - sum(log_phi)
+}
+
+.ref_neg_loglik_skew_normal_weighted <- function(theta, env_occ, M_den,
+                                                 w_occ, w_den,
+                                                 prior_log_sigma_center,
+                                                 prior_log_sigma_lambda,
+                                                 eta = 1.0) {
+  p   <- ncol(env_occ)
+  n_v <- p * (p - 1L) / 2L
+  n_occ <- nrow(env_occ)
+  mu        <- theta[seq_len(p)]
+  log_sigma <- theta[(p + 1L):(2L * p)]
+  v         <- if (n_v > 0L) theta[(2L * p + 1L):(2L * p + n_v)] else numeric(0)
+  alpha     <- theta[(2L * p + n_v + 1L):(3L * p + n_v)]
+
+  sigma  <- exp(log_sigma)
+  L_corr <- nicher:::cvine_cholesky_cpp(v, p, eta)
+  Sigma  <- diag(sigma, nrow = p) %*% (L_corr %*% t(L_corr)) %*% diag(sigma, nrow = p)
+  Sinv   <- solve(Sigma)
+
+  d_occ <- sweep(env_occ, 2L, mu, "-")
+  q1    <- rowSums((d_occ %*% Sinv) * d_occ)
+  z_occ <- as.numeric(d_occ %*% (alpha / sigma))
+  log_phi_occ <- stats::pnorm(z_occ, log.p = TRUE)
+
+  d_den <- sweep(M_den, 2L, mu, "-")
+  q2    <- rowSums((d_den %*% Sinv) * d_den)
+  z_den <- as.numeric(d_den %*% (alpha / sigma))
+  log_phi_den <- stats::pnorm(z_den, log.p = TRUE)
+
+  log_w_occ <- log(pmax(w_occ, 1e-300))
+  log_w_den <- log(pmax(w_den, 1e-300))
+
+  a   <- log_w_den + log_phi_den - 0.5 * q2
+  ma  <- max(a)
+  lse <- ma + log(sum(exp(a - ma)))
+
+  ridge <- prior_log_sigma_lambda *
+    sum((log_sigma - prior_log_sigma_center) ^ 2L)
+
+  0.5 * sum(q1) - sum(log_phi_occ) - sum(log_w_occ) + n_occ * lse + ridge
+}
+
+test_that("loglik_niche_math_skew_normal_cpp matches R reference", {
+  occ <- as.matrix(example_env_occ_2d)
+  p   <- ncol(occ)
+  n_v <- p * (p - 1L) / 2L
+
+  set.seed(7L)
+  for (k in seq_len(20L)) {
+    base  <- start_theta(occ, skew = TRUE)
+    theta <- base + stats::rnorm(length(base), sd = 0.05)
+    # set a non-trivial alpha
+    theta[(2L * p + n_v + 1L):(3L * p + n_v)] <-
+      stats::rnorm(p, sd = 0.5)
+
+    ref <- .ref_neg_loglik_skew_normal(theta, occ)
+    got <- nicher:::loglik_niche_math_skew_normal_cpp(theta, occ, eta = 1.0)
+    expect_equal(got, ref, tolerance = 1e-9)
+  }
+})
+
+test_that("loglik_niche_math_skew_normal_weighted_cpp matches R reference", {
+  occ <- as.matrix(example_env_occ_2d)
+  M   <- as.matrix(example_env_m_2d)
+  p   <- ncol(occ)
+  n_v <- p * (p - 1L) / 2L
+
+  set.seed(11L)
+  n_m   <- nrow(M)
+  d_idx <- sample.int(n_m, min(500L, n_m))
+  k_idx <- sample.int(n_m, min(500L, n_m))
+  M_den <- M[d_idx, , drop = FALSE]
+  M_kde <- M[k_idx, , drop = FALSE]
+  w_occ <- as.numeric(kde_gaussian(occ, M_kde))
+  w_den <- as.numeric(kde_gaussian(M_den, M_kde))
+
+  log_sd <- log(apply(occ, 2L, stats::sd))
+
+  for (k in seq_len(15L)) {
+    base  <- start_theta(occ, skew = TRUE)
+    theta <- base + stats::rnorm(length(base), sd = 0.05)
+    theta[(2L * p + n_v + 1L):(3L * p + n_v)] <-
+      stats::rnorm(p, sd = 0.5)
+
+    for (lam in c(0.0, 1.0, 7.0)) {
+      ref <- .ref_neg_loglik_skew_normal_weighted(
+        theta, occ, M_den, w_occ, w_den,
+        prior_log_sigma_center = log_sd,
+        prior_log_sigma_lambda = lam
+      )
+      got <- nicher:::loglik_niche_math_skew_normal_weighted_cpp(
+        theta, occ, M_den, w_occ, w_den,
+        prior_log_sigma_center = log_sd,
+        prior_log_sigma_lambda = lam,
+        eta = 1.0
+      )
+      expect_equal(got, ref, tolerance = 1e-9)
+    }
+  }
+})
+
+test_that("skew_normal reduces to presence_only when alpha = 0", {
+  # SN_k(mu, Sigma, alpha = 0) is exactly N_k(mu, Sigma); the two negative
+  # log-likelihoods differ only by the n*log(2) constant that the SN
+  # kernel intentionally drops to keep the form numerically clean.
+  occ <- as.matrix(example_env_occ_2d)
+  p   <- ncol(occ)
+  n_v <- p * (p - 1L) / 2L
+
+  set.seed(13L)
+  base  <- start_theta(occ)                       # 2p + n_v
+  theta_g <- base + stats::rnorm(length(base), sd = 0.05)
+  theta_s <- c(theta_g, rep(0.0, p))              # 3p + n_v, alpha = 0
+
+  f_po <- loglik_niche_math_presence_only(theta_g, occ, eta = 1.0,
+                                          neg = TRUE)
+  f_sn <- nicher:::loglik_niche_math_skew_normal_cpp(theta_s, occ, eta = 1.0)
+
+  # With alpha = 0, log Phi(0) = log(0.5) = -log 2 per occurrence;
+  # the SN kernel's "presence" term is 0.5 sum(q1) - sum(log Phi(z)),
+  # so f_sn = f_po + n * log(2).
+  n_occ <- nrow(occ)
+  expect_equal(f_sn, f_po + n_occ * log(2), tolerance = 1e-10)
+})

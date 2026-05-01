@@ -4,12 +4,17 @@
 \alias{get_range_df_niche}
 \title{Generate reasonable ranges for starting parameters (math scale)}
 \usage{
-get_range_df_niche(env_data, quant_vec = c(0.1, 0.5, 0.9))
+get_range_df_niche(env_data, quant_vec = c(0.1, 0.5, 0.9), skew = FALSE)
 }
 \arguments{
 \item{env_data}{Numeric matrix or data frame of environmental values.}
 
 \item{quant_vec}{Numeric vector of quantiles (length 3).}
+
+\item{skew}{Logical. If \code{TRUE}, append \code{p} skew parameters
+(\code{alpha_1, ..., alpha_p}) to the parameter vector with the
+default Sobol range \code{[-3, 0, 3]}. Default \code{FALSE}
+preserves the Gaussian-only behaviour of nicher 2.x.}
 }
 \value{
 A data frame with rows = parameter names and columns

@@ -6,11 +6,16 @@
 #'
 #' @param env_data Numeric matrix or data frame of environmental values.
 #' @param quant_vec Numeric vector of quantiles (length 3).
+#' @param skew Logical. If \code{TRUE}, append \code{p} skew parameters
+#'   (\code{alpha_1, ..., alpha_p}) to the parameter vector with the
+#'   default Sobol range \code{[-3, 0, 3]}. Default \code{FALSE}
+#'   preserves the Gaussian-only behaviour of nicher 2.x.
 #'
 #' @return A data frame with rows = parameter names and columns
 #'         lower, center, upper.
 #' @keywords internal
-get_range_df_niche <- function(env_data, quant_vec = c(0.1, 0.5, 0.9)) {
+get_range_df_niche <- function(env_data, quant_vec = c(0.1, 0.5, 0.9),
+                               skew = FALSE) {
   # --------------------------------------------------------------------
   # (1) COERCE env_data TO STRICTLY NUMERIC MATRIX (CRITICAL PATCH)
   # --------------------------------------------------------------------
@@ -28,13 +33,15 @@ get_range_df_niche <- function(env_data, quant_vec = c(0.1, 0.5, 0.9)) {
   # (2) Compute basic dimensions and names
   # --------------------------------------------------------------------
   p <- ncol(env_data)
-  n_par <- 2 * p + p * (p - 1) / 2
+  n_alpha <- if (isTRUE(skew)) p else 0L
+  n_par <- 2 * p + p * (p - 1) / 2 + n_alpha
 
   mu_names <- paste0("mu", seq_len(p))
   log_sigma_names <- paste0("log_sigma", seq_len(p))
   s_par_names <- if (p > 1) paste0("s_par", seq_len(p * (p - 1) / 2)) else character(0)
+  alpha_names <- if (n_alpha > 0L) paste0("alpha", seq_len(p)) else character(0)
 
-  all_names <- c(mu_names, log_sigma_names, s_par_names)
+  all_names <- c(mu_names, log_sigma_names, s_par_names, alpha_names)
 
   ranges <- data.frame(
     lower = numeric(n_par),
@@ -70,6 +77,15 @@ get_range_df_niche <- function(env_data, quant_vec = c(0.1, 0.5, 0.9)) {
   # --------------------------------------------------------------------
   if (length(s_par_names) > 0) {
     for (nm in s_par_names) {
+      ranges[nm, ] <- c(-3, 0, 3)
+    }
+  }
+
+  # --------------------------------------------------------------------
+  # (5b) alpha (skew) ranges: [-3, 0, 3] per Azzalini & Capitanio (1999)
+  # --------------------------------------------------------------------
+  if (length(alpha_names) > 0) {
+    for (nm in alpha_names) {
       ranges[nm, ] <- c(-3, 0, 3)
     }
   }
