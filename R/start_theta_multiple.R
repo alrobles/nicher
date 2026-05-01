@@ -8,6 +8,11 @@
 #' @param num_starts Integer, number of starting points.
 #' @param quant_vec Quantiles for mu ranges.
 #' @param method "sobol" (Sobol design) or "uniform".
+#' @param skew Logical. If \code{TRUE}, append \code{p} skewness parameters
+#'   (\code{alpha_1, ..., alpha_p}) to each starting vector with the
+#'   default range \code{[-3, 3]}. Use this for the
+#'   \code{"skew_normal"} / \code{"skew_normal_weighted"} likelihoods.
+#'   Default \code{FALSE}.
 #'
 #' @return A data frame of dimension num_starts × num_parameters.
 #' @examples
@@ -20,7 +25,8 @@
 #' @export
 start_theta_multiple <- function(env_data, num_starts = 100,
                                  quant_vec = c(0.1, 0.5, 0.9),
-                                 method = "sobol") {
+                                 method = "sobol",
+                                 skew = FALSE) {
   # ------------------------------------------------------------------
   # 1. COERCE TO NUMERIC MATRIX (THIS IS THE KEY FIX)
   # ------------------------------------------------------------------
@@ -37,7 +43,7 @@ start_theta_multiple <- function(env_data, num_starts = 100,
   # ------------------------------------------------------------------
   # 2. Compute ranges (now always numeric)
   # ------------------------------------------------------------------
-  ranges <- get_range_df_niche(env_data, quant_vec)
+  ranges <- get_range_df_niche(env_data, quant_vec, skew = skew)
 
   lower <- as.numeric(ranges$lower)
   upper <- as.numeric(ranges$upper)

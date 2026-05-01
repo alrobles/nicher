@@ -161,7 +161,9 @@ optimize_niche <- function(env_occ,
                            breadth    = 0.1,
                            likelihood = c("weighted",
                                           "kde_bias_corrected",
-                                          "presence_only"),
+                                          "presence_only",
+                                          "skew_normal",
+                                          "skew_normal_weighted"),
                            backend    = c("cpp", "r"),
                            grad       = c("auto", "analytic",
                                           "central", "forward"),
@@ -179,7 +181,10 @@ optimize_niche <- function(env_occ,
   grad       <- match.arg(grad)
 
   # Convenience: treat the weighted family uniformly where logic is shared.
-  is_weighted_family <- likelihood %in% c("kde_bias_corrected", "weighted")
+  is_weighted_family <- likelihood %in% c("kde_bias_corrected", "weighted",
+                                          "skew_normal_weighted")
+  # Convenience: skew likelihoods carry an extra alpha block (length p).
+  is_skew_family <- likelihood %in% c("skew_normal", "skew_normal_weighted")
 
   # Resolve `eta` from `...` so we can both forward it to the objective
   # functions (already done downstream) and persist it on the returned
@@ -197,7 +202,7 @@ optimize_niche <- function(env_occ,
   # ------------------------------------------------------------------
   # Input validation
   # ------------------------------------------------------------------
-  if (likelihood != "presence_only") {
+  if (!(likelihood %in% c("presence_only", "skew_normal"))) {
     if (missing(env_m) || is.null(env_m)) {
       stop("env_m must be provided for likelihood '", likelihood, "'")
     }
@@ -224,7 +229,7 @@ optimize_niche <- function(env_occ,
   # warm-start child call and every Sobol start see the same centre.
   p_occ <- ncol(env_occ)
   if (is.null(prior_log_sigma_center)) {
-    if (likelihood == "weighted") {
+    if (likelihood %in% c("weighted", "skew_normal_weighted")) {
       sds <- apply(as.matrix(env_occ), 2L, stats::sd, na.rm = TRUE)
       if (any(!is.finite(sds)) || any(sds <= 0)) {
         stop("Cannot derive default `prior_log_sigma_center`: some env_occ ",
@@ -257,18 +262,24 @@ optimize_niche <- function(env_occ,
     )
   }
 
-  # Resolve grad="auto"
+  # Resolve grad="auto". Analytic gradients exist for the Gaussian weighted
+  # family (kde_bias_corrected, weighted) only; the skew-normal kernels
+  # ship with finite-difference gradients in PR-A.1 (closed-form Azzalini
+  # gradients deferred to a follow-up).
   resolved_grad <- if (grad == "auto") {
-    if (is_weighted_family && backend == "cpp") "analytic" else "central"
+    if (likelihood %in% c("kde_bias_corrected", "weighted") && backend == "cpp")
+      "analytic"
+    else
+      "central"
   } else grad
 
-  # The legacy R backend has no R-side `weighted` (paper Eq. 5 + ridge)
-  # objective wired up; only the C++ kernel implements it. The cpp parity
-  # wrapper handles validation in .validate_xptr_result, but the R backend's
-  # per-start helper runs ucminf::ucminf with a pure-R fn. Force cpp for
-  # "weighted" to keep the R backend simple.
-  if (backend == "r" && likelihood == "weighted") {
-    stop('likelihood = "weighted" requires backend = "cpp".')
+  # The legacy R backend only implements presence_only and
+  # kde_bias_corrected as pure-R objectives; weighted, skew_normal, and
+  # skew_normal_weighted require the C++ backend.
+  if (backend == "r" && likelihood %in% c("weighted",
+                                          "skew_normal",
+                                          "skew_normal_weighted")) {
+    stop('likelihood = "', likelihood, '" requires backend = "cpp".')
   }
 
   # ------------------------------------------------------------------
@@ -279,7 +290,8 @@ optimize_niche <- function(env_occ,
     env_data   = env_occ,
     num_starts = num_starts,
     quant_vec  = quant_vec,
-    method     = "sobol"
+    method     = "sobol",
+    skew       = is_skew_family
   )
   starts_list <- split(starts_df, seq_len(nrow(starts_df)))
   starts_list <- lapply(starts_list, function(x) {
@@ -350,6 +362,14 @@ optimize_niche <- function(env_occ,
     )
     if (!is.null(po_fit) && po_fit$best$convergence %in% c(1L, 2L)) {
       warm_theta <- po_fit$best$theta
+      # For skew_normal_weighted, the PO fit has no alpha block; pad with
+      # zeros so the warm-start lands at the symmetric (Gaussian) point in
+      # skew parameter space, which is a valid starting θ for Azzalini's
+      # SN_k(μ, Σ, α=0) ≡ N_k(μ, Σ).
+      if (is_skew_family && length(warm_theta) ==
+            length(starts_list[[1L]]) - p_occ) {
+        warm_theta <- c(warm_theta, rep(0.0, p_occ))
+      }
       if (length(warm_theta) == length(starts_list[[1L]])) {
         names(warm_theta) <- names(starts_list[[1L]])
         starts_list <- c(list(warm_theta), starts_list)
@@ -575,6 +595,29 @@ optimize_niche <- function(env_occ,
           eta = if (!is.null(list(...)$eta)) list(...)$eta else 1.0
         )
       }
+    },
+    skew_normal = function(theta) {
+      loglik_niche_math_skew_normal_cpp(
+        theta = theta,
+        env_occ = as.matrix(env_occ),
+        eta = if (!is.null(list(...)$eta)) list(...)$eta else 1.0
+      )
+    },
+    skew_normal_weighted = {
+      env_m_mat <- as.matrix(env_m)
+      M_den <- env_m_mat[weighted_inputs$den_idx, , drop = FALSE]
+      function(theta) {
+        loglik_niche_math_skew_normal_weighted_cpp(
+          theta = theta,
+          env_occ = as.matrix(env_occ),
+          M_den   = M_den,
+          w_occ   = weighted_inputs$w_occ,
+          w_den   = weighted_inputs$w_den,
+          prior_log_sigma_center = as.numeric(prior_log_sigma_center),
+          prior_log_sigma_lambda = prior_log_sigma_lambda,
+          eta = if (!is.null(list(...)$eta)) list(...)$eta else 1.0
+        )
+      }
     }
   )
   ref <- tryCatch({
@@ -621,7 +664,8 @@ optimize_niche <- function(env_occ,
   env_m_mat   <- if (!is.null(env_m)) as.matrix(env_m) else NULL
 
   den_idx <- kde_idx <- precomp_w_occ <- precomp_w_den <- NULL
-  if (likelihood %in% c("kde_bias_corrected", "weighted") &&
+  if (likelihood %in% c("kde_bias_corrected", "weighted",
+                        "skew_normal_weighted") &&
       !is.null(weighted_inputs)) {
     den_idx       <- weighted_inputs$den_idx
     kde_idx       <- weighted_inputs$kde_idx
@@ -629,9 +673,9 @@ optimize_niche <- function(env_occ,
     precomp_w_den <- weighted_inputs$w_den
   }
 
-  # Only the penalized variant cares about the prior; passing NULL/0 is a
-  # no-op for the others.
-  if (likelihood == "weighted") {
+  # Only the ridge-penalised variants (weighted, skew_normal_weighted)
+  # care about the prior; passing NULL/0 is a no-op for the others.
+  if (likelihood %in% c("weighted", "skew_normal_weighted")) {
     plsc <- if (!is.null(prior_log_sigma_center))
               as.numeric(prior_log_sigma_center) else NULL
     plsl <- as.numeric(prior_log_sigma_lambda)
