@@ -8,7 +8,8 @@ start_theta_multiple(
   env_data,
   num_starts = 100,
   quant_vec = c(0.1, 0.5, 0.9),
-  method = "sobol"
+  method = "sobol",
+  skew = FALSE
 )
 }
 \arguments{
@@ -19,6 +20,12 @@ start_theta_multiple(
 \item{quant_vec}{Quantiles for mu ranges.}
 
 \item{method}{"sobol" (Sobol design) or "uniform".}
+
+\item{skew}{Logical. If \code{TRUE}, append \code{p} skewness parameters
+(\code{alpha_1, ..., alpha_p}) to each starting vector with the
+default range \code{[-3, 3]}. Use this for the
+\code{"skew_normal"} / \code{"skew_normal_weighted"} likelihoods.
+Default \code{FALSE}.}
 }
 \value{
 A data frame of dimension num_starts × num_parameters.
