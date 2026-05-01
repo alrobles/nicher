@@ -30,6 +30,21 @@
 #'         no background correction. Unimodal likelihood, useful as a
 #'         sanity check or to seed the weighted multistart (see
 #'         \code{warm_start}).
+#'   \item \code{"skew_normal"}: presence-only fit of a multivariate
+#'         skew-normal niche
+#'         (Azzalini & Capitanio 1999, J. R. Stat. Soc. Ser. B 61(3):
+#'         579-602):
+#'         \deqn{S(x) \propto \phi_p(x - \mu; \Sigma) \, \Phi\left(
+#'           \sum_k \alpha_k \, (x_k - \mu_k) / \sigma_k \right).}
+#'         Adds a length-\code{p} skewness vector \eqn{\alpha} to the
+#'         existing \eqn{(\mu, \Sigma)} parameters. \eqn{\alpha = 0}
+#'         recovers the symmetric Gaussian niche exactly.
+#'         Sobol-start machinery samples \eqn{\alpha_k} in
+#'         \eqn{[-3, 3]} (Azzalini & Capitanio 1999, \S 5).
+#'   \item \code{"skew_normal_weighted"}: paper Eq. 5 with the SN
+#'         density in place of the Gaussian, plus the same ridge
+#'         prior on \eqn{\log \sigma} used by \code{"weighted"}.
+#'         Defaults inherit from \code{"weighted"}.
 #' }
 #'
 #' @section Migration from nicher 2.x:
@@ -85,14 +100,17 @@
 #'
 #' @param env_occ Data frame of environmental values at presence points.
 #' @param env_m Data frame of background environmental values. Required for
-#'   \code{likelihood = "kde_bias_corrected"} and \code{"weighted"};
-#'   ignored for \code{"presence_only"}.
+#'   \code{likelihood} in \code{"kde_bias_corrected"}, \code{"weighted"},
+#'   or \code{"skew_normal_weighted"}; ignored for \code{"presence_only"}
+#'   and \code{"skew_normal"}.
 #' @param num_starts Integer. Number of Sobol starting points.
 #' @param breadth Numeric in (0, 0.5). Controls the quantile range used to
 #'   define starting bounds for \code{mu} parameters. Default \code{0.1}.
 #' @param likelihood One of \code{"weighted"} (default; paper Eq. 5 + ridge),
-#'   \code{"kde_bias_corrected"} (legacy KDE-bias-corrected formula), or
-#'   \code{"presence_only"}.
+#'   \code{"kde_bias_corrected"} (legacy KDE-bias-corrected formula),
+#'   \code{"presence_only"}, \code{"skew_normal"} (presence-only
+#'   multivariate skew-normal), or \code{"skew_normal_weighted"} (paper
+#'   Eq. 5 with skew-normal density + ridge prior on log sigma).
 #' @param backend One of \code{"cpp"} (default) or \code{"r"} (deprecated;
 #'   see Backends section).
 #' @param grad Gradient strategy: \code{"auto"} (default) selects
@@ -102,17 +120,20 @@
 #' @param m_subsample,m_kde_subsample Optional integer or fraction in (0, 1].
 #'   Resolved to \code{min(nrow(env_m), 10000)} when \code{NULL} (default).
 #' @param seed Optional integer to make subsampling deterministic.
-#' @param warm_start Logical. When \code{likelihood} is \code{"kde_bias_corrected"} or
-#'   \code{"weighted"}, run a quick presence-only fit first and
-#'   prepend its \code{theta} as one extra starting point for the weighted
+#' @param warm_start Logical. When \code{likelihood} is
+#'   \code{"kde_bias_corrected"}, \code{"weighted"}, or
+#'   \code{"skew_normal_weighted"}, run a quick presence-only fit first
+#'   and prepend its \code{theta} (padded with \eqn{\alpha = 0} for the
+#'   skew variants) as one extra starting point for the weighted
 #'   multi-start. Cheap insurance against bad multistart luck on rough or
 #'   multimodal weighted likelihoods (e.g. when \code{env_m} contains
 #'   regions far from the occurrence cloud); does not replace the Sobol
-#'   starts. Ignored for \code{likelihood = "presence_only"}.
-#'   Default \code{TRUE}.
+#'   starts. Ignored for \code{likelihood = "presence_only"} and
+#'   \code{"skew_normal"}. Default \code{TRUE}.
 #' @param prior_log_sigma_lambda Numeric scalar (\code{>= 0}), strength of
 #'   the ridge penalty on \eqn{\log \sigma} used by
-#'   \code{likelihood = "weighted"}. The penalty is
+#'   \code{likelihood = "weighted"} and
+#'   \code{"skew_normal_weighted"}. The penalty is
 #'   \eqn{\lambda \sum_k (\log \sigma_k - \log \hat\sigma_k)^2} with
 #'   \eqn{\log \hat\sigma_k = \log(\mathrm{sd}(\text{env\_occ}[, k]))}.
 #'   Default \code{1.0} (weak). Larger values pull
