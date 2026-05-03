@@ -153,20 +153,46 @@
 #'   \code{"skew_normal"}. Default \code{TRUE}.
 #' @param prior_log_sigma_lambda Numeric scalar (\code{>= 0}), strength of
 #'   the ridge penalty on \eqn{\log \sigma} used by
-#'   \code{likelihood = "weighted"} and
-#'   \code{"skew_normal_weighted"}. The penalty is
-#'   \eqn{\lambda \sum_k (\log \sigma_k - \log \hat\sigma_k)^2} with
-#'   \eqn{\log \hat\sigma_k = \log(\mathrm{sd}(\text{env\_occ}[, k]))}.
-#'   Default \code{1.0} (weak). Larger values pull
-#'   \eqn{\sigma} more strongly toward the empirical scale of the occurrence
-#'   cloud; \code{0} reduces the model to pure ML weighted normal (Eq. 5)
-#'   and is not recommended (subject to Patil & Ord 1976 drift). Ignored
-#'   for other likelihoods.
+#'   \code{likelihood = "weighted"}, \code{"skew_normal_weighted"}, and
+#'   \code{"skew_t_weighted"}. The penalty is
+#'   \eqn{\lambda \sum_k (\log \sigma_k - \log \hat\sigma_k)^2}. The centre
+#'   \eqn{\log \hat\sigma_k} defaults to the presence-only fit's
+#'   \eqn{\log \sigma_k} (shrinks the weighted fit toward the PO fit); see
+#'   \code{prior_log_sigma_center}. Default \code{1.0} (weak). Larger
+#'   values keep \eqn{\sigma} closer to the PO scale; \code{0} reduces the
+#'   model to pure ML weighted normal (Eq. 5) and is not recommended
+#'   (subject to Patil & Ord 1976 drift).
 #' @param prior_log_sigma_center Optional numeric vector of length
-#'   \code{ncol(env_occ)} giving the centre of the ridge prior on
-#'   \eqn{\log \sigma}. \code{NULL} (default) sets it to
-#'   \code{log(apply(env_occ, 2, sd))}. Ignored for likelihoods other than
-#'   \code{"weighted"}.
+#'   \code{ncol(env_occ)}. \code{NULL} (default) anchors the centre at the
+#'   presence-only fit's \eqn{\log \sigma} when \code{warm_start = TRUE}
+#'   (the PO fit is already run to seed the weighted multi-start); falls
+#'   back to \code{log(apply(env_occ, 2, sd))} when \code{warm_start = FALSE}.
+#' @param prior_mu_lambda Numeric scalar (\code{>= 0}), strength of a unit-free
+#'   ridge penalty on \eqn{\mu} used by the weighted families
+#'   (\code{"weighted"}, \code{"skew_normal_weighted"},
+#'   \code{"skew_t_weighted"}). The penalty is
+#'   \eqn{\lambda_\mu \sum_k \left((\mu_k - \hat\mu_k) / \hat\sigma_k\right)^2}
+#'   with anchors \eqn{\hat\mu_k} and \eqn{\hat\sigma_k} from the PO fit
+#'   (see \code{prior_mu_center}). Because the penalty is divided by the PO
+#'   \eqn{\sigma_k}, it is scale-free across heterogeneous variables (e.g.
+#'   bio1 in \eqn{^\circ C} vs bio12 in mm): \code{prior_mu_lambda = 1}
+#'   allows \eqn{\mu} to drift ~1 PO standard deviation before the
+#'   penalty pushes back. Default \code{1.0}. Set to \code{0} to recover
+#'   the pure-MLE behaviour of nicher 3.0.x.
+#' @param prior_alpha_lambda Numeric scalar (\code{>= 0}), strength of a
+#'   ridge penalty \eqn{\lambda_\alpha \sum_k \alpha_k^2} on the skew vector
+#'   \eqn{\alpha}, shrinking toward the Gaussian sub-model. Applies to
+#'   both presence-only and weighted skew families (\code{"skew_normal"},
+#'   \code{"skew_normal_weighted"}, \code{"skew_t"},
+#'   \code{"skew_t_weighted"}). Fixes the well-known unbounded-MLE
+#'   pathology of the skew-normal direct parameterization (Azzalini 1985,
+#'   Pewsey 2000). Default \code{0.1} (mild). Set to \code{0} to recover
+#'   the pure-MLE behaviour of nicher 3.0.x.
+#' @param prior_mu_center Optional numeric vector of length
+#'   \code{ncol(env_occ)}. \code{NULL} (default) anchors the centre at the
+#'   presence-only fit's \eqn{\mu} when \code{warm_start = TRUE}; if
+#'   \code{warm_start = FALSE} and \code{prior_mu_lambda > 0}, it must be
+#'   supplied explicitly.
 #' @param control Named list of control parameters for
 #'   \code{ucminfcpp::ucminf_xptr()} (cpp backend) or \code{ucminf::ucminf()}
 #'   (r backend). Recognized entries:
@@ -217,6 +243,9 @@ optimize_niche <- function(env_occ,
                            warm_start      = TRUE,
                            prior_log_sigma_lambda = 1.0,
                            prior_log_sigma_center = NULL,
+                           prior_mu_lambda        = 1.0,
+                           prior_mu_center        = NULL,
+                           prior_alpha_lambda     = 0.1,
                            control = list(),
                            verbose = FALSE,
                            ...) {
@@ -264,39 +293,31 @@ optimize_niche <- function(env_occ,
     stop("breadth must be a single number in (0, 0.5)")
   }
 
-  # Validate ridge-prior strength
-  if (!is.numeric(prior_log_sigma_lambda) ||
-      length(prior_log_sigma_lambda) != 1L ||
-      !is.finite(prior_log_sigma_lambda) ||
-      prior_log_sigma_lambda < 0) {
-    stop("`prior_log_sigma_lambda` must be a single non-negative finite number.")
+  # Validate ridge-prior strengths
+  .validate_lambda <- function(x, name) {
+    if (!is.numeric(x) || length(x) != 1L || !is.finite(x) || x < 0) {
+      stop(sprintf("`%s` must be a single non-negative finite number.", name))
+    }
   }
+  .validate_lambda(prior_log_sigma_lambda, "prior_log_sigma_lambda")
+  .validate_lambda(prior_mu_lambda,        "prior_mu_lambda")
+  .validate_lambda(prior_alpha_lambda,     "prior_alpha_lambda")
 
-  # Resolve / validate ridge-prior centre. For likelihood == "weighted"
-  # we materialise it now (before warm-start, before optimisation) so that the
-  # warm-start child call and every Sobol start see the same centre.
   p_occ <- ncol(env_occ)
-  if (is.null(prior_log_sigma_center)) {
-    if (likelihood %in% c("weighted", "skew_normal_weighted",
-                          "skew_t_weighted")) {
-      sds <- apply(as.matrix(env_occ), 2L, stats::sd, na.rm = TRUE)
-      if (any(!is.finite(sds)) || any(sds <= 0)) {
-        stop("Cannot derive default `prior_log_sigma_center`: some env_occ ",
-             "columns have zero or non-finite sd. Pass it explicitly.")
-      }
-      prior_log_sigma_center <- log(sds)
-      names(prior_log_sigma_center) <- colnames(env_occ)
-    } else {
-      prior_log_sigma_center <- rep(0.0, p_occ)
-    }
-  } else {
-    if (!is.numeric(prior_log_sigma_center) ||
-        length(prior_log_sigma_center) != p_occ ||
-        any(!is.finite(prior_log_sigma_center))) {
-      stop("`prior_log_sigma_center` must be a finite numeric vector of ",
-           "length ncol(env_occ).")
+  # Validate user-supplied centres upfront. Defaults (NULL) are resolved
+  # later -- after the warm-start PO fit, which is the source of the
+  # anchor for the weighted families. For non-weighted families we
+  # materialise a zero vector so downstream code always sees numeric(p).
+  .validate_center <- function(x, name) {
+    if (is.null(x)) return(invisible(NULL))
+    if (!is.numeric(x) || length(x) != p_occ || any(!is.finite(x))) {
+      stop(sprintf(
+        "`%s` must be a finite numeric vector of length ncol(env_occ).",
+        name))
     }
   }
+  .validate_center(prior_log_sigma_center, "prior_log_sigma_center")
+  .validate_center(prior_mu_center,        "prior_mu_center")
 
   if (backend == "r") {
     lifecycle::deprecate_soft(
@@ -390,6 +411,8 @@ optimize_niche <- function(env_occ,
   # straight to the weighted optimizer as one additional starting point.
   # Cheap insurance against bad multistart luck on rough weighted surfaces;
   # does NOT replace the Sobol starts.
+  po_anchor_mu        <- NULL
+  po_anchor_log_sigma <- NULL
   if (warm_start && is_weighted_family) {
     if (verbose) message("Warm-start: running presence-only fit ...")
     po_fit <- tryCatch(
@@ -403,6 +426,9 @@ optimize_niche <- function(env_occ,
         grad       = if (grad == "auto") "central" else grad,
         seed       = seed,
         warm_start = FALSE,
+        prior_log_sigma_lambda = 0.0,
+        prior_mu_lambda        = 0.0,
+        prior_alpha_lambda     = 0.0,
         control    = control,
         verbose    = FALSE,
         ...
@@ -415,6 +441,11 @@ optimize_niche <- function(env_occ,
     )
     if (!is.null(po_fit) && po_fit$best$convergence %in% c(1L, 2L)) {
       warm_theta <- po_fit$best$theta
+      # Extract the PO fit's (mu, log_sigma) blocks as anchors for the
+      # penalised-MLE centres. Gaussian PO theta layout is
+      # [mu(p), log_sigma(p), v(p(p-1)/2)].
+      po_anchor_mu        <- as.numeric(warm_theta[seq_len(p_occ)])
+      po_anchor_log_sigma <- as.numeric(warm_theta[p_occ + seq_len(p_occ)])
       # For skew_normal_weighted / skew_t_weighted, the PO fit has no alpha
       # (or log_r) block; pad so the warm-start lands at the symmetric
       # Gaussian point. SN_k(μ, Σ, α=0) ≡ N_k(μ, Σ); for skew-t we
@@ -440,6 +471,42 @@ optimize_niche <- function(env_occ,
     }
   }
 
+  # Resolve default centres for the ridge priors. Priority:
+  #   1. User-supplied centre (validated above).
+  #   2. PO anchor (from warm-start, if it converged).
+  #   3. Fallback: log(sd(env_occ)) for log_sigma; mu has no fallback --
+  #      if prior_mu_lambda > 0 the user MUST supply either warm_start
+  #      or an explicit prior_mu_center (else error).
+  if (is.null(prior_log_sigma_center)) {
+    if (!is.null(po_anchor_log_sigma)) {
+      prior_log_sigma_center <- po_anchor_log_sigma
+      names(prior_log_sigma_center) <- colnames(env_occ)
+    } else if (is_weighted_family && prior_log_sigma_lambda > 0) {
+      sds <- apply(as.matrix(env_occ), 2L, stats::sd, na.rm = TRUE)
+      if (any(!is.finite(sds)) || any(sds <= 0)) {
+        stop("Cannot derive default `prior_log_sigma_center`: some env_occ ",
+             "columns have zero or non-finite sd. Pass it explicitly or ",
+             "enable warm_start.")
+      }
+      prior_log_sigma_center <- log(sds)
+      names(prior_log_sigma_center) <- colnames(env_occ)
+    } else {
+      prior_log_sigma_center <- rep(0.0, p_occ)
+    }
+  }
+  if (is.null(prior_mu_center)) {
+    if (!is.null(po_anchor_mu)) {
+      prior_mu_center <- po_anchor_mu
+      names(prior_mu_center) <- colnames(env_occ)
+    } else if (is_weighted_family && prior_mu_lambda > 0) {
+      stop("prior_mu_center is NULL and no PO warm-start is available. ",
+           "Either enable warm_start = TRUE, pass prior_mu_center ",
+           "explicitly, or set prior_mu_lambda = 0.")
+    } else {
+      prior_mu_center <- rep(0.0, p_occ)
+    }
+  }
+
   # ------------------------------------------------------------------
   # Run all starts
   # ------------------------------------------------------------------
@@ -459,6 +526,9 @@ optimize_niche <- function(env_occ,
       weighted_inputs = weighted_inputs,
       prior_log_sigma_center = prior_log_sigma_center,
       prior_log_sigma_lambda = prior_log_sigma_lambda,
+      prior_mu_center        = prior_mu_center,
+      prior_mu_lambda        = prior_mu_lambda,
+      prior_alpha_lambda     = prior_alpha_lambda,
       ...
     )
   }
@@ -505,6 +575,9 @@ optimize_niche <- function(env_occ,
       ctrl            = ctrl,
       prior_log_sigma_center = prior_log_sigma_center,
       prior_log_sigma_lambda = prior_log_sigma_lambda,
+      prior_mu_center        = prior_mu_center,
+      prior_mu_lambda        = prior_mu_lambda,
+      prior_alpha_lambda     = prior_alpha_lambda,
       ...
     )
   }
@@ -613,7 +686,21 @@ optimize_niche <- function(env_occ,
                                   weighted_inputs = NULL,
                                   prior_log_sigma_center = NULL,
                                   prior_log_sigma_lambda = 0.0,
+                                  prior_mu_center        = NULL,
+                                  prior_mu_lambda        = 0.0,
+                                  prior_alpha_lambda     = 0.0,
                                   ...) {
+  # Mirror the per-start helper: for non-weighted families the mu/log_sigma
+  # penalties are disabled so the validator evaluates the *same* objective
+  # the xptr kernel minimised. (The alpha ridge still applies.)
+  if (!(likelihood %in% c("weighted", "skew_normal_weighted",
+                          "skew_t_weighted"))) {
+    prior_mu_lambda        <- 0.0
+    prior_log_sigma_lambda <- 0.0
+  }
+  pmc <- if (!is.null(prior_mu_center)) as.numeric(prior_mu_center) else NULL
+  plsc <- if (!is.null(prior_log_sigma_center))
+            as.numeric(prior_log_sigma_center) else NULL
   # Forward the SAME subsampled KDE inputs used by the optimizer so that the
   # reference ucminf::ucminf evaluates the identical objective function.
   # Otherwise (default cap = 10 000) any env_m larger than the cap would
@@ -634,10 +721,6 @@ optimize_niche <- function(env_occ,
       )
     },
     weighted = {
-      # Use the cpp parity wrapper directly for the paper-faithful
-      # weighted likelihood; there is no pure-R reference implementation.
-      # The validator only needs a function that evaluates the same
-      # objective, so the parity helper is fine here.
       env_m_mat <- as.matrix(env_m)
       M_den <- env_m_mat[weighted_inputs$den_idx, , drop = FALSE]
       function(theta) {
@@ -649,7 +732,10 @@ optimize_niche <- function(env_occ,
           w_den   = weighted_inputs$w_den,
           prior_log_sigma_center = as.numeric(prior_log_sigma_center),
           prior_log_sigma_lambda = prior_log_sigma_lambda,
-          eta = if (!is.null(list(...)$eta)) list(...)$eta else 1.0
+          eta = if (!is.null(list(...)$eta)) list(...)$eta else 1.0,
+          prior_mu_center    = pmc,
+          prior_mu_lambda    = prior_mu_lambda,
+          prior_alpha_lambda = prior_alpha_lambda
         )
       }
     },
@@ -657,7 +743,12 @@ optimize_niche <- function(env_occ,
       loglik_niche_math_skew_normal_cpp(
         theta = theta,
         env_occ = as.matrix(env_occ),
-        eta = if (!is.null(list(...)$eta)) list(...)$eta else 1.0
+        eta = if (!is.null(list(...)$eta)) list(...)$eta else 1.0,
+        prior_mu_center        = pmc,
+        prior_mu_lambda        = prior_mu_lambda,
+        prior_log_sigma_center = plsc,
+        prior_log_sigma_lambda = prior_log_sigma_lambda,
+        prior_alpha_lambda     = prior_alpha_lambda
       )
     },
     skew_normal_weighted = {
@@ -672,7 +763,10 @@ optimize_niche <- function(env_occ,
           w_den   = weighted_inputs$w_den,
           prior_log_sigma_center = as.numeric(prior_log_sigma_center),
           prior_log_sigma_lambda = prior_log_sigma_lambda,
-          eta = if (!is.null(list(...)$eta)) list(...)$eta else 1.0
+          eta = if (!is.null(list(...)$eta)) list(...)$eta else 1.0,
+          prior_mu_center    = pmc,
+          prior_mu_lambda    = prior_mu_lambda,
+          prior_alpha_lambda = prior_alpha_lambda
         )
       }
     },
@@ -680,7 +774,12 @@ optimize_niche <- function(env_occ,
       loglik_niche_math_skew_t_cpp(
         theta = theta,
         env_occ = as.matrix(env_occ),
-        eta = if (!is.null(list(...)$eta)) list(...)$eta else 1.0
+        eta = if (!is.null(list(...)$eta)) list(...)$eta else 1.0,
+        prior_mu_center        = pmc,
+        prior_mu_lambda        = prior_mu_lambda,
+        prior_log_sigma_center = plsc,
+        prior_log_sigma_lambda = prior_log_sigma_lambda,
+        prior_alpha_lambda     = prior_alpha_lambda
       )
     },
     skew_t_weighted = {
@@ -695,7 +794,10 @@ optimize_niche <- function(env_occ,
           w_den   = weighted_inputs$w_den,
           prior_log_sigma_center = as.numeric(prior_log_sigma_center),
           prior_log_sigma_lambda = prior_log_sigma_lambda,
-          eta = if (!is.null(list(...)$eta)) list(...)$eta else 1.0
+          eta = if (!is.null(list(...)$eta)) list(...)$eta else 1.0,
+          prior_mu_center    = pmc,
+          prior_mu_lambda    = prior_mu_lambda,
+          prior_alpha_lambda = prior_alpha_lambda
         )
       }
     }
@@ -729,6 +831,9 @@ optimize_niche <- function(env_occ,
                                        weighted_inputs = NULL,
                                        prior_log_sigma_center = NULL,
                                        prior_log_sigma_lambda = 0.0,
+                                       prior_mu_center        = NULL,
+                                       prior_mu_lambda        = 0.0,
+                                       prior_alpha_lambda     = 0.0,
                                        ...) {
   param_names <- names(param)
   param <- as.numeric(param)
@@ -753,18 +858,26 @@ optimize_niche <- function(env_occ,
     precomp_w_den <- weighted_inputs$w_den
   }
 
-  # Only the ridge-penalised variants (weighted, skew_normal_weighted,
-  # skew_t_weighted) care about the prior; passing NULL/0 is a no-op for
-  # the others.
-  if (likelihood %in% c("weighted", "skew_normal_weighted",
-                        "skew_t_weighted")) {
-    plsc <- if (!is.null(prior_log_sigma_center))
-              as.numeric(prior_log_sigma_center) else NULL
-    plsl <- as.numeric(prior_log_sigma_lambda)
-  } else {
-    plsc <- NULL
+  # Only ridge-penalised variants (weighted, skew_normal_weighted,
+  # skew_t_weighted) use the mu/log_sigma penalty; alpha penalty applies
+  # to any skew family (PO or weighted). For simplicity we let the C++
+  # side decide what to use: we pass everything and rely on lambdas = 0
+  # or missing alpha blocks to no-op.
+  plsl <- as.numeric(prior_log_sigma_lambda)
+  pml  <- as.numeric(prior_mu_lambda)
+  pal  <- as.numeric(prior_alpha_lambda)
+  # Disable mu/log_sigma penalties for non-weighted families (the kernels
+  # that don't carry them would ignore the terms anyway, but passing
+  # nonzero lambdas with NULL centres would trigger validation errors).
+  if (!(likelihood %in% c("weighted", "skew_normal_weighted",
+                          "skew_t_weighted"))) {
     plsl <- 0.0
+    pml  <- 0.0
   }
+  plsc <- if (plsl > 0 && !is.null(prior_log_sigma_center))
+            as.numeric(prior_log_sigma_center) else NULL
+  pmc  <- if (pml  > 0 && !is.null(prior_mu_center))
+            as.numeric(prior_mu_center) else NULL
 
   gs <- if (!is.null(control$gradstep)) control$gradstep else c(1e-6, 1e-8)
   xptr <- create_niche_obj_ptr(
@@ -779,7 +892,10 @@ optimize_niche <- function(env_occ,
     grad          = grad,
     gradstep      = gs,
     prior_log_sigma_center = plsc,
-    prior_log_sigma_lambda = plsl
+    prior_log_sigma_lambda = plsl,
+    prior_mu_center        = pmc,
+    prior_mu_lambda        = pml,
+    prior_alpha_lambda     = pal
   )
 
   control_args <- control
@@ -820,6 +936,9 @@ optimize_niche <- function(env_occ,
                                      weighted_inputs = NULL,
                                      prior_log_sigma_center = NULL,
                                      prior_log_sigma_lambda = 0.0,
+                                     prior_mu_center        = NULL,
+                                     prior_mu_lambda        = 0.0,
+                                     prior_alpha_lambda     = 0.0,
                                      ...) {
   param_names <- names(param)
   param <- as.numeric(param)

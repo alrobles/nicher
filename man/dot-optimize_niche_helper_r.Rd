@@ -15,6 +15,9 @@ starting vector.}
   weighted_inputs = NULL,
   prior_log_sigma_center = NULL,
   prior_log_sigma_lambda = 0,
+  prior_mu_center = NULL,
+  prior_mu_lambda = 0,
+  prior_alpha_lambda = 0,
   ...
 )
 }

@@ -68,9 +68,9 @@ struct XptrClosureState {
   Eigen::VectorXd w_occ;             // weighted: KDE at presence rows
   Eigen::VectorXd w_den;             // weighted: KDE at denominator rows
 
-  // Penalized weighted: ridge prior on log_sigma. Length p; lambda >= 0.
-  Eigen::VectorXd prior_log_sigma_center;
-  double          prior_log_sigma_lambda;
+  // Penalised-MLE: ridge prior on (mu, log_sigma, alpha). All lambdas
+  // default to 0 (no penalty). See nicher::PriorParams in nicher_types.h.
+  nicher::PriorParams pp;
 };
 
 using NicheObjFunType = std::function<void(const std::vector<double>&,
@@ -124,24 +124,21 @@ static double eval_value(const std::vector<double>& x,
     case LIK_WEIGHTED:
       return nicher::loglik_niche_math_weighted_eigen(
           x.data(), (int)x.size(), s.env_occ, s.M_den,
-          s.w_occ, s.w_den, s.eta,
-          s.prior_log_sigma_center, s.prior_log_sigma_lambda);
+          s.w_occ, s.w_den, s.eta, s.pp);
     case LIK_SKEW_NORMAL:
       return nicher::loglik_niche_math_skew_normal_eigen(
-          x.data(), (int)x.size(), s.env_occ, s.eta);
+          x.data(), (int)x.size(), s.env_occ, s.eta, s.pp);
     case LIK_SKEW_NORMAL_WEIGHTED:
       return nicher::loglik_niche_math_skew_normal_weighted_eigen(
           x.data(), (int)x.size(), s.env_occ, s.M_den,
-          s.w_occ, s.w_den, s.eta,
-          s.prior_log_sigma_center, s.prior_log_sigma_lambda);
+          s.w_occ, s.w_den, s.eta, s.pp);
     case LIK_SKEW_T:
       return nicher::loglik_niche_math_skew_t_eigen(
-          x.data(), (int)x.size(), s.env_occ, s.eta);
+          x.data(), (int)x.size(), s.env_occ, s.eta, s.pp);
     case LIK_SKEW_T_WEIGHTED:
       return nicher::loglik_niche_math_skew_t_weighted_eigen(
           x.data(), (int)x.size(), s.env_occ, s.M_den,
-          s.w_occ, s.w_den, s.eta,
-          s.prior_log_sigma_center, s.prior_log_sigma_lambda);
+          s.w_occ, s.w_den, s.eta, s.pp);
     case LIK_UNWEIGHTED:
     default:
       return eval_unweighted_legacy(x, s);
@@ -192,7 +189,10 @@ SEXP create_niche_obj_ptr(
     std::string             grad          = "central",
     NumericVector           gradstep      = NumericVector::create(1e-6, 1e-8),
     Nullable<NumericVector> prior_log_sigma_center = R_NilValue,
-    double                  prior_log_sigma_lambda = 0.0) {
+    double                  prior_log_sigma_lambda = 0.0,
+    Nullable<NumericVector> prior_mu_center        = R_NilValue,
+    double                  prior_mu_lambda        = 0.0,
+    double                  prior_alpha_lambda     = 0.0) {
 
   if (gradstep.size() != 2) Rcpp::stop("gradstep must have length 2");
   if (!(gradstep[0] >= 0) || !(gradstep[1] >= 0))
@@ -201,6 +201,10 @@ SEXP create_niche_obj_ptr(
     Rcpp::stop("gradstep cannot be both zero");
   if (!(prior_log_sigma_lambda >= 0.0))
     Rcpp::stop("prior_log_sigma_lambda must be non-negative.");
+  if (!(prior_mu_lambda >= 0.0))
+    Rcpp::stop("prior_mu_lambda must be non-negative.");
+  if (!(prior_alpha_lambda >= 0.0))
+    Rcpp::stop("prior_alpha_lambda must be non-negative.");
 
   LikType lt;
   if (likelihood == "unweighted")              lt = LIK_UNWEIGHTED;
@@ -245,19 +249,20 @@ SEXP create_niche_obj_ptr(
   state->grad_mode   = gm;
   state->gradstep_rel = gradstep[0];
   state->gradstep_abs = gradstep[1];
-  state->prior_log_sigma_lambda = prior_log_sigma_lambda;
+  state->pp.mu_lambda        = prior_mu_lambda;
+  state->pp.log_sigma_lambda = prior_log_sigma_lambda;
+  state->pp.alpha_lambda     = prior_alpha_lambda;
 
-  // Prior centre. Required if likelihood == "weighted" AND
-  // lambda > 0; for all other configurations we still allocate a length-p
-  // zero vector so the kernel size checks pass cheaply.
+  const int p = env_occ.ncol();
+
   if (prior_log_sigma_center.isNotNull()) {
     NumericVector pc(prior_log_sigma_center);
-    if (pc.size() != env_occ.ncol())
+    if (pc.size() != p)
       Rcpp::stop("prior_log_sigma_center length (%d) must equal ncol(env_occ) (%d).",
-                 (int)pc.size(), (int)env_occ.ncol());
-    state->prior_log_sigma_center = Eigen::VectorXd(pc.size());
+                 (int)pc.size(), p);
+    state->pp.log_sigma_center = Eigen::VectorXd(p);
     for (int k = 0; k < pc.size(); ++k)
-      state->prior_log_sigma_center(k) = pc[k];
+      state->pp.log_sigma_center(k) = pc[k];
   } else {
     if ((lt == LIK_WEIGHTED || lt == LIK_SKEW_NORMAL_WEIGHTED ||
          lt == LIK_SKEW_T_WEIGHTED) &&
@@ -265,7 +270,21 @@ SEXP create_niche_obj_ptr(
       Rcpp::stop("prior_log_sigma_center must be supplied when "
                  "likelihood='%s' and prior_log_sigma_lambda > 0.",
                  likelihood.c_str());
-    state->prior_log_sigma_center = Eigen::VectorXd::Zero(env_occ.ncol());
+    state->pp.log_sigma_center = Eigen::VectorXd::Zero(p);
+  }
+
+  if (prior_mu_center.isNotNull()) {
+    NumericVector mc(prior_mu_center);
+    if (mc.size() != p)
+      Rcpp::stop("prior_mu_center length (%d) must equal ncol(env_occ) (%d).",
+                 (int)mc.size(), p);
+    state->pp.mu_center = Eigen::VectorXd(p);
+    for (int k = 0; k < mc.size(); ++k)
+      state->pp.mu_center(k) = mc[k];
+  } else {
+    if (prior_mu_lambda > 0.0)
+      Rcpp::stop("prior_mu_center must be supplied when prior_mu_lambda > 0.");
+    state->pp.mu_center = Eigen::VectorXd::Zero(p);
   }
 
   // Snapshot env_occ
@@ -368,8 +387,7 @@ SEXP create_niche_obj_ptr(
           f = nicher::loglik_niche_math_weighted_grad_eigen(
                 x.data(), n,
                 state->env_occ, state->M_den, state->w_occ, state->w_den,
-                state->eta,
-                state->prior_log_sigma_center, state->prior_log_sigma_lambda,
+                state->eta, state->pp,
                 state->gradstep_rel, state->gradstep_abs,
                 g.data());
         } else {

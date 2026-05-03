@@ -33,36 +33,36 @@ loglik_niche_math_kde_bias_corrected_grad_cpp <- function(theta, env_occ, M_den,
     .Call(`_nicher_loglik_niche_math_kde_bias_corrected_grad_cpp`, theta, env_occ, M_den, w_occ, w_den, eta, gradstep_rel, gradstep_abs)
 }
 
-loglik_niche_math_weighted_cpp <- function(theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta = 1.0) {
-    .Call(`_nicher_loglik_niche_math_weighted_cpp`, theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta)
+loglik_niche_math_weighted_cpp <- function(theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta = 1.0, prior_mu_center = NULL, prior_mu_lambda = 0.0, prior_alpha_lambda = 0.0) {
+    .Call(`_nicher_loglik_niche_math_weighted_cpp`, theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta, prior_mu_center, prior_mu_lambda, prior_alpha_lambda)
 }
 
-loglik_niche_math_weighted_grad_cpp <- function(theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta = 1.0, gradstep_rel = 1e-6, gradstep_abs = 1e-8) {
-    .Call(`_nicher_loglik_niche_math_weighted_grad_cpp`, theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta, gradstep_rel, gradstep_abs)
+loglik_niche_math_weighted_grad_cpp <- function(theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta = 1.0, gradstep_rel = 1e-6, gradstep_abs = 1e-8, prior_mu_center = NULL, prior_mu_lambda = 0.0, prior_alpha_lambda = 0.0) {
+    .Call(`_nicher_loglik_niche_math_weighted_grad_cpp`, theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta, gradstep_rel, gradstep_abs, prior_mu_center, prior_mu_lambda, prior_alpha_lambda)
 }
 
-loglik_niche_math_skew_normal_cpp <- function(theta, env_occ, eta = 1.0) {
-    .Call(`_nicher_loglik_niche_math_skew_normal_cpp`, theta, env_occ, eta)
+loglik_niche_math_skew_normal_cpp <- function(theta, env_occ, eta = 1.0, prior_mu_center = NULL, prior_mu_lambda = 0.0, prior_log_sigma_center = NULL, prior_log_sigma_lambda = 0.0, prior_alpha_lambda = 0.0) {
+    .Call(`_nicher_loglik_niche_math_skew_normal_cpp`, theta, env_occ, eta, prior_mu_center, prior_mu_lambda, prior_log_sigma_center, prior_log_sigma_lambda, prior_alpha_lambda)
 }
 
-loglik_niche_math_skew_normal_weighted_cpp <- function(theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta = 1.0) {
-    .Call(`_nicher_loglik_niche_math_skew_normal_weighted_cpp`, theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta)
+loglik_niche_math_skew_normal_weighted_cpp <- function(theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta = 1.0, prior_mu_center = NULL, prior_mu_lambda = 0.0, prior_alpha_lambda = 0.0) {
+    .Call(`_nicher_loglik_niche_math_skew_normal_weighted_cpp`, theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta, prior_mu_center, prior_mu_lambda, prior_alpha_lambda)
 }
 
-loglik_niche_math_skew_t_cpp <- function(theta, env_occ, eta = 1.0) {
-    .Call(`_nicher_loglik_niche_math_skew_t_cpp`, theta, env_occ, eta)
+loglik_niche_math_skew_t_cpp <- function(theta, env_occ, eta = 1.0, prior_mu_center = NULL, prior_mu_lambda = 0.0, prior_log_sigma_center = NULL, prior_log_sigma_lambda = 0.0, prior_alpha_lambda = 0.0) {
+    .Call(`_nicher_loglik_niche_math_skew_t_cpp`, theta, env_occ, eta, prior_mu_center, prior_mu_lambda, prior_log_sigma_center, prior_log_sigma_lambda, prior_alpha_lambda)
 }
 
-loglik_niche_math_skew_t_weighted_cpp <- function(theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta = 1.0) {
-    .Call(`_nicher_loglik_niche_math_skew_t_weighted_cpp`, theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta)
+loglik_niche_math_skew_t_weighted_cpp <- function(theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta = 1.0, prior_mu_center = NULL, prior_mu_lambda = 0.0, prior_alpha_lambda = 0.0) {
+    .Call(`_nicher_loglik_niche_math_skew_t_weighted_cpp`, theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta, prior_mu_center, prior_mu_lambda, prior_alpha_lambda)
 }
 
 loglik_niche_presence_only_cpp <- function(mu, L, env_occ) {
     .Call(`_nicher_loglik_niche_presence_only_cpp`, mu, L, env_occ)
 }
 
-create_niche_obj_ptr <- function(env_occ, env_m = NULL, eta = 1.0, likelihood = "weighted", den_idx = NULL, kde_idx = NULL, precomp_w_occ = NULL, precomp_w_den = NULL, grad = "central", gradstep = as.numeric( c(1e-6, 1e-8)), prior_log_sigma_center = NULL, prior_log_sigma_lambda = 0.0) {
-    .Call(`_nicher_create_niche_obj_ptr`, env_occ, env_m, eta, likelihood, den_idx, kde_idx, precomp_w_occ, precomp_w_den, grad, gradstep, prior_log_sigma_center, prior_log_sigma_lambda)
+create_niche_obj_ptr <- function(env_occ, env_m = NULL, eta = 1.0, likelihood = "weighted", den_idx = NULL, kde_idx = NULL, precomp_w_occ = NULL, precomp_w_den = NULL, grad = "central", gradstep = as.numeric( c(1e-6, 1e-8)), prior_log_sigma_center = NULL, prior_log_sigma_lambda = 0.0, prior_mu_center = NULL, prior_mu_lambda = 0.0, prior_alpha_lambda = 0.0) {
+    .Call(`_nicher_create_niche_obj_ptr`, env_occ, env_m, eta, likelihood, den_idx, kde_idx, precomp_w_occ, precomp_w_den, grad, gradstep, prior_log_sigma_center, prior_log_sigma_lambda, prior_mu_center, prior_mu_lambda, prior_alpha_lambda)
 }
 
 #' Habitat-suitability kernel (parallel, zero-copy)

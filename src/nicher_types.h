@@ -18,6 +18,103 @@ constexpr double OPTIM_PENALTY = 1e300;
 // the likelihood surface while preventing -Inf/NaN propagation.
 constexpr double MIN_KDE_WEIGHT = 1e-300;
 
+// ---------------------------------------------------------------------------
+// PriorParams: shared penalised-MLE configuration.
+//
+// Encapsulates the three optional ridge penalties applied on top of the
+// base negative log-likelihood:
+//
+//   penalty(theta) =
+//     mu_lambda        * sum_k ((mu_k - mu_center_k) / exp(log_sigma_center_k))^2
+//   + log_sigma_lambda * sum_k (log_sigma_k - log_sigma_center_k)^2
+//   + alpha_lambda     * sum_k alpha_k^2                  (skew families only)
+//
+// The mu penalty is divided by exp(log_sigma_center_k) so that mu_lambda is
+// unit-free across variables whose scales differ wildly (e.g. bio1 in degC
+// vs bio12 in mm). With the default anchor at the presence-only fit,
+// mu_lambda = 1 means "mu is allowed to drift ~1 standard deviation from
+// mu_PO before the penalty pushes back".
+//
+// All lambdas default to 0 (no penalty); when every lambda is 0 the kernel
+// reduces exactly to its un-penalised form.
+//
+// alpha_lambda is ignored if the active kernel does not have an alpha block.
+// alpha is always shrunk toward 0 (alpha = 0 recovers the Gaussian sub-model).
+// ---------------------------------------------------------------------------
+struct PriorParams {
+  Eigen::VectorXd mu_center;          // length p (zeros if mu_lambda = 0)
+  double          mu_lambda        = 0.0;
+  Eigen::VectorXd log_sigma_center;   // length p (zeros if both sigma- and
+                                      // mu-lambdas are 0)
+  double          log_sigma_lambda = 0.0;
+  double          alpha_lambda     = 0.0;
+};
+
+// Compute the additive penalty value for a given theta. theta layout:
+//   [mu(p), log_sigma(p), v(n_v), alpha(p)?, log_r(1)?]
+// alpha block is only present if has_alpha == true.
+inline double prior_penalty_value(const double* theta, int p, int n_v,
+                                  bool has_alpha,
+                                  const PriorParams& pp) {
+  double pen = 0.0;
+  if (pp.mu_lambda > 0.0 && pp.mu_center.size() == p &&
+      pp.log_sigma_center.size() == p) {
+    double s = 0.0;
+    for (int k = 0; k < p; ++k) {
+      const double scale = std::exp(pp.log_sigma_center(k));
+      const double d = (theta[k] - pp.mu_center(k)) / scale;
+      s += d * d;
+    }
+    pen += pp.mu_lambda * s;
+  }
+  if (pp.log_sigma_lambda > 0.0 && pp.log_sigma_center.size() == p) {
+    double s = 0.0;
+    for (int k = 0; k < p; ++k) {
+      const double d = theta[p + k] - pp.log_sigma_center(k);
+      s += d * d;
+    }
+    pen += pp.log_sigma_lambda * s;
+  }
+  if (pp.alpha_lambda > 0.0 && has_alpha) {
+    const int alpha_off = 2 * p + n_v;
+    double s = 0.0;
+    for (int k = 0; k < p; ++k) {
+      const double a = theta[alpha_off + k];
+      s += a * a;
+    }
+    pen += pp.alpha_lambda * s;
+  }
+  return pen;
+}
+
+// Accumulate the gradient of the penalty into g[0..n_theta). Only fills the
+// blocks the penalty actually touches; other entries of g are left intact
+// (caller must initialise them).
+inline void prior_penalty_grad_add(const double* theta, int p, int n_v,
+                                   bool has_alpha,
+                                   const PriorParams& pp, double* g) {
+  if (pp.mu_lambda > 0.0 && pp.mu_center.size() == p &&
+      pp.log_sigma_center.size() == p) {
+    for (int k = 0; k < p; ++k) {
+      const double scale = std::exp(pp.log_sigma_center(k));
+      const double d = (theta[k] - pp.mu_center(k)) / scale;
+      g[k] += 2.0 * pp.mu_lambda * d / scale;
+    }
+  }
+  if (pp.log_sigma_lambda > 0.0 && pp.log_sigma_center.size() == p) {
+    for (int k = 0; k < p; ++k) {
+      const double d = theta[p + k] - pp.log_sigma_center(k);
+      g[p + k] += 2.0 * pp.log_sigma_lambda * d;
+    }
+  }
+  if (pp.alpha_lambda > 0.0 && has_alpha) {
+    const int alpha_off = 2 * p + n_v;
+    for (int k = 0; k < p; ++k) {
+      g[alpha_off + k] += 2.0 * pp.alpha_lambda * theta[alpha_off + k];
+    }
+  }
+}
+
 Eigen::VectorXd kde_2d(const Eigen::MatrixXd& x, const Eigen::MatrixXd& data);
 Eigen::VectorXd kde_eigen(const Eigen::MatrixXd& x, const Eigen::MatrixXd& data);
 double sum_mahalanobis_sq(const Eigen::MatrixXd& X, const Eigen::VectorXd& mu, const Eigen::MatrixXd& L);
@@ -63,17 +160,19 @@ double loglik_niche_math_kde_bias_corrected_grad_eigen(
 
 // Math-scale penalized weighted negative log-likelihood. Implements the
 // Jimenez & Soberon 2022 (Ecological Modelling 438:109982) Eq. 5 formula
-// EXACTLY, plus a weakly-informative ridge penalty on log_sigma that
-// stabilises the optimization against the well-known Patil & Ord (1976)
-// sigma -> infinity drift in the pure-ML weighted-distribution model.
+// EXACTLY, plus the optional PriorParams penalty (ridge on log_sigma,
+// optionally also on mu and alpha) that stabilises the optimization
+// against the Patil & Ord (1976) sigma -> infinity drift in the pure-ML
+// weighted-distribution model and against mu drifting outside the data
+// cloud:
 //
 //   -log L = 0.5 sum_i q1(x_i)
 //          - sum_i log w(x_i)
 //          + n_occ * log( sum_j w(y_j) * exp(-q2(y_j)/2) )
-//          + lambda * sum_k (log_sigma_k - log_sigma_center_k)^2
+//          + prior_penalty_value(theta, p, n_v, /*has_alpha*/false, pp)
 //
-// `prior_log_sigma_center` has length p; `prior_log_sigma_lambda` is a
-// non-negative scalar (lambda = 0 reduces to plain paper Eq. 5).
+// All entries of `pp` default to zero (no penalty), in which case the
+// kernel reduces exactly to the unpenalised paper formula.
 double loglik_niche_math_weighted_eigen(
     const double* theta, int n_theta,
     const Eigen::MatrixXd& env_occ,
@@ -81,12 +180,12 @@ double loglik_niche_math_weighted_eigen(
     const Eigen::VectorXd& w_occ,
     const Eigen::VectorXd& w_den,
     double eta,
-    const Eigen::VectorXd& prior_log_sigma_center,
-    double prior_log_sigma_lambda);
+    const PriorParams& pp);
 
 // Hybrid analytic gradient for the penalized weighted kernel; same hybrid
 // strategy as loglik_niche_math_kde_bias_corrected_grad_eigen plus the closed-form
-// gradient of the ridge term on log_sigma.
+// gradient of every active term in PriorParams (mu / log_sigma / alpha;
+// alpha is irrelevant for the Gaussian weighted family).
 double loglik_niche_math_weighted_grad_eigen(
     const double* theta, int n_theta,
     const Eigen::MatrixXd& env_occ,
@@ -94,8 +193,7 @@ double loglik_niche_math_weighted_grad_eigen(
     const Eigen::VectorXd& w_occ,
     const Eigen::VectorXd& w_den,
     double eta,
-    const Eigen::VectorXd& prior_log_sigma_center,
-    double prior_log_sigma_lambda,
+    const PriorParams& pp,
     double gradstep_rel, double gradstep_abs,
     double* g_out);
 
@@ -106,9 +204,16 @@ double loglik_niche_math_weighted_grad_eigen(
 // Density: f_{SN}(x; mu, Sigma, alpha) = 2 * phi_k(x-mu; Sigma) * Phi(z(x))
 // where z(x) = sum_k alpha_k * (x_k - mu_k) / sigma_k.
 // Reference: Azzalini & Capitanio (1999), J. R. Stat. Soc. Ser. B 61(3).
+//
+// Optionally adds a ridge penalty on alpha (well-known fix for the
+// unbounded-MLE pathology of the SN direct parameterization, Azzalini 1985,
+// Pewsey 2000) and/or on mu / log_sigma. mu_lambda and log_sigma_lambda are
+// not commonly used for the presence-only kernel, but the same PriorParams
+// is accepted for signature uniformity with the weighted variants.
 double loglik_niche_math_skew_normal_eigen(
     const double* theta, int n_theta,
-    const Eigen::MatrixXd& env_occ, double eta);
+    const Eigen::MatrixXd& env_occ, double eta,
+    const PriorParams& pp);
 
 // Math-scale skew-normal weighted negative log-likelihood. Theta layout
 // matches loglik_niche_math_skew_normal_eigen above. Composes the
@@ -129,8 +234,7 @@ double loglik_niche_math_skew_normal_weighted_eigen(
     const Eigen::VectorXd& w_occ,
     const Eigen::VectorXd& w_den,
     double eta,
-    const Eigen::VectorXd& prior_log_sigma_center,
-    double prior_log_sigma_lambda);
+    const PriorParams& pp);
 
 // Math-scale skew-t presence-only (multivariate non-central skew-t via 1-D
 // Gauss-Laguerre quadrature on the chi^2_r mixing variable). Theta layout:
@@ -151,7 +255,8 @@ double loglik_niche_math_skew_normal_weighted_eigen(
 // in theta (verified analytically and numerically in test-loglik_math_cpp_parity).
 double loglik_niche_math_skew_t_eigen(
     const double* theta, int n_theta,
-    const Eigen::MatrixXd& env_occ, double eta);
+    const Eigen::MatrixXd& env_occ, double eta,
+    const PriorParams& pp);
 
 // Math-scale skew-t weighted (NCST density + paper Eq. 5 + ridge prior on
 // log_sigma). Same theta layout as loglik_niche_math_skew_t_eigen.
@@ -173,8 +278,7 @@ double loglik_niche_math_skew_t_weighted_eigen(
     const Eigen::VectorXd& w_occ,
     const Eigen::VectorXd& w_den,
     double eta,
-    const Eigen::VectorXd& prior_log_sigma_center,
-    double prior_log_sigma_lambda);
+    const PriorParams& pp);
 
 }
 
