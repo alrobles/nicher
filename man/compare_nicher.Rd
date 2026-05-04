@@ -4,7 +4,11 @@
 \alias{compare_nicher}
 \title{Compare nicher fits side-by-side via AIC and BIC}
 \usage{
-compare_nicher(..., sort_by = c("AIC", "BIC", "loglik"))
+compare_nicher(
+  ...,
+  sort_by = c("AIC", "BIC", "loglik"),
+  comparison_basis = c("unpenalised", "penalised")
+)
 }
 \arguments{
 \item{...}{Two or more \code{"nicher"} objects, optionally named, OR a
@@ -13,6 +17,26 @@ single named list of such objects.}
 \item{sort_by}{Character. One of \code{"AIC"} (default), \code{"BIC"},
 or \code{"loglik"}: which metric to order rows by. Best model is
 always at the top.}
+
+\item{comparison_basis}{Character, one of \code{"unpenalised"}
+  (default) or \code{"penalised"}. Determines which log-likelihood is
+  used as the basis for AIC and BIC.
+\itemize{
+  \item \code{"unpenalised"}: the bare data log-likelihood
+        \eqn{\ell(\hat\theta)} returned by
+        \code{\link{logLik.nicher}}. Standard frequentist convention,
+        and the right basis when comparing **different likelihood
+        families** at fixed penalty knobs.
+  \item \code{"penalised"}: the optimiser's actual objective,
+        \eqn{\ell(\hat\theta) - \mathrm{pen}(\hat\theta)}, i.e.
+        \code{x$best$loglik}. The right basis when comparing **the
+        same family at different penalty strengths**, since the
+        unpenalised log-likelihood is monotone in
+        \eqn{(\lambda_{\mu}, \lambda_{\log\sigma}, \lambda_{\alpha})}
+        and would always favour \eqn{\lambda = 0}. Note: this score
+        is NOT a true frequentist IC -- it is the
+        penalised-objective AIC, an effective-fit score.
+}}
 }
 \value{
 A \code{data.frame} with one row per fit and columns:

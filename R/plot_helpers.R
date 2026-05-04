@@ -1,6 +1,6 @@
 # R/plot_helpers.R
-# Private helpers shared by autoplot.nicher / nicher_compare_plot /
-# geom_nicher_*. None are exported.
+# Private helpers shared by the geom_nicher_* layer constructors.
+# None are exported.
 
 # ---------------------------------------------------------------------------
 # 20-node standard Gauss-Laguerre quadrature (nodes / weights from

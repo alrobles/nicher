@@ -616,6 +616,31 @@ optimize_niche <- function(env_occ,
     .env_fingerprint(env_m)
   }
 
+  # ------------------------------------------------------------------
+  # Persist fit recipe so `cv_nicher()` can replay the same likelihood
+  # / knob configuration on a subset of `env_occ`. We deliberately
+  # exclude the bulky data (env_occ, env_m); those are passed back to
+  # `cv_nicher()` and validated against the fingerprints above.
+  # ------------------------------------------------------------------
+  fit_args <- list(
+    num_starts             = num_starts,
+    breadth                = breadth,
+    likelihood             = likelihood,
+    backend                = backend,
+    grad                   = resolved_grad,
+    m_subsample            = m_subsample,
+    m_kde_subsample        = m_kde_subsample,
+    seed                   = seed,
+    warm_start             = warm_start,
+    prior_log_sigma_lambda = prior_log_sigma_lambda,
+    prior_log_sigma_center = prior_log_sigma_center,
+    prior_mu_lambda        = prior_mu_lambda,
+    prior_mu_center        = prior_mu_center,
+    prior_alpha_lambda     = prior_alpha_lambda,
+    control                = control,
+    eta                    = eta
+  )
+
   if (verbose) {
     message(sprintf(
       "Best log-likelihood: %.6f (convergence = %d)",
@@ -623,7 +648,7 @@ optimize_niche <- function(env_occ,
     ))
   }
 
-  new_nicher(
+  out <- new_nicher(
     solutions  = solutions,
     best       = best,
     likelihood = likelihood,
@@ -631,6 +656,8 @@ optimize_niche <- function(env_occ,
     var_names  = colnames(env_occ),
     eta        = eta
   )
+  out$fit_args <- fit_args
+  out
 }
 
 
