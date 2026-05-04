@@ -582,6 +582,40 @@ optimize_niche <- function(env_occ,
     )
   }
 
+  # ------------------------------------------------------------------
+  # Information-criteria payload: un-penalised log-likelihood evaluated
+  # at the converged theta, plus nobs and cheap fingerprints of
+  # env_occ / env_m so `compare_nicher()` can refuse non-comparable
+  # inputs. `loglik_unpenalised` strips the ridge so AIC/BIC see the
+  # bare data likelihood; for `presence_only` and `kde_bias_corrected`
+  # there is no penalty so it equals `best$loglik`. See `?logLik.nicher`.
+  # ------------------------------------------------------------------
+  best$loglik_unpenalised <- tryCatch(
+    .compute_unpenalised_loglik(
+      theta           = best$theta,
+      likelihood      = likelihood,
+      env_occ         = env_occ,
+      env_m           = env_m,
+      weighted_inputs = weighted_inputs,
+      eta             = eta
+    ),
+    error = function(e) {
+      warning("Could not compute un-penalised log-likelihood for ",
+              "logLik()/AIC()/BIC(): ", conditionMessage(e),
+              call. = FALSE)
+      NA_real_
+    }
+  )
+  best$nobs                <- nrow(env_occ)
+  best$env_occ_fingerprint <- .env_fingerprint(env_occ)
+  best$env_m_fingerprint   <- if (likelihood %in%
+                                  c("presence_only", "skew_normal",
+                                    "skew_t")) {
+    NULL
+  } else {
+    .env_fingerprint(env_m)
+  }
+
   if (verbose) {
     message(sprintf(
       "Best log-likelihood: %.6f (convergence = %d)",

@@ -1,3 +1,73 @@
+# nicher 3.2.0
+
+## Information criteria + side-by-side model comparison (new feature, non-breaking)
+
+The 7-likelihood + multi-knob landscape introduced in 3.0.x / 3.1.0
+made it easy to fit many candidate models. This release adds the
+standard frequentist tooling to compare them.
+
+### New S3 methods
+
+- `logLik()` -- returns the **un-penalised** log-likelihood evaluated
+  at the converged `theta`, with `df = length(theta)` and `nobs =
+  nrow(env_occ)`. Important: this is **not** the same as
+  `fit$best$loglik` for penalised fits (`fit$best$loglik` is the
+  optimiser's objective, which embeds the ridge penalty). AIC and BIC
+  are defined on the bare data likelihood, so `logLik(fit)` is what
+  `AIC()` / `BIC()` consume.
+- `nobs()` -- the sample size used by BIC (number of occurrence rows).
+- `AIC()`, `BIC()` -- standard formulas (`-2 ll + 2 k` and
+  `-2 ll + k log n`). Pass multiple fits to get a one-row-per-fit
+  data.frame.
+
+### New `compare_nicher()` helper
+
+```
+compare_nicher(weighted = fit_w,
+               skew_normal = fit_skn,
+               skew_t      = fit_skt)
+```
+
+Returns a `data.frame(model, likelihood, loglik, df, nobs, AIC, dAIC,
+BIC, dBIC, weight_AIC, convergence)` ranked best-first by AIC (or BIC,
+or raw `loglik`). The Akaike weights `weight_AIC` quantify each
+model's posterior probability under a flat model prior:
+`exp(-d_i / 2) / sum_j exp(-d_j / 2)`.
+
+`compare_nicher()` validates that all fits used the **same input
+data**: identical `env_occ` fingerprint and (when applicable)
+identical `env_m` fingerprint. Mismatches raise a hard error rather
+than silently producing meaningless IC values. Mixing fits that use
+`env_m` (`weighted`, `skew_normal_weighted`, `skew_t_weighted`,
+`kde_bias_corrected`) with fits that do not (`presence_only`,
+`skew_normal`, `skew_t`) is allowed but emits a warning -- weighted
+likelihoods are normalised by an `env_m` integral and so live on a
+different scale than presence-only likelihoods.
+
+### Effective degrees of freedom
+
+`df` is reported naively as `length(theta)`; this ignores the
+shrinkage induced by the ridge penalties added in 3.1.0
+(`prior_mu_lambda`, `prior_log_sigma_lambda`, `prior_alpha_lambda`).
+For weak penalties (`lambda <= 1`) the bias is small. For stronger
+penalties the effective df is lower than `length(theta)`, so AIC/BIC
+will under-favour the more-regularised model. Quantifying effective
+df via the trace of the influence matrix is left to a future release.
+
+### Storage on the nicher object
+
+Each `optimize_niche()` call now also stores on `fit$best`:
+
+- `loglik_unpenalised` -- bare data log-likelihood at the optimum.
+- `nobs` -- sample size.
+- `env_occ_fingerprint`, `env_m_fingerprint` -- cheap deterministic
+  hashes (nrow, ncol, colnames, column means, column SDs) used by
+  `compare_nicher()` to detect non-comparable inputs.
+
+These are additive; older `nicher` objects (`< 3.2.0`) cannot be
+passed to `logLik()` / `AIC()` / `BIC()` and will raise a clear
+"refit with current version" error.
+
 # nicher 3.1.0
 
 ## PO-anchored penalised MLE (new feature, non-breaking)
