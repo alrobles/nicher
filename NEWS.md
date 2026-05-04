@@ -1,3 +1,75 @@
+# nicher 3.1.0
+
+## PO-anchored penalised MLE (new feature, non-breaking)
+
+The weighted families now shrink their fits toward the presence-only (PO)
+baseline via three optional ridge penalties layered on the negative
+log-likelihood. This operationalises the package's philosophy that the
+accessible-environment term `env_m` should *correct* the PO niche, not
+replace it: without a penalty, the weighted MLE for `mu` can drift many
+standard deviations away from the PO centre on real data (on the
+bundled `example_vicugna` dataset, unregularised `weighted` puts `mu2`
+at 680 vs. the PO value of 215).
+
+This is **penalised maximum likelihood** (Tikhonov / ridge), not a
+Bayesian posterior: the optimiser still minimises `-log_lik +
+penalty`; the penalty simply prefers fits that stay close to the PO
+anchor.
+
+### New `optimize_niche()` arguments
+
+- `prior_mu_lambda`  (default `1.0`) -- unit-free ridge
+  `sum_k ((mu_k - mu_PO_k) / sigma_PO_k)^2`. Because the penalty is
+  scaled by the PO standard deviation, `lambda = 1` means "allow `mu`
+  to drift ~1 PO sigma before the penalty pushes back". Scale-free
+  across heterogeneous variables (e.g. `bio1` in degrees C vs. `bio12`
+  in mm).
+- `prior_alpha_lambda`  (default `0.1`) -- ridge `sum_k alpha_k^2`
+  on the skew vector, shrinking toward the Gaussian sub-model. Fixes
+  the well-known unbounded-MLE pathology of the skew-normal direct
+  parameterization (Azzalini 1985, Pewsey 2000). Applies to **all**
+  skew families, both presence-only (`skew_normal`, `skew_t`) and
+  weighted (`skew_normal_weighted`, `skew_t_weighted`). Without this
+  penalty, `example_vicugna` produced `alpha = (66 229, 1 287 048)`,
+  clearly a degenerate optimum; with `lambda = 0.1` the fit lands at
+  `alpha = (0.66, 13)`.
+- `prior_mu_center`  (default `NULL`) -- centre of the `mu` ridge.
+  When `NULL`, it is anchored at the PO fit's `mu` (reuses the
+  warm-start optimisation that was already run to seed the weighted
+  multi-start).
+
+### Changed defaults
+
+- `prior_log_sigma_lambda` and `prior_alpha_lambda` now **default to
+  nonzero values** (`1.0` and `0.1` respectively) on their applicable
+  families. To recover the pure-MLE behaviour of nicher 3.0.x set
+  all three `prior_*_lambda = 0`.
+- `prior_log_sigma_center` now defaults to the PO fit's `log(sigma)`
+  (via warm-start) instead of `log(apply(env_occ, 2, sd))`. This is
+  tighter and more honest -- the two agree up to numerical precision
+  for the default `breadth`, but can differ on short or multimodal
+  occurrence clouds.
+- `warm_start = TRUE` (already the default) is now required for any
+  weighted-family call that relies on the default anchors. Call with
+  `warm_start = FALSE` and you must either supply `prior_mu_center`
+  explicitly or set `prior_mu_lambda = 0`.
+
+### Migration
+
+- Fits from nicher 3.0.x with `prior_log_sigma_lambda = 1` (the 3.0
+  default) and default `prior_log_sigma_center = log(sd(env_occ))`
+  **will change** at nicher 3.1.0 because the centre now tracks the
+  PO fit. To reproduce the 3.0 numerics exactly, pass
+  `prior_log_sigma_center = log(apply(env_occ, 2, sd))`,
+  `prior_mu_lambda = 0`, `prior_alpha_lambda = 0`.
+
+### Bibliography
+
+- Azzalini, A. (1985). A class of distributions which includes the
+  normal ones. *Scand. J. Statist.* 12, 171-178.
+- Pewsey, A. (2000). Problems of inference for Azzalini's skewnormal
+  distribution. *J. Applied Statistics* 27(7), 859-870.
+
 # nicher 3.0.0
 
 ## Breaking changes

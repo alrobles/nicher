@@ -19,6 +19,9 @@ optimize_niche(
   warm_start = TRUE,
   prior_log_sigma_lambda = 1,
   prior_log_sigma_center = NULL,
+  prior_mu_lambda = 1,
+  prior_mu_center = NULL,
+  prior_alpha_lambda = 0.1,
   control = list(),
   verbose = FALSE,
   ...
@@ -74,21 +77,50 @@ starts. Ignored for \code{likelihood = "presence_only"} and
 
 \item{prior_log_sigma_lambda}{Numeric scalar (\code{>= 0}), strength of
 the ridge penalty on \eqn{\log \sigma} used by
-\code{likelihood = "weighted"} and
-\code{"skew_normal_weighted"}. The penalty is
-\eqn{\lambda \sum_k (\log \sigma_k - \log \hat\sigma_k)^2} with
-\eqn{\log \hat\sigma_k = \log(\mathrm{sd}(\text{env\_occ}[, k]))}.
-Default \code{1.0} (weak). Larger values pull
-\eqn{\sigma} more strongly toward the empirical scale of the occurrence
-cloud; \code{0} reduces the model to pure ML weighted normal (Eq. 5)
-and is not recommended (subject to Patil & Ord 1976 drift). Ignored
-for other likelihoods.}
+\code{likelihood = "weighted"}, \code{"skew_normal_weighted"}, and
+\code{"skew_t_weighted"}. The penalty is
+\eqn{\lambda \sum_k (\log \sigma_k - \log \hat\sigma_k)^2}. The centre
+\eqn{\log \hat\sigma_k} defaults to the presence-only fit's
+\eqn{\log \sigma_k} (shrinks the weighted fit toward the PO fit); see
+\code{prior_log_sigma_center}. Default \code{1.0} (weak). Larger
+values keep \eqn{\sigma} closer to the PO scale; \code{0} reduces the
+model to pure ML weighted normal (Eq. 5) and is not recommended
+(subject to Patil & Ord 1976 drift).}
 
 \item{prior_log_sigma_center}{Optional numeric vector of length
-\code{ncol(env_occ)} giving the centre of the ridge prior on
-\eqn{\log \sigma}. \code{NULL} (default) sets it to
-\code{log(apply(env_occ, 2, sd))}. Ignored for likelihoods other than
-\code{"weighted"}.}
+\code{ncol(env_occ)}. \code{NULL} (default) anchors the centre at the
+presence-only fit's \eqn{\log \sigma} when \code{warm_start = TRUE}
+(the PO fit is already run to seed the weighted multi-start); falls
+back to \code{log(apply(env_occ, 2, sd))} when \code{warm_start = FALSE}.}
+
+\item{prior_mu_lambda}{Numeric scalar (\code{>= 0}), strength of a unit-free
+ridge penalty on \eqn{\mu} used by the weighted families
+(\code{"weighted"}, \code{"skew_normal_weighted"},
+\code{"skew_t_weighted"}). The penalty is
+\eqn{\lambda_\mu \sum_k \left((\mu_k - \hat\mu_k) / \hat\sigma_k\right)^2}
+with anchors \eqn{\hat\mu_k} and \eqn{\hat\sigma_k} from the PO fit
+(see \code{prior_mu_center}). Because the penalty is divided by the PO
+\eqn{\sigma_k}, it is scale-free across heterogeneous variables (e.g.
+bio1 in \eqn{^\circ C} vs bio12 in mm): \code{prior_mu_lambda = 1}
+allows \eqn{\mu} to drift ~1 PO standard deviation before the
+penalty pushes back. Default \code{1.0}. Set to \code{0} to recover
+the pure-MLE behaviour of nicher 3.0.x.}
+
+\item{prior_mu_center}{Optional numeric vector of length
+\code{ncol(env_occ)}. \code{NULL} (default) anchors the centre at the
+presence-only fit's \eqn{\mu} when \code{warm_start = TRUE}; if
+\code{warm_start = FALSE} and \code{prior_mu_lambda > 0}, it must be
+supplied explicitly.}
+
+\item{prior_alpha_lambda}{Numeric scalar (\code{>= 0}), strength of a
+ridge penalty \eqn{\lambda_\alpha \sum_k \alpha_k^2} on the skew vector
+\eqn{\alpha}, shrinking toward the Gaussian sub-model. Applies to
+both presence-only and weighted skew families (\code{"skew_normal"},
+\code{"skew_normal_weighted"}, \code{"skew_t"},
+\code{"skew_t_weighted"}). Fixes the well-known unbounded-MLE
+pathology of the skew-normal direct parameterization (Azzalini 1985,
+Pewsey 2000). Default \code{0.1} (mild). Set to \code{0} to recover
+the pure-MLE behaviour of nicher 3.0.x.}
 
 \item{control}{Named list of control parameters for
 \code{ucminfcpp::ucminf_xptr()} (cpp backend) or \code{ucminf::ucminf()}

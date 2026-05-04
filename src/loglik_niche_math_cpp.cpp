@@ -328,8 +328,7 @@ double loglik_niche_math_weighted_eigen(
     const Eigen::VectorXd& w_occ,
     const Eigen::VectorXd& w_den,
     double eta,
-    const Eigen::VectorXd& prior_log_sigma_center,
-    double prior_log_sigma_lambda) {
+    const PriorParams& pp) {
   const int p = env_occ.cols();
   const int n_v = p * (p - 1) / 2;
   const int expected = 2 * p + n_v;
@@ -342,11 +341,6 @@ double loglik_niche_math_weighted_eigen(
     Rcpp::stop("w_occ length must equal nrow(env_occ).");
   if (w_den.size() != M_den.rows())
     Rcpp::stop("w_den length must equal nrow(M_den).");
-  if (prior_log_sigma_center.size() != p)
-    Rcpp::stop("prior_log_sigma_center length must equal p (got %d, expected %d).",
-               (int)prior_log_sigma_center.size(), p);
-  if (!(prior_log_sigma_lambda >= 0.0))
-    Rcpp::stop("prior_log_sigma_lambda must be non-negative.");
 
   Eigen::VectorXd mu, sigma;
   Eigen::MatrixXd L_corr, L_cov;
@@ -375,20 +369,13 @@ double loglik_niche_math_weighted_eigen(
   const double sum_exp = (a - max_a).exp().sum();
   const double log_sum_exp = max_a + std::log(sum_exp);
 
-  // Ridge penalty on log_sigma. theta layout has log_sigma at offsets [p..2p-1].
-  double ridge = 0.0;
-  if (prior_log_sigma_lambda > 0.0) {
-    for (int k = 0; k < p; ++k) {
-      const double d = theta[p + k] - prior_log_sigma_center(k);
-      ridge += d * d;
-    }
-    ridge *= prior_log_sigma_lambda;
-  }
+  const double penalty = prior_penalty_value(theta, p, n_v,
+                                             /*has_alpha=*/false, pp);
 
   double neg_log = 0.5 * sum_q1
                  - log_w_occ.sum()
                  + static_cast<double>(n_occ) * log_sum_exp
-                 + ridge;
+                 + penalty;
   if (!std::isfinite(neg_log)) neg_log = OPTIM_PENALTY;
   return neg_log;
 }
@@ -400,8 +387,7 @@ double loglik_niche_math_weighted_grad_eigen(
     const Eigen::VectorXd& w_occ,
     const Eigen::VectorXd& w_den,
     double eta,
-    const Eigen::VectorXd& prior_log_sigma_center,
-    double prior_log_sigma_lambda,
+    const PriorParams& pp,
     double gradstep_rel, double gradstep_abs,
     double* g_out) {
   const int p = env_occ.cols();
@@ -411,11 +397,6 @@ double loglik_niche_math_weighted_grad_eigen(
     Rcpp::stop("theta length mismatch (got %d, expected %d for p=%d).",
                n_theta, expected, p);
   }
-  if (prior_log_sigma_center.size() != p)
-    Rcpp::stop("prior_log_sigma_center length must equal p (got %d, expected %d).",
-               (int)prior_log_sigma_center.size(), p);
-  if (!(prior_log_sigma_lambda >= 0.0))
-    Rcpp::stop("prior_log_sigma_lambda must be non-negative.");
 
   Eigen::VectorXd mu, sigma;
   Eigen::MatrixXd L_corr, L_cov;
@@ -449,19 +430,13 @@ double loglik_niche_math_weighted_grad_eigen(
   const double sum_exp = ea.sum();
   const double log_sum_exp = max_a + std::log(sum_exp);
 
-  double ridge = 0.0;
-  if (prior_log_sigma_lambda > 0.0) {
-    for (int k = 0; k < p; ++k) {
-      const double d = theta[p + k] - prior_log_sigma_center(k);
-      ridge += d * d;
-    }
-    ridge *= prior_log_sigma_lambda;
-  }
+  const double penalty = prior_penalty_value(theta, p, n_v,
+                                              /*has_alpha=*/false, pp);
 
   double f = 0.5 * sum_q1
            - log_w_occ.sum()
            + static_cast<double>(n_occ) * log_sum_exp
-           + ridge;
+           + penalty;
   if (!std::isfinite(f)) {
     f = OPTIM_PENALTY;
     std::fill(g_out, g_out + n_theta, 0.0);
@@ -481,21 +456,15 @@ double loglik_niche_math_weighted_grad_eigen(
   Eigen::VectorXd grad_mu = L_cov.triangularView<Eigen::Lower>().solve(rhs);
   grad_mu = L_cov.transpose().triangularView<Eigen::Upper>().solve(grad_mu);
 
-  // Gradient w.r.t. log_sigma (Gaussian part, then add ridge derivative).
+  // Gradient w.r.t. log_sigma (Gaussian part).
   Eigen::ArrayXXd UV_occ = U_occ.array() * V_occ.array();
   Eigen::ArrayXXd UV_den = U_den.array() * V_den.array();
   Eigen::VectorXd term_pres = UV_occ.matrix().rowwise().sum();
   Eigen::VectorXd term_den  = UV_den.matrix() * pi;
   Eigen::VectorXd grad_s = -term_pres + static_cast<double>(n_occ) * term_den;
-  if (prior_log_sigma_lambda > 0.0) {
-    for (int k = 0; k < p; ++k) {
-      grad_s(k) += 2.0 * prior_log_sigma_lambda *
-                   (theta[p + k] - prior_log_sigma_center(k));
-    }
-  }
 
   // Gradient w.r.t. v block via central FD (same recipe as the unpenalized
-  // weighted gradient; the ridge does not depend on v).
+  // weighted gradient; the penalty does not depend on v).
   std::vector<double> theta_pert(theta, theta + n_theta);
   Eigen::VectorXd grad_v(n_v);
   for (int k = 0; k < n_v; ++k) {
@@ -505,13 +474,11 @@ double loglik_niche_math_weighted_grad_eigen(
 
     theta_pert[idx] = xk + dx;
     const double f_plus = loglik_niche_math_weighted_eigen(
-        theta_pert.data(), n_theta, env_occ, M_den, w_occ, w_den, eta,
-        prior_log_sigma_center, prior_log_sigma_lambda);
+        theta_pert.data(), n_theta, env_occ, M_den, w_occ, w_den, eta, pp);
 
     theta_pert[idx] = xk - dx;
     const double f_minus = loglik_niche_math_weighted_eigen(
-        theta_pert.data(), n_theta, env_occ, M_den, w_occ, w_den, eta,
-        prior_log_sigma_center, prior_log_sigma_lambda);
+        theta_pert.data(), n_theta, env_occ, M_den, w_occ, w_den, eta, pp);
 
     theta_pert[idx] = xk;
     grad_v(k) = (f_plus - f_minus) / (2.0 * dx);
@@ -520,6 +487,10 @@ double loglik_niche_math_weighted_grad_eigen(
   for (int i = 0; i < p; ++i) g_out[i] = grad_mu(i);
   for (int i = 0; i < p; ++i) g_out[p + i] = grad_s(i);
   for (int k = 0; k < n_v; ++k) g_out[2 * p + k] = grad_v(k);
+
+  // Add closed-form gradient of the penalty terms (mu / log_sigma blocks
+  // for the Gaussian weighted family; alpha block is irrelevant here).
+  prior_penalty_grad_add(theta, p, n_v, /*has_alpha=*/false, pp, g_out);
 
   for (int i = 0; i < n_theta; ++i) {
     if (!std::isfinite(g_out[i])) g_out[i] = 0.0;
@@ -571,7 +542,8 @@ static inline double sum_log_pnorm(const Eigen::MatrixXd& diff,
 
 double loglik_niche_math_skew_normal_eigen(
     const double* theta, int n_theta,
-    const Eigen::MatrixXd& env_occ, double eta) {
+    const Eigen::MatrixXd& env_occ, double eta,
+    const PriorParams& pp) {
   const int p = env_occ.cols();
   const int n_v = p * (p - 1) / 2;
   const int expected = 3 * p + n_v;
@@ -603,7 +575,9 @@ double loglik_niche_math_skew_normal_eigen(
   // optimum and they would not match the Gaussian PO kernel which also
   // drops the (2*pi) constant).
   const double n = static_cast<double>(n_occ);
-  double neg_log = 0.5 * n * log_det + 0.5 * sum_q - sum_log_phi;
+  const double penalty = prior_penalty_value(theta, p, n_v,
+                                              /*has_alpha=*/true, pp);
+  double neg_log = 0.5 * n * log_det + 0.5 * sum_q - sum_log_phi + penalty;
   if (!std::isfinite(neg_log)) neg_log = OPTIM_PENALTY;
   return neg_log;
 }
@@ -620,8 +594,7 @@ double loglik_niche_math_skew_normal_weighted_eigen(
     const Eigen::VectorXd& w_occ,
     const Eigen::VectorXd& w_den,
     double eta,
-    const Eigen::VectorXd& prior_log_sigma_center,
-    double prior_log_sigma_lambda) {
+    const PriorParams& pp) {
   const int p = env_occ.cols();
   const int n_v = p * (p - 1) / 2;
   const int expected = 3 * p + n_v;
@@ -634,11 +607,6 @@ double loglik_niche_math_skew_normal_weighted_eigen(
     Rcpp::stop("w_occ length must equal nrow(env_occ).");
   if (w_den.size() != M_den.rows())
     Rcpp::stop("w_den length must equal nrow(M_den).");
-  if (prior_log_sigma_center.size() != p)
-    Rcpp::stop("prior_log_sigma_center length must equal p (got %d, expected %d).",
-               (int)prior_log_sigma_center.size(), p);
-  if (!(prior_log_sigma_lambda >= 0.0))
-    Rcpp::stop("prior_log_sigma_lambda must be non-negative.");
 
   Eigen::VectorXd mu, sigma;
   Eigen::MatrixXd L_corr, L_cov;
@@ -675,21 +643,14 @@ double loglik_niche_math_skew_normal_weighted_eigen(
   const double sum_exp = (a - max_a).exp().sum();
   const double log_sum_exp = max_a + std::log(sum_exp);
 
-  // Ridge penalty on log_sigma. theta layout has log_sigma at offsets [p..2p-1].
-  double ridge = 0.0;
-  if (prior_log_sigma_lambda > 0.0) {
-    for (int k = 0; k < p; ++k) {
-      const double d = theta[p + k] - prior_log_sigma_center(k);
-      ridge += d * d;
-    }
-    ridge *= prior_log_sigma_lambda;
-  }
+  const double penalty = prior_penalty_value(theta, p, n_v,
+                                              /*has_alpha=*/true, pp);
 
   double neg_log = 0.5 * sum_q1
                  - sum_log_phi_occ
                  - log_w_occ.sum()
                  + static_cast<double>(n_occ) * log_sum_exp
-                 + ridge;
+                 + penalty;
   if (!std::isfinite(neg_log)) neg_log = OPTIM_PENALTY;
   return neg_log;
 }
@@ -798,7 +759,8 @@ static inline double log_skew_t_integral(double q, double z,
 
 double loglik_niche_math_skew_t_eigen(
     const double* theta, int n_theta,
-    const Eigen::MatrixXd& env_occ, double eta) {
+    const Eigen::MatrixXd& env_occ, double eta,
+    const PriorParams& pp) {
   const int p = env_occ.cols();
   const int n_v = p * (p - 1) / 2;
   const int expected = 3 * p + n_v + 1;
@@ -847,11 +809,14 @@ double loglik_niche_math_skew_t_eigen(
   // depend on theta given p fixed; matches the n*log(2) drop in the
   // skew-normal kernel).
   const double n = static_cast<double>(n_occ);
+  const double penalty = prior_penalty_value(theta, p, n_v,
+                                              /*has_alpha=*/true, pp);
   double neg_log = 0.5 * n * log_det
                  + 0.5 * n * static_cast<double>(p) * log_r
                  + n * std::lgamma(0.5 * r)
                  + half_kpr * sum_log_A
-                 - sum_log_I;
+                 - sum_log_I
+                 + penalty;
 
   if (!std::isfinite(neg_log)) neg_log = OPTIM_PENALTY;
   return neg_log;
@@ -868,8 +833,7 @@ double loglik_niche_math_skew_t_weighted_eigen(
     const Eigen::VectorXd& w_occ,
     const Eigen::VectorXd& w_den,
     double eta,
-    const Eigen::VectorXd& prior_log_sigma_center,
-    double prior_log_sigma_lambda) {
+    const PriorParams& pp) {
   const int p = env_occ.cols();
   const int n_v = p * (p - 1) / 2;
   const int expected = 3 * p + n_v + 1;
@@ -882,11 +846,6 @@ double loglik_niche_math_skew_t_weighted_eigen(
     Rcpp::stop("w_occ length must equal nrow(env_occ).");
   if (w_den.size() != M_den.rows())
     Rcpp::stop("w_den length must equal nrow(M_den).");
-  if (prior_log_sigma_center.size() != p)
-    Rcpp::stop("prior_log_sigma_center length must equal p (got %d, expected %d).",
-               (int)prior_log_sigma_center.size(), p);
-  if (!(prior_log_sigma_lambda >= 0.0))
-    Rcpp::stop("prior_log_sigma_lambda must be non-negative.");
 
   Eigen::VectorXd mu, sigma;
   Eigen::MatrixXd L_corr, L_cov;
@@ -937,21 +896,14 @@ double loglik_niche_math_skew_t_weighted_eigen(
 
   Eigen::ArrayXd log_w_occ = w_occ.array().max(MIN_KDE_WEIGHT).log();
 
-  // Ridge penalty on log_sigma (offsets [p..2p-1])
-  double ridge = 0.0;
-  if (prior_log_sigma_lambda > 0.0) {
-    for (int k = 0; k < p; ++k) {
-      const double d = theta[p + k] - prior_log_sigma_center(k);
-      ridge += d * d;
-    }
-    ridge *= prior_log_sigma_lambda;
-  }
+  const double penalty = prior_penalty_value(theta, p, n_v,
+                                              /*has_alpha=*/true, pp);
 
   double neg_log = half_kpr * sum_log_A_occ
                  - sum_log_I_occ
                  - log_w_occ.sum()
                  + static_cast<double>(n_occ) * log_sum_exp
-                 + ridge;
+                 + penalty;
 
   if (!std::isfinite(neg_log)) neg_log = OPTIM_PENALTY;
   return neg_log;
@@ -966,6 +918,49 @@ double loglik_niche_math_skew_t_weighted_eigen(
 // ===========================================================================
 
 using namespace Rcpp;
+
+// Build a PriorParams struct from R-side inputs. Length checks happen in
+// the kernel itself; we only convert formats here. NULL center vectors are
+// treated as zero (consistent with no-penalty defaults).
+static nicher::PriorParams build_prior_params(
+    int p,
+    Rcpp::Nullable<Rcpp::NumericVector> mu_center,
+    double mu_lambda,
+    Rcpp::Nullable<Rcpp::NumericVector> log_sigma_center,
+    double log_sigma_lambda,
+    double alpha_lambda) {
+  nicher::PriorParams pp;
+  pp.mu_lambda        = mu_lambda;
+  pp.log_sigma_lambda = log_sigma_lambda;
+  pp.alpha_lambda     = alpha_lambda;
+  if (mu_center.isNotNull()) {
+    Rcpp::NumericVector v(mu_center);
+    if ((int)v.size() != p)
+      Rcpp::stop("prior_mu_center length (%d) must equal p (%d).",
+                 (int)v.size(), p);
+    pp.mu_center = Eigen::VectorXd(p);
+    for (int k = 0; k < p; ++k) pp.mu_center(k) = v[k];
+  } else {
+    pp.mu_center = Eigen::VectorXd::Zero(p);
+  }
+  if (log_sigma_center.isNotNull()) {
+    Rcpp::NumericVector v(log_sigma_center);
+    if ((int)v.size() != p)
+      Rcpp::stop("prior_log_sigma_center length (%d) must equal p (%d).",
+                 (int)v.size(), p);
+    pp.log_sigma_center = Eigen::VectorXd(p);
+    for (int k = 0; k < p; ++k) pp.log_sigma_center(k) = v[k];
+  } else {
+    pp.log_sigma_center = Eigen::VectorXd::Zero(p);
+  }
+  if (!(mu_lambda >= 0.0))
+    Rcpp::stop("prior_mu_lambda must be non-negative.");
+  if (!(log_sigma_lambda >= 0.0))
+    Rcpp::stop("prior_log_sigma_lambda must be non-negative.");
+  if (!(alpha_lambda >= 0.0))
+    Rcpp::stop("prior_alpha_lambda must be non-negative.");
+  return pp;
+}
 
 // [[Rcpp::export]]
 double loglik_niche_math_presence_only_cpp(
@@ -1040,7 +1035,10 @@ double loglik_niche_math_weighted_cpp(
     NumericVector w_den,
     NumericVector prior_log_sigma_center,
     double prior_log_sigma_lambda,
-    double eta = 1.0) {
+    double eta = 1.0,
+    Rcpp::Nullable<Rcpp::NumericVector> prior_mu_center = R_NilValue,
+    double prior_mu_lambda = 0.0,
+    double prior_alpha_lambda = 0.0) {
   Eigen::Map<Eigen::MatrixXd> occ_map(
       Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(env_occ));
   Eigen::Map<Eigen::MatrixXd> mden_map(
@@ -1049,15 +1047,18 @@ double loglik_niche_math_weighted_cpp(
       Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_occ));
   Eigen::Map<Eigen::VectorXd> wden_map(
       Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_den));
-  Eigen::Map<Eigen::VectorXd> pc_map(
-      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(prior_log_sigma_center));
 
   Eigen::MatrixXd occ = occ_map, mden = mden_map;
-  Eigen::VectorXd wocc = wocc_map, wden = wden_map, pc = pc_map;
+  Eigen::VectorXd wocc = wocc_map, wden = wden_map;
+
+  nicher::PriorParams pp = build_prior_params(
+      occ.cols(),
+      prior_mu_center, prior_mu_lambda,
+      Rcpp::Nullable<Rcpp::NumericVector>(prior_log_sigma_center),
+      prior_log_sigma_lambda, prior_alpha_lambda);
 
   return nicher::loglik_niche_math_weighted_eigen(
-      &theta[0], theta.size(), occ, mden, wocc, wden, eta,
-      pc, prior_log_sigma_lambda);
+      &theta[0], theta.size(), occ, mden, wocc, wden, eta, pp);
 }
 
 // [[Rcpp::export]]
@@ -1071,7 +1072,10 @@ List loglik_niche_math_weighted_grad_cpp(
     double prior_log_sigma_lambda,
     double eta = 1.0,
     double gradstep_rel = 1e-6,
-    double gradstep_abs = 1e-8) {
+    double gradstep_abs = 1e-8,
+    Rcpp::Nullable<Rcpp::NumericVector> prior_mu_center = R_NilValue,
+    double prior_mu_lambda = 0.0,
+    double prior_alpha_lambda = 0.0) {
   Eigen::Map<Eigen::MatrixXd> occ_map(
       Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(env_occ));
   Eigen::Map<Eigen::MatrixXd> mden_map(
@@ -1080,16 +1084,19 @@ List loglik_niche_math_weighted_grad_cpp(
       Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_occ));
   Eigen::Map<Eigen::VectorXd> wden_map(
       Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_den));
-  Eigen::Map<Eigen::VectorXd> pc_map(
-      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(prior_log_sigma_center));
 
   Eigen::MatrixXd occ = occ_map, mden = mden_map;
-  Eigen::VectorXd wocc = wocc_map, wden = wden_map, pc = pc_map;
+  Eigen::VectorXd wocc = wocc_map, wden = wden_map;
+
+  nicher::PriorParams pp = build_prior_params(
+      occ.cols(),
+      prior_mu_center, prior_mu_lambda,
+      Rcpp::Nullable<Rcpp::NumericVector>(prior_log_sigma_center),
+      prior_log_sigma_lambda, prior_alpha_lambda);
 
   NumericVector g(theta.size());
   double f = nicher::loglik_niche_math_weighted_grad_eigen(
-      &theta[0], theta.size(), occ, mden, wocc, wden, eta,
-      pc, prior_log_sigma_lambda,
+      &theta[0], theta.size(), occ, mden, wocc, wden, eta, pp,
       gradstep_rel, gradstep_abs, &g[0]);
 
   return List::create(_["value"] = f, _["gradient"] = g);
@@ -1097,12 +1104,21 @@ List loglik_niche_math_weighted_grad_cpp(
 
 // [[Rcpp::export]]
 double loglik_niche_math_skew_normal_cpp(
-    NumericVector theta, NumericMatrix env_occ, double eta = 1.0) {
+    NumericVector theta, NumericMatrix env_occ, double eta = 1.0,
+    Rcpp::Nullable<Rcpp::NumericVector> prior_mu_center = R_NilValue,
+    double prior_mu_lambda = 0.0,
+    Rcpp::Nullable<Rcpp::NumericVector> prior_log_sigma_center = R_NilValue,
+    double prior_log_sigma_lambda = 0.0,
+    double prior_alpha_lambda = 0.0) {
   Eigen::Map<Eigen::MatrixXd> occ_map(
       Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(env_occ));
   Eigen::MatrixXd occ = occ_map;
+  nicher::PriorParams pp = build_prior_params(
+      occ.cols(),
+      prior_mu_center, prior_mu_lambda,
+      prior_log_sigma_center, prior_log_sigma_lambda, prior_alpha_lambda);
   return nicher::loglik_niche_math_skew_normal_eigen(
-      &theta[0], theta.size(), occ, eta);
+      &theta[0], theta.size(), occ, eta, pp);
 }
 
 // [[Rcpp::export]]
@@ -1114,7 +1130,10 @@ double loglik_niche_math_skew_normal_weighted_cpp(
     NumericVector w_den,
     NumericVector prior_log_sigma_center,
     double prior_log_sigma_lambda,
-    double eta = 1.0) {
+    double eta = 1.0,
+    Rcpp::Nullable<Rcpp::NumericVector> prior_mu_center = R_NilValue,
+    double prior_mu_lambda = 0.0,
+    double prior_alpha_lambda = 0.0) {
   Eigen::Map<Eigen::MatrixXd> occ_map(
       Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(env_occ));
   Eigen::Map<Eigen::MatrixXd> mden_map(
@@ -1123,25 +1142,37 @@ double loglik_niche_math_skew_normal_weighted_cpp(
       Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_occ));
   Eigen::Map<Eigen::VectorXd> wden_map(
       Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_den));
-  Eigen::Map<Eigen::VectorXd> pc_map(
-      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(prior_log_sigma_center));
 
   Eigen::MatrixXd occ = occ_map, mden = mden_map;
-  Eigen::VectorXd wocc = wocc_map, wden = wden_map, pc = pc_map;
+  Eigen::VectorXd wocc = wocc_map, wden = wden_map;
+
+  nicher::PriorParams pp = build_prior_params(
+      occ.cols(),
+      prior_mu_center, prior_mu_lambda,
+      Rcpp::Nullable<Rcpp::NumericVector>(prior_log_sigma_center),
+      prior_log_sigma_lambda, prior_alpha_lambda);
 
   return nicher::loglik_niche_math_skew_normal_weighted_eigen(
-      &theta[0], theta.size(), occ, mden, wocc, wden, eta,
-      pc, prior_log_sigma_lambda);
+      &theta[0], theta.size(), occ, mden, wocc, wden, eta, pp);
 }
 
 // [[Rcpp::export]]
 double loglik_niche_math_skew_t_cpp(
-    NumericVector theta, NumericMatrix env_occ, double eta = 1.0) {
+    NumericVector theta, NumericMatrix env_occ, double eta = 1.0,
+    Rcpp::Nullable<Rcpp::NumericVector> prior_mu_center = R_NilValue,
+    double prior_mu_lambda = 0.0,
+    Rcpp::Nullable<Rcpp::NumericVector> prior_log_sigma_center = R_NilValue,
+    double prior_log_sigma_lambda = 0.0,
+    double prior_alpha_lambda = 0.0) {
   Eigen::Map<Eigen::MatrixXd> occ_map(
       Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(env_occ));
   Eigen::MatrixXd occ = occ_map;
+  nicher::PriorParams pp = build_prior_params(
+      occ.cols(),
+      prior_mu_center, prior_mu_lambda,
+      prior_log_sigma_center, prior_log_sigma_lambda, prior_alpha_lambda);
   return nicher::loglik_niche_math_skew_t_eigen(
-      &theta[0], theta.size(), occ, eta);
+      &theta[0], theta.size(), occ, eta, pp);
 }
 
 // [[Rcpp::export]]
@@ -1153,7 +1184,10 @@ double loglik_niche_math_skew_t_weighted_cpp(
     NumericVector w_den,
     NumericVector prior_log_sigma_center,
     double prior_log_sigma_lambda,
-    double eta = 1.0) {
+    double eta = 1.0,
+    Rcpp::Nullable<Rcpp::NumericVector> prior_mu_center = R_NilValue,
+    double prior_mu_lambda = 0.0,
+    double prior_alpha_lambda = 0.0) {
   Eigen::Map<Eigen::MatrixXd> occ_map(
       Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(env_occ));
   Eigen::Map<Eigen::MatrixXd> mden_map(
@@ -1162,13 +1196,16 @@ double loglik_niche_math_skew_t_weighted_cpp(
       Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_occ));
   Eigen::Map<Eigen::VectorXd> wden_map(
       Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_den));
-  Eigen::Map<Eigen::VectorXd> pc_map(
-      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(prior_log_sigma_center));
 
   Eigen::MatrixXd occ = occ_map, mden = mden_map;
-  Eigen::VectorXd wocc = wocc_map, wden = wden_map, pc = pc_map;
+  Eigen::VectorXd wocc = wocc_map, wden = wden_map;
+
+  nicher::PriorParams pp = build_prior_params(
+      occ.cols(),
+      prior_mu_center, prior_mu_lambda,
+      Rcpp::Nullable<Rcpp::NumericVector>(prior_log_sigma_center),
+      prior_log_sigma_lambda, prior_alpha_lambda);
 
   return nicher::loglik_niche_math_skew_t_weighted_eigen(
-      &theta[0], theta.size(), occ, mden, wocc, wden, eta,
-      pc, prior_log_sigma_lambda);
+      &theta[0], theta.size(), occ, mden, wocc, wden, eta, pp);
 }
