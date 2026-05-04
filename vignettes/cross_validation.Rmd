@@ -1,0 +1,350 @@
+---
+title: "Cross-validation for penalised niche models"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Cross-validation for penalised niche models}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment  = "#>",
+  eval     = FALSE
+)
+library(nicher)
+```
+
+## Why this vignette exists
+
+`nicher 3.0`–`3.2` give you seven likelihood families
+(`presence_only`, `weighted`, `kde_bias_corrected`, `skew_normal`,
+`skew_normal_weighted`, `skew_t`, `skew_t_weighted`) and three penalty
+knobs (`prior_mu_lambda`, `prior_log_sigma_lambda`,
+`prior_alpha_lambda`). That gives you a lot of dials. This vignette
+explains:
+
+1.  Why the unregularised `weighted` MLE is **pathological** on real
+    data, using the bundled `example_vicugna` as the case study.
+2.  Why ordinary AIC / BIC (added in `nicher 3.2`) **cannot** tell you
+    how strong a penalty to use.
+3.  How `cv_nicher()` fixes that and lets you tune the penalty
+    knobs principled-ly.
+4.  How to combine `cv_nicher()` with `compare_nicher()` so you can
+    pick both the best **family** and the best **penalty strength**.
+
+We use frequentist tooling throughout. There is no MCMC, no posterior
+sampling, no marginal likelihood. Everything below is penalised
+maximum likelihood with cross-validated tuning.
+
+## 1. The pathology: unpenalised `weighted` on Vicugna
+
+The Vicugna dataset (`example_vicugna`) has 545 occurrences of
+*Vicugna vicugna* in two bioclimatic variables (`bio1`, `bio12`) and
+10 000 background points sampled from the species' accessible region
+(*M*).
+
+```{r vicugna-data}
+library(nicher)
+env_occ <- example_vicugna$env_occ
+env_m   <- example_vicugna$env_m
+```
+
+Fit a **presence-only** baseline (no penalty needed, no `env_m`):
+
+```{r vicugna-po}
+fit_po <- optimize_niche(
+  env_occ = env_occ, env_m = NULL,
+  num_starts = 30L, breadth = 0.1,
+  likelihood = "presence_only", verbose = FALSE
+)
+mu_po    <- fit_po$best$theta[1:2]
+sigma_po <- exp(fit_po$best$theta[3:4])
+mu_po
+#> [1] 6.118 214.958
+sigma_po
+#> [1]  3.019 233.971
+```
+
+Now the **unpenalised** weighted fit (the "paper" version of Jiménez
+et al. 2022 with all penalty knobs set to zero):
+
+```{r vicugna-weighted-unpen}
+fit_w_unpen <- optimize_niche(
+  env_occ = env_occ, env_m = env_m,
+  num_starts = 30L, breadth = 0.45,
+  likelihood = "weighted",
+  prior_mu_lambda        = 0,        # all penalties OFF
+  prior_log_sigma_lambda = 0,
+  prior_alpha_lambda     = 0,
+  verbose = FALSE
+)
+fit_w_unpen$best$theta
+#>        mu1        mu2 log_sigma1 log_sigma2     s_par1
+#> -47.984    679.623     3.032      6.120     -0.737
+```
+
+The recovered niche centre is `mu = (-48, 680)` while the data has
+mean `(6.1, 215)`. This is **wildly outside the data cloud**.
+`log σ_2 ≈ 6.1` corresponds to `σ_2 ≈ 451`, much larger than the data
+SD of 234. The fit has drifted out of the support of the data.
+
+### What happened?
+
+The "weighted" likelihood (Eq. 5 of Jiménez et al. 2022) is
+
+\[
+\ell(\theta) \;=\; \sum_{i=1}^{n_{\rm occ}} \log f(x_i;\theta)
+              \;-\; n_{\rm occ}\,\log
+              \left[ \sum_{j=1}^{n_M} w(y_j)\,f(y_j;\theta) \right]
+\]
+
+where $f$ is the parametric niche density (Gaussian, skew-normal, …)
+and the denominator integrates the niche over the accessible region
+*M*.
+
+This likelihood has a **well-known unbounded-MLE pathology** when *M*
+covers a much wider region than the occurrences (Patil & Ord 1976;
+Jiménez et al. 2022 §3.4 acknowledge this without solving it):
+
+*   You can make the **denominator** $\sum_j w(y_j) f(y_j;\theta)$
+    arbitrarily small by inflating $\Sigma$ — a flat enough bell curve
+    over the M cloud places little mass on any single point.
+*   You can also make it small by **moving μ outside the M cloud**
+    altogether (the curve becomes mostly tails over M).
+*   Meanwhile the **numerator** $\sum_i \log f(x_i;\theta)$ only
+    decays quadratically as μ drifts away from the occurrences and
+    $\Sigma$ inflates.
+
+The ratio numerator / denominator can therefore go to **+∞** along a
+trajectory where μ leaves the data and $\Sigma$ inflates. The
+optimiser finds that ridge in the likelihood surface and walks off.
+What you see is exactly that: μ at $(-48, 680)$ with σ inflated.
+
+This is **not a bug**. The likelihood is genuinely unbounded above on
+finite data; the MLE does not exist. The fix is regularisation.
+
+### Quick sanity check
+
+Compute the un-penalised log-likelihood at both fits:
+
+```{r vicugna-loglik-comparison}
+logLik(fit_po)           # presence-only
+logLik(fit_w_unpen)      # weighted, no penalty
+```
+
+The un-penalised weighted loglik will be **larger** (less negative)
+than the PO loglik. That's the definition of the pathology: the
+"better" fit is the one that has drifted out of the data.
+
+## 2. Why AIC and BIC cannot tune the penalty
+
+`nicher 3.2` provides `AIC()`, `BIC()`, and `compare_nicher()`. They
+are perfect for ranking different **likelihood families** at fixed
+penalty knobs. They are **useless** for tuning the penalty knobs
+themselves.
+
+The reason is mechanical: $\text{AIC} = -2\,\ell(\hat\theta) + 2k$
+where $k = \text{length}(\hat\theta)$ is constant across penalty
+strengths (same family ⇒ same $k$). And the unpenalised loglik
+$\ell(\hat\theta_\lambda)$ at the converged $\hat\theta_\lambda$ is
+**monotone-decreasing in $\lambda$** — any penalty pulls
+$\hat\theta$ away from the unpenalised MLE, which by definition has
+the largest unpenalised loglik. Combine: AIC is **monotone-increasing
+in $\lambda$**, so the AIC-best model is always $\lambda = 0$, which
+is the pathological fit.
+
+You can verify this directly. Fit `weighted` at $\lambda_\mu \in \{0,
+1, 10\}$:
+
+```{r aic-fails}
+fit_lambda0  <- fit_w_unpen
+fit_lambda1  <- optimize_niche(
+  env_occ, env_m, num_starts = 30L, breadth = 0.45,
+  likelihood = "weighted",
+  prior_mu_lambda = 1, prior_log_sigma_lambda = 1, prior_alpha_lambda = 0,
+  verbose = FALSE
+)
+fit_lambda10 <- optimize_niche(
+  env_occ, env_m, num_starts = 30L, breadth = 0.45,
+  likelihood = "weighted",
+  prior_mu_lambda = 10, prior_log_sigma_lambda = 10, prior_alpha_lambda = 0,
+  verbose = FALSE
+)
+compare_nicher(
+  l0  = fit_lambda0,
+  l1  = fit_lambda1,
+  l10 = fit_lambda10
+)
+#>   model likelihood     loglik df nobs    AIC   dAIC ...
+#> 1    l0   weighted   <best>    5  545   <min>   0
+#> 2    l1   weighted   <worse>   5  545   ...     >0
+#> 3   l10   weighted   <worst>   5  545   ...     >0
+```
+
+The pathological $\lambda = 0$ fit "wins" by AIC. We need a different
+metric.
+
+There **is** a workaround if you really want IC-style numbers: use
+`compare_nicher(..., comparison_basis = "penalised")`, which computes
+AIC from the **penalised** objective $\ell(\hat\theta) -
+\text{pen}(\hat\theta)$. That score is no longer monotone in
+$\lambda$, but it conflates "model fit" with "penalty preference",
+which is hard to interpret. For tuning $\lambda$, cross-validation is
+the cleaner tool.
+
+## 3. Cross-validation breaks the deadlock
+
+The principled tool is **out-of-sample log-likelihood**. Hold back a
+fold of `env_occ`, refit on the remainder, score the fold using the
+fold's converged $\hat\theta_\lambda$. The pathological fit $\hat\theta_0$
+puts μ at $(-48, 680)$, which is far from any occurrence; held-out
+occurrences therefore have **catastrophic** density. A
+moderately-regularised fit stays close to the data cloud and
+therefore predicts held-out occurrences well.
+
+`cv_nicher()` automates this:
+
+```{r cv-vicugna}
+cv0  <- cv_nicher(fit_lambda0,  env_occ, env_m, type = "kfold", k = 5L, seed = 1L)
+cv1  <- cv_nicher(fit_lambda1,  env_occ, env_m, type = "kfold", k = 5L, seed = 1L)
+cv10 <- cv_nicher(fit_lambda10, env_occ, env_m, type = "kfold", k = 5L, seed = 1L)
+
+c(lambda_0  = cv0$cv_loglik,
+  lambda_1  = cv1$cv_loglik,
+  lambda_10 = cv10$cv_loglik)
+#> lambda_0  lambda_1  lambda_10
+#>   <very neg>   <best>    <middle>
+```
+
+The CV log-likelihood is **U-shaped in $\lambda$**:
+
+*   At $\lambda = 0$ the fit overfits / drifts out of data ⇒ held-out
+    points have near-zero density ⇒ very bad CV loglik.
+*   At $\lambda \to \infty$ the fit is pinned to the PO baseline,
+    ignoring `env_m` entirely ⇒ moderate CV loglik (no worse than
+    pure PO, no better either).
+*   At intermediate $\lambda$ the fit uses `env_m` to correct PO
+    without drifting away ⇒ best CV loglik.
+
+This is the curve you sweep to **set the penalty strength** in a
+principled way. The minimum-CV-error $\lambda$ is your selected
+regularisation.
+
+### A small grid search
+
+```{r cv-grid}
+lambdas <- c(0, 0.1, 0.3, 1, 3, 10, 30)
+fits <- lapply(lambdas, function(lam) {
+  optimize_niche(
+    env_occ, env_m, num_starts = 30L, breadth = 0.45,
+    likelihood = "weighted",
+    prior_mu_lambda = lam, prior_log_sigma_lambda = lam,
+    verbose = FALSE
+  )
+})
+cvs <- vapply(fits, function(f) {
+  cv_nicher(f, env_occ, env_m, type = "kfold", k = 5L, seed = 1L)$cv_loglik
+}, numeric(1L))
+data.frame(lambda = lambdas, cv_loglik = cvs)
+```
+
+The row with the largest `cv_loglik` is your tuned model. Use that
+$\lambda$ for downstream prediction (`predict.nicher()`,
+`habitat_suitability()`), reporting, and any further analysis.
+
+## 4. Combining `cv_nicher` with `compare_nicher`
+
+Workflow for a typical study:
+
+1.  **For each likelihood family** (`presence_only`, `weighted`,
+    `skew_normal_weighted`, `skew_t_weighted`, …) run a small CV grid
+    over the penalty knobs to find the family's best $\lambda^\star$.
+2.  Fit each family at its $\lambda^\star$.
+3.  `compare_nicher()` those fits (with default
+    `comparison_basis = "unpenalised"`) to pick the best family.
+
+The two stages are doing different jobs. Stage 1 (CV) tunes
+**continuous regularisation parameters within a family**. Stage 2
+(AIC/BIC) ranks **discrete model structures across families**. AIC and
+BIC handle stage 2 well precisely because the families have different
+$k$ — Akaike's `+2k` correction is doing real work. But for stage 1
+(fixed family, varying $\lambda$, fixed $k$) the `+2k` correction is
+useless and CV is the only sound tool.
+
+## 5. Practical notes
+
+### Choosing the fold scheme
+
+`type = "kfold"` with `k = 5` (default) is the standard choice. For
+small `env_occ` (`n < 100`) consider `k = 10` or `type = "loo"` to
+reduce fold-noise. LOO is exhaustive and unbiased but expensive: `n`
+refits per evaluation. Vicugna's 545 occurrences with `num_starts_cv =
+1L` (warm-started from the full-data $\hat\theta$) takes about
+30 seconds for `weighted` and 5 minutes for `skew_t_weighted`.
+
+### When to bump `num_starts_cv`
+
+`cv_nicher()` defaults to `num_starts_cv = 1L`, warm-starting each
+fold from the full-data $\hat\theta$. This is fast but assumes the
+per-fold likelihood is unimodal **near** $\hat\theta$. For dense data
+this almost always holds. For sparse data, or for the skew families
+where the surface can have multiple basins, set `num_starts_cv = 5L`
+or more — the per-fold optimization will then use the same Sobol
+multistart machinery as the original `optimize_niche()` call, at the
+cost of `num_starts_cv ×` more wall time per fold.
+
+### Spatial autocorrelation
+
+Random k-fold CV assumes the occurrences are i.i.d. exchangeable. For
+spatially clustered data the held-out fold often has near-neighbours
+in the train fold, leading to **optimistic** CV loglik (the model is
+easy to predict). The standard remedy is **spatial-block CV**: assign
+folds based on spatial location, so each held-out block is far from
+its train data. `cv_nicher()` does not yet support spatial blocks; it
+is on the roadmap. For now, treat random-CV scores as upper bounds on
+generalisation performance, especially for highly clustered datasets.
+
+### Effective degrees of freedom
+
+A more theoretical alternative to CV is **AIC with effective degrees
+of freedom**: $\text{AIC}_{\rm eff} = -2\ell + 2 \cdot
+\text{tr}(H^{-1}_{\rm pen} H_{\rm data})$. The trace term is the
+"effective" number of parameters after the ridge has shrunk some of
+them. As $\lambda \to \infty$, $\text{tr} \to 0$; at $\lambda = 0$,
+$\text{tr} = k$. This makes AIC non-monotone in $\lambda$ in the
+right way. It is on the roadmap (it requires the data Hessian, which
+the package can compute via finite differences), but for now CV is
+the only built-in option for tuning $\lambda$.
+
+### Forward compatibility with nicherbayes
+
+The CV machinery here computes
+$\sum_{\rm folds} \log p(x_{\rm test} \mid \hat\theta_{\rm train})$.
+A future Bayesian sibling package would compute the **posterior
+predictive** $\sum_{\rm folds} \log \int p(x_{\rm test} \mid \theta)\,
+p(\theta \mid x_{\rm train})\,d\theta$ via importance sampling or
+similar. The fold structure, the fingerprint validation, and the
+warm-start logic are all reusable. This vignette's CV is a frequentist
+approximation to that procedure; the difference vanishes under a flat
+prior on $\theta$ around $\hat\theta_{\rm train}$.
+
+## References
+
+*   Akaike, H. (1973). Information theory and an extension of the
+    maximum likelihood principle. *2nd International Symposium on
+    Information Theory*.
+*   Hastie, T., Tibshirani, R. (1990). *Generalized Additive Models*,
+    Chapman & Hall.
+*   Jiménez, L., Soberón, J., Christen, J.A., Soto, D. (2022). On
+    the problem of modeling a fundamental niche from occurrence data.
+    *Ecological Modelling* 414, 108890.
+*   Patil, G.P., Ord, J.K. (1976). On size-biased sampling and
+    related form-invariant weighted distributions. *Sankhyā* 38B,
+    48-61.
+*   Stone, M. (1974). Cross-validatory choice and assessment of
+    statistical predictions. *J. Royal Statistical Society* B 36,
+    111-147.
+*   Wood, S.N. (2017). *Generalized Additive Models: An Introduction
+    with R*, 2nd ed., Chapman & Hall.

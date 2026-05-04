@@ -1,3 +1,86 @@
+# nicher 3.3.0
+
+## Cross-validation for tuning regularisation strength (new feature, non-breaking)
+
+`nicher 3.1.0` added penalty knobs (`prior_mu_lambda`,
+`prior_log_sigma_lambda`, `prior_alpha_lambda`) to the weighted and
+skew families. `nicher 3.2.0` added `AIC()` / `BIC()` /
+`compare_nicher()` for multi-family selection. This release fills the
+remaining gap: how do you **set the penalty strength** itself?
+
+In-sample log-likelihood cannot answer this question. The unpenalised
+loglik at $\hat\theta_\lambda$ is monotone-decreasing in $\lambda$, so
+`AIC = -2 ll + 2 k` (with constant $k$) always picks $\lambda = 0$.
+On real data with a wide M (e.g., the bundled `example_vicugna`)
+$\lambda = 0$ is the **pathological** unbounded-MLE solution where
+the optimiser walks $\mu$ out of the data cloud and inflates $\Sigma$
+along a ridge in the likelihood surface (Patil & Ord 1976; Jiménez et
+al. 2022 §3.4). A principled $\lambda$ requires an **out-of-sample**
+score.
+
+### `cv_nicher(fit, env_occ, env_m, type, k, ...)`
+
+Refits the same likelihood + same penalty knobs on each train fold of
+`env_occ`, then scores the held-out fold via the **un-penalised**
+log-likelihood. Two fold schemes:
+
+- `type = "kfold"` (default `k = 5L`) — random k-fold; stratification
+  is not yet supported.
+- `type = "loo"` — leave-one-out; expensive but unbiased. Useful for
+  small `env_occ`, or when you reuse the result for empirical-Bayes /
+  posterior-predictive scoring downstream.
+
+Returns a `nicher_cv` list with `cv_loglik` (sum), `cv_loglik_mean`
+(per-occurrence average), and a per-fold breakdown. The CV log-lik
+curve is **U-shaped in $\lambda$**: catastrophic at $\lambda = 0$
+(the pathological fit predicts held-out points poorly), best at some
+moderate $\lambda$, plateauing as $\lambda \to \infty$ (the fit is
+pinned to the PO baseline).
+
+By default each fold warm-starts from the full-data $\hat\theta$
+(`num_starts_cv = 1L`), which is fast and accurate when the per-fold
+likelihood is unimodal near $\hat\theta$. For sparse data or for the
+skew families, bump `num_starts_cv` to invoke the full Sobol
+multistart machinery per fold.
+
+### `compare_nicher(..., comparison_basis = "penalised")`
+
+Optional new argument. When `"penalised"`, AIC / BIC use
+`-2 * fit$best$loglik` (the optimiser's actual objective, which
+embeds the penalty) instead of the un-penalised log-likelihood. This
+breaks the in-$\lambda$ monotonicity of unpenalised AIC and lets you
+rank fits at different penalty strengths within the same family.
+Default `"unpenalised"` is unchanged from 3.2.0.
+
+### Storage of fit recipe on the nicher object
+
+To support `cv_nicher()`, `optimize_niche()` now stores all hyperparameters needed to replay a fit on a data subset (everything
+except the bulky `env_occ` / `env_m` matrices) in the `fit_args`
+slot of the returned object. Pre-3.3.0 nicher objects (e.g., loaded
+from `.rds`) lack this slot and must be re-fit before they can be
+used with `cv_nicher()` — the function emits a clear error message
+in this case.
+
+### Vignette
+
+A new `cross_validation` vignette walks through the Vicugna case
+study end-to-end: the unbounded-MLE pathology, why AIC fails to tune
+$\lambda$, the U-shape of CV log-likelihood, and a recommended
+`compare_nicher` + `cv_nicher` workflow for selecting both the best
+likelihood family and the best penalty strength. See:
+
+```
+vignette("cross_validation", package = "nicher")
+```
+
+### Migration
+
+Nothing breaks. `compare_nicher()` defaults are unchanged. The
+`fit_args` slot is purely additive on the nicher object. Code that
+assumes `fit$best$loglik` is the optimiser's objective (i.e., embeds
+the penalty) continues to work; code that wants the bare data
+loglik should call `logLik(fit)`, exactly as in 3.2.0.
+
 # nicher 3.2.0
 
 ## Information criteria + side-by-side model comparison (new feature, non-breaking)

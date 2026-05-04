@@ -276,6 +276,25 @@ BIC.nicher <- function(object, ...) {
 #' @param sort_by Character. One of \code{"AIC"} (default), \code{"BIC"},
 #'   or \code{"loglik"}: which metric to order rows by. Best model is
 #'   always at the top.
+#' @param comparison_basis Character, one of \code{"unpenalised"}
+#'   (default) or \code{"penalised"}. Determines which log-likelihood is
+#'   used as the basis for AIC and BIC.
+#' \itemize{
+#'   \item \code{"unpenalised"}: the bare data log-likelihood
+#'         \eqn{\ell(\hat\theta)} returned by
+#'         \code{\link{logLik.nicher}}. Standard frequentist convention,
+#'         and the right basis when comparing **different likelihood
+#'         families** at fixed penalty knobs.
+#'   \item \code{"penalised"}: the optimiser's actual objective,
+#'         \eqn{\ell(\hat\theta) - \mathrm{pen}(\hat\theta)}, i.e.
+#'         \code{x$best$loglik}. The right basis when comparing **the
+#'         same family at different penalty strengths**, since the
+#'         unpenalised log-likelihood is monotone in
+#'         \eqn{(\lambda_{\mu}, \lambda_{\log\sigma}, \lambda_{\alpha})}
+#'         and would always favour \eqn{\lambda = 0}. Note: this score
+#'         is NOT a true frequentist IC -- it is the
+#'         penalised-objective AIC, an effective-fit score.
+#' }
 #'
 #' @return A \code{data.frame} with one row per fit and columns:
 #' \describe{
@@ -312,8 +331,11 @@ BIC.nicher <- function(object, ...) {
 #' fit_skt <- optimize_niche(env_occ, env_m, likelihood = "skew_t_weighted")
 #' compare_nicher(weighted = fit_w, skew_normal = fit_skn, skew_t = fit_skt)
 #' }
-compare_nicher <- function(..., sort_by = c("AIC", "BIC", "loglik")) {
-  sort_by <- match.arg(sort_by)
+compare_nicher <- function(..., sort_by = c("AIC", "BIC", "loglik"),
+                           comparison_basis = c("unpenalised",
+                                                "penalised")) {
+  sort_by          <- match.arg(sort_by)
+  comparison_basis <- match.arg(comparison_basis)
   args <- list(...)
   # Support both compare_nicher(a, b, c) and compare_nicher(list(a=a, b=b))
   if (length(args) == 1L && is.list(args[[1L]]) &&
@@ -387,21 +409,29 @@ compare_nicher <- function(..., sort_by = c("AIC", "BIC", "loglik")) {
   }
 
   rows <- lapply(seq_along(args), function(i) {
-    x  <- args[[i]]
-    ll <- logLik(x)
+    x   <- args[[i]]
+    ll  <- logLik(x)
+    df  <- attr(ll, "df")
+    n   <- attr(ll, "nobs")
+    ll_basis <- if (comparison_basis == "penalised") {
+      as.numeric(x$best$loglik)
+    } else {
+      as.numeric(ll)
+    }
     data.frame(
       model       = nm[i],
       likelihood  = x$likelihood,
-      loglik      = as.numeric(ll),
-      df          = as.integer(attr(ll, "df")),
-      nobs        = as.integer(attr(ll, "nobs")),
-      AIC         = AIC(x),
-      BIC         = BIC(x),
+      loglik      = ll_basis,
+      df          = as.integer(df),
+      nobs        = as.integer(n),
+      AIC         = -2 * ll_basis + 2 * df,
+      BIC         = -2 * ll_basis + log(n) * df,
       convergence = as.integer(x$best$convergence),
       stringsAsFactors = FALSE
     )
   })
   out <- do.call(rbind, rows)
+  attr(out, "comparison_basis") <- comparison_basis
 
   out$dAIC <- out$AIC - min(out$AIC, na.rm = TRUE)
   out$dBIC <- out$BIC - min(out$BIC, na.rm = TRUE)
@@ -416,6 +446,9 @@ compare_nicher <- function(..., sort_by = c("AIC", "BIC", "loglik")) {
   )
   out <- out[ord, , drop = FALSE]
   rownames(out) <- NULL
-  out[, c("model", "likelihood", "loglik", "df", "nobs",
-          "AIC", "dAIC", "BIC", "dBIC", "weight_AIC", "convergence")]
+  out <- out[, c("model", "likelihood", "loglik", "df", "nobs",
+                 "AIC", "dAIC", "BIC", "dBIC", "weight_AIC",
+                 "convergence")]
+  attr(out, "comparison_basis") <- comparison_basis
+  out
 }
