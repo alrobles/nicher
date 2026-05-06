@@ -5,7 +5,7 @@
 #' @format A data frame with 73 rows and 3 variables:
 #' \describe{
 #'   \item{species}{Species name}
-#'   \item{long}{Decimal longitude geographical coordinate, in degrees}
+#'   \item{lon}{Decimal longitude geographical coordinate, in degrees}
 #'   \item{lat}{Decimal latitude geographical coordinate, in degrees}
 #' }
 #' @source <doi:10.1016/j.ecolmodel.2021.109823>
