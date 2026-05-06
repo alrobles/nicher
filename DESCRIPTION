@@ -40,7 +40,7 @@ Suggests:
     testthat (>= 3.0.0)
 VignetteBuilder: knitr
 Config/testthat/edition: 3
-URL: https://alrobles.github.io/nicher, https://github.com/alrobles/nicher
+URL: https://alrobles.github.io/nicher/, https://github.com/alrobles/nicher
 BugReports: https://github.com/alrobles/nicher/issues
 LinkingTo: 
     Rcpp,

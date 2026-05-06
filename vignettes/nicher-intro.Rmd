@@ -23,12 +23,17 @@ represented as a multivariate normal distribution parameterised in the
 unconstrained *math scale* (log-standard-deviations + C-vine partial
 correlations), which allows unconstrained numerical optimization.
 
-Three likelihood formulations are supported:
+Seven likelihood formulations are supported:
 
 | Model | Description | Reference |
 |---|---|---|
-| `"weighted"` | KDE-weighted background correction | Jiménez & Soberón (2022) |
 | `"presence_only"` | Multivariate normal, no background | — |
+| `"kde_bias_corrected"` | Legacy KDE-bias-corrected weighted normal | Jiménez & Soberón (2022) |
+| `"weighted"` | Paper-faithful weighted normal with ridge regularization | Jiménez & Soberón (2022) |
+| `"skew_normal"` | Presence-only multivariate skew-normal | Azzalini & Capitanio (1999) |
+| `"skew_normal_weighted"` | Weighted multivariate skew-normal | Azzalini & Capitanio (1999); Jiménez & Soberón (2022) |
+| `"skew_t"` | Presence-only non-central skew-t | Branco & Dey (2001) |
+| `"skew_t_weighted"` | Weighted non-central skew-t | Branco & Dey (2001); Jiménez & Soberón (2022) |
 
 ---
 
@@ -202,6 +207,82 @@ res_po <- optimize_niche(
 print(res_po)
 assess(res_po)$flag
 ```
+
+---
+
+## Non-symmetric models
+
+Use the skew-normal or skew-t families when the niche response is
+asymmetric rather than symmetric around the centroid. Skew-normal models
+append one skew parameter `alpha` per environmental variable; skew-t
+models add one more `log_r` degrees-of-freedom parameter for heavier
+tails.
+
+```{r optimize-skew-models}
+set.seed(42)
+
+res_sn <- optimize_niche(
+  env_occ    = example_env_occ_2d,
+  env_m      = NULL,
+  num_starts = 5L,
+  breadth    = 0.1,
+  likelihood = "skew_normal",
+  eta        = 1
+)
+
+res_skt <- optimize_niche(
+  env_occ    = example_env_occ_2d,
+  env_m      = NULL,
+  num_starts = 5L,
+  breadth    = 0.1,
+  likelihood = "skew_t",
+  eta        = 1
+)
+
+compare_nicher(
+  presence_only = res_po,
+  skew_normal = res_sn,
+  skew_t = res_skt
+)
+```
+
+For background-corrected non-symmetric models, use
+`"skew_normal_weighted"` or `"skew_t_weighted"` with `env_m`.
+
+```{r optimize-weighted-skew-models}
+set.seed(42)
+
+res_snw <- optimize_niche(
+  env_occ         = example_env_occ_2d,
+  env_m           = example_env_m_2d,
+  num_starts      = 5L,
+  breadth         = 0.1,
+  likelihood      = "skew_normal_weighted",
+  m_subsample     = 500L,
+  m_kde_subsample = 1000L,
+  seed            = 1L
+)
+
+res_sktw <- optimize_niche(
+  env_occ         = example_env_occ_2d,
+  env_m           = example_env_m_2d,
+  num_starts      = 5L,
+  breadth         = 0.1,
+  likelihood      = "skew_t_weighted",
+  m_subsample     = 500L,
+  m_kde_subsample = 1000L,
+  seed            = 1L
+)
+
+compare_nicher(
+  weighted = res_w,
+  skew_normal_weighted = res_snw,
+  skew_t_weighted = res_sktw
+)
+```
+
+See `vignette("non_symmetric_models", package = "nicher")` for a focused
+walkthrough of skew-normal and skew-t parameter layouts.
 
 ---
 

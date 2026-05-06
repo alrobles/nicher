@@ -73,6 +73,12 @@ likelihood family and the best penalty strength. See:
 vignette("cross_validation", package = "nicher")
 ```
 
+The README and getting-started vignette now enumerate all seven
+likelihood families. A new `non_symmetric_models` vignette introduces
+the skew-normal and skew-t parameter layouts, shows presence-only and
+weighted fits, and demonstrates extraction of the `alpha` and `log_r`
+blocks from fitted objects.
+
 ### Migration
 
 Nothing breaks. `compare_nicher()` defaults are unchanged. The
