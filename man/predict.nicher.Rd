@@ -60,9 +60,11 @@ the standardized Gaussian suitability map of Jimenez et al. (2022,
 Eq. 2) over an environmental \code{\link[terra]{SpatRaster}}.
 }
 \details{
-The same procedure is used for both the \code{"kde_bias_corrected"} and
-\code{"presence_only"} likelihoods — only the way \eqn{(\mu,
-\Sigma)} were estimated differs, never the suitability evaluation.
+The same Gaussian suitability surface is used for every fitted family:
+\code{"weighted"}, \code{"kde_bias_corrected"}, \code{"presence_only"},
+and the skew-normal / skew-t variants all project the fitted
+\eqn{(\mu, \Sigma)} geometry. For skew fits, the skewness and tail
+parameters affect fitting but are not used by this Gaussian projection.
 
 
 Internally:
@@ -83,7 +85,7 @@ Internally:
     env_occ    = example_env_occ_2d,
     env_m      = example_env_m_2d,
     num_starts = 10L,
-    likelihood = "kde_bias_corrected"
+    likelihood = "weighted"
   )
   env <- terra::rast(matrix(rnorm(100), 10), nlyrs = 2L)
   names(env) <- colnames(example_env_occ_2d)
