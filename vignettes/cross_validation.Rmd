@@ -18,7 +18,7 @@ library(nicher)
 
 ## Why this vignette exists
 
-`nicher 3.0`–`3.2` give you seven likelihood families
+`nicher` gives you seven likelihood families
 (`presence_only`, `weighted`, `kde_bias_corrected`, `skew_normal`,
 `skew_normal_weighted`, `skew_t`, `skew_t_weighted`) and three penalty
 knobs (`prior_mu_lambda`, `prior_log_sigma_lambda`,
@@ -27,7 +27,7 @@ explains:
 
 1.  Why the unregularised `weighted` MLE is **pathological** on real
     data, using the bundled `example_vicugna` as the case study.
-2.  Why ordinary AIC / BIC (added in `nicher 3.2`) **cannot** tell you
+2.  Why ordinary AIC / BIC **cannot** tell you
     how strong a penalty to use.
 3.  How `cv_nicher()` fixes that and lets you tune the penalty
     knobs principled-ly.
@@ -140,7 +140,7 @@ than the PO loglik. That's the definition of the pathology: the
 
 ## 2. Why AIC and BIC cannot tune the penalty
 
-`nicher 3.2` provides `AIC()`, `BIC()`, and `compare_nicher()`. They
+`nicher` provides `AIC()`, `BIC()`, and `compare_nicher()`. They
 are perfect for ranking different **likelihood families** at fixed
 penalty knobs. They are **useless** for tuning the penalty knobs
 themselves.

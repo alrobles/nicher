@@ -4,10 +4,7 @@
 #' (via \pkg{pomp}) of starting points covering the parameter space implied
 #' by \code{env_occ} and \code{breadth}.
 #'
-#' The supported likelihood models are (\strong{breaking change in
-#' nicher 3.0.0:} the \code{"weighted"} likelihood now refers to the paper
-#' formula; the previous KDE-bias-corrected formula is now
-#' \code{"kde_bias_corrected"} -- see Migration below):
+#' The supported likelihood models are:
 #' \itemize{
 #'   \item \code{"weighted"} (default): paper-faithful weighted-normal model.
 #'         Implements Eq. 5 of Jiménez & Soberón (2022, Ecological
@@ -24,8 +21,7 @@
 #'         occurrences sitting in densely sampled background (a
 #'         sampling-bias correction). Empirically stable, no
 #'         \eqn{\sigma \to \infty} drift, but does not match the
-#'         published Eq. 5. This is what nicher 2.x shipped as
-#'         \code{"weighted"}.
+#'         published Eq. 5.
 #'   \item \code{"presence_only"}: model using only presence points,
 #'         no background correction. Unimodal likelihood, useful as a
 #'         sanity check or to seed the weighted multistart (see
@@ -63,44 +59,20 @@
 #'         inherit from \code{"weighted"}.
 #' }
 #'
-#' @section Migration from nicher 2.x:
-#'
-#' In nicher 2.x \code{likelihood = "weighted"} resolved to the
-#' KDE-bias-corrected formula, and the paper-faithful formula was opt-in
-#' via \code{likelihood = "weighted_penalized"}. In nicher 3.0 those names
-#' have been swapped, with no soft-deprecation alias. Concretely:
-#' \itemize{
-#'   \item Old \code{likelihood = "weighted"}
-#'         -> new \code{likelihood = "kde_bias_corrected"}
-#'         (preserves the previous behaviour).
-#'   \item Old \code{likelihood = "weighted_penalized"}
-#'         -> new \code{likelihood = "weighted"}
-#'         (now the default).
-#' }
-#' For multimodal or long-tailed \code{env_m}, also consider z-scoring
+#' For multimodal or long-tailed \code{env_m}, consider z-scoring
 #' \code{env_occ} and \code{env_m} so all variables have comparable
 #' spread (e.g. z-score or quantile-rank); the ridge prior is then
 #' uniform across axes.
 #'
-#' @section Backends:
+#' @section Optimization backend:
 #'
-#' \describe{
-#'   \item{\code{backend = "cpp"} (default)}{Optimizes via
-#'     \code{ucminfcpp::ucminf_xptr()} with a compiled C++ objective built by
-#'     \code{create_niche_obj_ptr()}. The full \code{(theta -> mu, log sigma, v)}
-#'     unpacking, \code{cvine_cholesky}, log-likelihood, and gradient are
-#'     evaluated in pure C++ with no R-callback overhead.
-#'     For the weighted likelihood, gradient mode \code{"analytic"} uses
-#'     closed-form derivatives over \code{mu} and \code{log sigma} and central
-#'     finite differences over the C-vine partial-correlation block (hybrid
-#'     analytic gradient).}
-#'   \item{\code{backend = "r"} (deprecated)}{Optimizes via
-#'     \code{ucminf::ucminf()} with the legacy R-level objective functions
-#'     (\code{loglik_niche_math_kde_bias_corrected()} or
-#'     \code{loglik_niche_math_presence_only()}). Provided ONLY to allow
-#'     side-by-side benchmarking with the C++ backend; will be removed in
-#'     the next minor release.}
-#' }
+#' \code{optimize_niche()} optimizes via \code{ucminfcpp::ucminf_xptr()} with
+#' a compiled C++ objective built by \code{create_niche_obj_ptr()}. The full
+#' \code{(theta -> mu, log sigma, v)} unpacking, \code{cvine_cholesky},
+#' log-likelihood, and gradient are evaluated in pure C++ with no R-callback
+#' overhead. For the weighted likelihood, gradient mode \code{"analytic"} uses
+#' closed-form derivatives over \code{mu} and \code{log sigma} and central
+#' finite differences over the C-vine partial-correlation block.
 #'
 #' @section KDE sampling (weighted model):
 #'
@@ -132,12 +104,10 @@
 #'   via 32-node Gauss-Laguerre quadrature), or
 #'   \code{"skew_t_weighted"} (paper Eq. 5 with NCST density + ridge
 #'   prior).
-#' @param backend One of \code{"cpp"} (default) or \code{"r"} (deprecated;
-#'   see Backends section).
 #' @param grad Gradient strategy: \code{"auto"} (default) selects
-#'   \code{"analytic"} for the weighted model with \code{backend = "cpp"} and
-#'   \code{"central"} otherwise. Force one of
-#'   \code{c("analytic", "central", "forward")} to override.
+#'   \code{"analytic"} for the Gaussian weighted models and \code{"central"}
+#'   otherwise. Force one of \code{c("analytic", "central", "forward")} to
+#'   override.
 #' @param m_subsample,m_kde_subsample Optional integer or fraction in (0, 1].
 #'   Resolved to \code{min(nrow(env_m), 10000)} when \code{NULL} (default).
 #' @param seed Optional integer to make subsampling deterministic.
@@ -177,8 +147,8 @@
 #'   \eqn{\sigma_k}, it is scale-free across heterogeneous variables (e.g.
 #'   bio1 in \eqn{^\circ C} vs bio12 in mm): \code{prior_mu_lambda = 1}
 #'   allows \eqn{\mu} to drift ~1 PO standard deviation before the
-#'   penalty pushes back. Default \code{1.0}. Set to \code{0} to recover
-#'   the pure-MLE behaviour of nicher 3.0.x.
+#'   penalty pushes back. Default \code{1.0}. Set to \code{0} for
+#'   unpenalized maximum likelihood.
 #' @param prior_alpha_lambda Numeric scalar (\code{>= 0}), strength of a
 #'   ridge penalty \eqn{\lambda_\alpha \sum_k \alpha_k^2} on the skew vector
 #'   \eqn{\alpha}, shrinking toward the Gaussian sub-model. Applies to
@@ -186,16 +156,15 @@
 #'   \code{"skew_normal_weighted"}, \code{"skew_t"},
 #'   \code{"skew_t_weighted"}). Fixes the well-known unbounded-MLE
 #'   pathology of the skew-normal direct parameterization (Azzalini 1985,
-#'   Pewsey 2000). Default \code{0.1} (mild). Set to \code{0} to recover
-#'   the pure-MLE behaviour of nicher 3.0.x.
+#'   Pewsey 2000). Default \code{0.1} (mild). Set to \code{0} for
+#'   unpenalized maximum likelihood.
 #' @param prior_mu_center Optional numeric vector of length
 #'   \code{ncol(env_occ)}. \code{NULL} (default) anchors the centre at the
 #'   presence-only fit's \eqn{\mu} when \code{warm_start = TRUE}; if
 #'   \code{warm_start = FALSE} and \code{prior_mu_lambda > 0}, it must be
 #'   supplied explicitly.
 #' @param control Named list of control parameters for
-#'   \code{ucminfcpp::ucminf_xptr()} (cpp backend) or \code{ucminf::ucminf()}
-#'   (r backend). Recognized entries:
+#'   \code{ucminfcpp::ucminf_xptr()}. Recognized entries:
 #'   \describe{
 #'     \item{\code{grad}}{"central" (default)}
 #'     \item{\code{gradstep}}{c(1e-6, 1e-8)}
@@ -234,7 +203,6 @@ optimize_niche <- function(env_occ,
                                           "skew_normal_weighted",
                                           "skew_t",
                                           "skew_t_weighted"),
-                           backend    = c("cpp", "r"),
                            grad       = c("auto", "analytic",
                                           "central", "forward"),
                            m_subsample     = NULL,
@@ -250,7 +218,6 @@ optimize_niche <- function(env_occ,
                            verbose = FALSE,
                            ...) {
   likelihood <- match.arg(likelihood)
-  backend    <- match.arg(backend)
   grad       <- match.arg(grad)
 
   # Convenience: treat the weighted family uniformly where logic is shared.
@@ -267,10 +234,12 @@ optimize_niche <- function(env_occ,
   # functions (already done downstream) and persist it on the returned
   # object for `predict.nicher()`. Validate upfront — fails fast before
   # the optimizer wastes any compute on a malformed value.
-  eta <- {
-    .dots <- list(...)
-    if (!is.null(.dots$eta)) .dots$eta else 1.0
+  .dots <- list(...)
+  unknown_dots <- setdiff(names(.dots), "eta")
+  if (length(unknown_dots) > 0L) {
+    stop("Unused argument(s): ", paste(unknown_dots, collapse = ", "))
   }
+  eta <- if (!is.null(.dots$eta)) .dots$eta else 1.0
   if (!is.numeric(eta) || length(eta) != 1L ||
       !is.finite(eta) || eta <= 0) {
     stop("`eta` must be a single positive finite number.")
@@ -319,41 +288,17 @@ optimize_niche <- function(env_occ,
   .validate_center(prior_log_sigma_center, "prior_log_sigma_center")
   .validate_center(prior_mu_center,        "prior_mu_center")
 
-  if (backend == "r") {
-    lifecycle::deprecate_soft(
-      when = "2.1.0",
-      what = I('optimize_niche(backend = "r")'),
-      details = paste0(
-        'The legacy R-objective backend will be removed in nicher 2.2.0. ',
-        'Use backend = "cpp" (default) for production runs; the "r" backend ',
-        'is retained only for side-by-side benchmarking via ',
-        'benchmark_optimize_niche().'
-      )
-    )
-  }
-
   # Resolve grad="auto". Analytic gradients exist for the Gaussian weighted
   # family (kde_bias_corrected, weighted) only; the skew-normal and skew-t
   # kernels ship with finite-difference gradients (closed-form Azzalini
   # gradients deferred to a follow-up; for skew-t the integral over the
   # chi^2_r mixing variable would also need a quadrature-aware derivative).
   resolved_grad <- if (grad == "auto") {
-    if (likelihood %in% c("kde_bias_corrected", "weighted") && backend == "cpp")
+    if (likelihood %in% c("kde_bias_corrected", "weighted"))
       "analytic"
     else
       "central"
   } else grad
-
-  # The legacy R backend only implements presence_only and
-  # kde_bias_corrected as pure-R objectives; weighted, skew_normal, and
-  # skew_normal_weighted require the C++ backend.
-  if (backend == "r" && likelihood %in% c("weighted",
-                                          "skew_normal",
-                                          "skew_normal_weighted",
-                                          "skew_t",
-                                          "skew_t_weighted")) {
-    stop('likelihood = "', likelihood, '" requires backend = "cpp".')
-  }
 
   # ------------------------------------------------------------------
   # Sobol starts
@@ -422,7 +367,6 @@ optimize_niche <- function(env_occ,
         num_starts = min(20L, as.integer(num_starts)),
         breadth    = breadth,
         likelihood = "presence_only",
-        backend    = backend,
         grad       = if (grad == "auto") "central" else grad,
         seed       = seed,
         warm_start = FALSE,
@@ -510,8 +454,7 @@ optimize_niche <- function(env_occ,
   # ------------------------------------------------------------------
   # Run all starts
   # ------------------------------------------------------------------
-  helper <- if (backend == "cpp") .optimize_niche_helper_cpp
-            else                  .optimize_niche_helper_r
+  helper <- .optimize_niche_helper_cpp
 
   results <- vector("list", length(starts_list))
   for (i in seq_along(starts_list)) {
@@ -529,7 +472,7 @@ optimize_niche <- function(env_occ,
       prior_mu_center        = prior_mu_center,
       prior_mu_lambda        = prior_mu_lambda,
       prior_alpha_lambda     = prior_alpha_lambda,
-      ...
+      eta = eta
     )
   }
 
@@ -563,9 +506,9 @@ optimize_niche <- function(env_occ,
   )
 
   # ------------------------------------------------------------------
-  # Internal safeguard: validate cpp-backend xptr result against ucminf
+  # Internal safeguard: validate compiled optimizer result against ucminf
   # ------------------------------------------------------------------
-  if (backend == "cpp" && best$convergence %in% c(1L, 2L)) {
+  if (best$convergence %in% c(1L, 2L)) {
     .validate_xptr_result(
       best            = best,
       env_occ         = env_occ,
@@ -578,7 +521,7 @@ optimize_niche <- function(env_occ,
       prior_mu_center        = prior_mu_center,
       prior_mu_lambda        = prior_mu_lambda,
       prior_alpha_lambda     = prior_alpha_lambda,
-      ...
+      eta = eta
     )
   }
 
@@ -626,7 +569,6 @@ optimize_niche <- function(env_occ,
     num_starts             = num_starts,
     breadth                = breadth,
     likelihood             = likelihood,
-    backend                = backend,
     grad                   = resolved_grad,
     m_subsample            = m_subsample,
     m_kde_subsample        = m_kde_subsample,
@@ -978,75 +920,5 @@ optimize_niche <- function(env_occ,
   })
 
   list(theta = out$par, loglik = -out$value,
-       convergence = out$convergence)
-}
-
-
-# ===========================================================================
-# Internal: r-backend per-start helper (legacy ucminf::ucminf)
-# ===========================================================================
-
-#' Run ucminf::ucminf() with the legacy R objective function for a single
-#' starting vector.
-#'
-#' Used only when \code{backend = "r"}; will be removed alongside that flag
-#' in nicher 2.2.0.
-#' @keywords internal
-.optimize_niche_helper_r <- function(param, env_occ, env_m, control,
-                                     likelihood, grad,
-                                     weighted_inputs = NULL,
-                                     prior_log_sigma_center = NULL,
-                                     prior_log_sigma_lambda = 0.0,
-                                     prior_mu_center        = NULL,
-                                     prior_mu_lambda        = 0.0,
-                                     prior_alpha_lambda     = 0.0,
-                                     ...) {
-  param_names <- names(param)
-  param <- as.numeric(param)
-  if (!is.null(param_names)) names(param) <- param_names
-  if (any(!is.finite(param))) stop("All starting parameters must be finite")
-
-  dots <- list(...)
-  eta <- if (!is.null(dots$eta)) dots$eta else 1.0
-
-  fn <- if (likelihood == "kde_bias_corrected") {
-    den_idx       <- if (!is.null(weighted_inputs)) weighted_inputs$den_idx else NULL
-    kde_idx       <- if (!is.null(weighted_inputs)) weighted_inputs$kde_idx else NULL
-    precomp_w_den <- if (!is.null(weighted_inputs)) weighted_inputs$w_den   else NULL
-    function(theta) {
-      loglik_niche_math_kde_bias_corrected(
-        theta, env_occ = env_occ, env_m = env_m, eta = eta, neg = TRUE,
-        den_idx = den_idx, kde_idx = kde_idx,
-        precomp_w_den = precomp_w_den
-      )
-    }
-  } else {
-    function(theta) {
-      loglik_niche_math_presence_only(
-        theta, env_occ = env_occ, eta = eta, neg = TRUE
-      )
-    }
-  }
-
-  ucminf_ctrl <- list(
-    grtol   = if (!is.null(control$grtol))   control$grtol   else 1e-4,
-    xtol    = if (!is.null(control$xtol))    control$xtol    else 1e-8,
-    stepmax = if (!is.null(control$stepmax)) control$stepmax else 5,
-    maxeval = if (!is.null(control$maxeval)) as.integer(control$maxeval) else 2000L
-  )
-
-  out <- tryCatch({
-    res <- ucminf::ucminf(par = param, fn = fn, hessian = FALSE,
-                          control = ucminf_ctrl)
-    if (is.null(res$convergence)) res$convergence <- NA_integer_
-    res
-  }, error = function(e) {
-    list(par = param, value = Inf, convergence = NA_integer_,
-         error = conditionMessage(e))
-  })
-
-  par_out <- out$par
-  if (is.null(names(par_out)) && !is.null(param_names)) names(par_out) <- param_names
-  list(theta = par_out, loglik = -out$value,
        convergence = out$convergence)
 }

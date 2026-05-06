@@ -11,7 +11,6 @@ optimize_niche(
   breadth = 0.1,
   likelihood = c("weighted", "kde_bias_corrected", "presence_only", "skew_normal",
     "skew_normal_weighted", "skew_t", "skew_t_weighted"),
-  backend = c("cpp", "r"),
   grad = c("auto", "analytic", "central", "forward"),
   m_subsample = NULL,
   m_kde_subsample = NULL,
@@ -51,13 +50,10 @@ via 32-node Gauss-Laguerre quadrature), or
 \code{"skew_t_weighted"} (paper Eq. 5 with NCST density + ridge
 prior).}
 
-\item{backend}{One of \code{"cpp"} (default) or \code{"r"} (deprecated;
-see Backends section).}
-
 \item{grad}{Gradient strategy: \code{"auto"} (default) selects
-\code{"analytic"} for the weighted model with \code{backend = "cpp"} and
-\code{"central"} otherwise. Force one of
-\code{c("analytic", "central", "forward")} to override.}
+\code{"analytic"} for the Gaussian weighted models and \code{"central"}
+otherwise. Force one of \code{c("analytic", "central", "forward")} to
+override.}
 
 \item{m_subsample, m_kde_subsample}{Optional integer or fraction in (0, 1].
 Resolved to \code{min(nrow(env_m), 10000)} when \code{NULL} (default).}
@@ -103,8 +99,8 @@ with anchors \eqn{\hat\mu_k} and \eqn{\hat\sigma_k} from the PO fit
 \eqn{\sigma_k}, it is scale-free across heterogeneous variables (e.g.
 bio1 in \eqn{^\circ C} vs bio12 in mm): \code{prior_mu_lambda = 1}
 allows \eqn{\mu} to drift ~1 PO standard deviation before the
-penalty pushes back. Default \code{1.0}. Set to \code{0} to recover
-the pure-MLE behaviour of nicher 3.0.x.}
+penalty pushes back. Default \code{1.0}. Set to \code{0} for
+unpenalized maximum likelihood.}
 
 \item{prior_mu_center}{Optional numeric vector of length
 \code{ncol(env_occ)}. \code{NULL} (default) anchors the centre at the
@@ -119,12 +115,11 @@ both presence-only and weighted skew families (\code{"skew_normal"},
 \code{"skew_normal_weighted"}, \code{"skew_t"},
 \code{"skew_t_weighted"}). Fixes the well-known unbounded-MLE
 pathology of the skew-normal direct parameterization (Azzalini 1985,
-Pewsey 2000). Default \code{0.1} (mild). Set to \code{0} to recover
-the pure-MLE behaviour of nicher 3.0.x.}
+Pewsey 2000). Default \code{0.1} (mild). Set to \code{0} for
+unpenalized maximum likelihood.}
 
 \item{control}{Named list of control parameters for
-\code{ucminfcpp::ucminf_xptr()} (cpp backend) or \code{ucminf::ucminf()}
-(r backend). Recognized entries:
+\code{ucminfcpp::ucminf_xptr()}. Recognized entries:
 \describe{
   \item{\code{grad}}{"central" (default)}
   \item{\code{gradstep}}{c(1e-6, 1e-8)}
@@ -148,10 +143,7 @@ Runs multi-start optimization over a Sobol low-discrepancy sequence
 by \code{env_occ} and \code{breadth}.
 }
 \details{
-The supported likelihood models are (\strong{breaking change in
-nicher 3.0.0:} the \code{"weighted"} likelihood now refers to the paper
-formula; the previous KDE-bias-corrected formula is now
-\code{"kde_bias_corrected"} -- see Migration below):
+The supported likelihood models are:
 \itemize{
   \item \code{"weighted"} (default): paper-faithful weighted-normal model.
         Implements Eq. 5 of Jiménez & Soberón (2022, Ecological
@@ -168,8 +160,7 @@ formula; the previous KDE-bias-corrected formula is now
         occurrences sitting in densely sampled background (a
         sampling-bias correction). Empirically stable, no
         \eqn{\sigma \to \infty} drift, but does not match the
-        published Eq. 5. This is what nicher 2.x shipped as
-        \code{"weighted"}.
+        published Eq. 5.
   \item \code{"presence_only"}: model using only presence points,
         no background correction. Unimodal likelihood, useful as a
         sanity check or to seed the weighted multistart (see
@@ -206,48 +197,22 @@ formula; the previous KDE-bias-corrected formula is now
         on \eqn{\log \sigma} used by \code{"weighted"}. Defaults
         inherit from \code{"weighted"}.
 }
-}
-\section{Migration from nicher 2.x}{
 
-
-In nicher 2.x \code{likelihood = "weighted"} resolved to the
-KDE-bias-corrected formula, and the paper-faithful formula was opt-in
-via \code{likelihood = "weighted_penalized"}. In nicher 3.0 those names
-have been swapped, with no soft-deprecation alias. Concretely:
-\itemize{
-  \item Old \code{likelihood = "weighted"}
-        -> new \code{likelihood = "kde_bias_corrected"}
-        (preserves the previous behaviour).
-  \item Old \code{likelihood = "weighted_penalized"}
-        -> new \code{likelihood = "weighted"}
-        (now the default).
-}
-For multimodal or long-tailed \code{env_m}, also consider z-scoring
+For multimodal or long-tailed \code{env_m}, consider z-scoring
 \code{env_occ} and \code{env_m} so all variables have comparable
 spread (e.g. z-score or quantile-rank); the ridge prior is then
 uniform across axes.
 }
+\section{Optimization backend}{
 
-\section{Backends}{
 
-
-\describe{
-  \item{\code{backend = "cpp"} (default)}{Optimizes via
-    \code{ucminfcpp::ucminf_xptr()} with a compiled C++ objective built by
-    \code{create_niche_obj_ptr()}. The full \code{(theta -> mu, log sigma, v)}
-    unpacking, \code{cvine_cholesky}, log-likelihood, and gradient are
-    evaluated in pure C++ with no R-callback overhead.
-    For the weighted likelihood, gradient mode \code{"analytic"} uses
-    closed-form derivatives over \code{mu} and \code{log sigma} and central
-    finite differences over the C-vine partial-correlation block (hybrid
-    analytic gradient).}
-  \item{\code{backend = "r"} (deprecated)}{Optimizes via
-    \code{ucminf::ucminf()} with the legacy R-level objective functions
-    (\code{loglik_niche_math_kde_bias_corrected()} or
-    \code{loglik_niche_math_presence_only()}). Provided ONLY to allow
-    side-by-side benchmarking with the C++ backend; will be removed in
-    the next minor release.}
-}
+\code{optimize_niche()} optimizes via \code{ucminfcpp::ucminf_xptr()} with
+a compiled C++ objective built by \code{create_niche_obj_ptr()}. The full
+\code{(theta -> mu, log sigma, v)} unpacking, \code{cvine_cholesky},
+log-likelihood, and gradient are evaluated in pure C++ with no R-callback
+overhead. For the weighted likelihood, gradient mode \code{"analytic"} uses
+closed-form derivatives over \code{mu} and \code{log sigma} and central
+finite differences over the C-vine partial-correlation block.
 }
 
 \section{KDE sampling (weighted model)}{

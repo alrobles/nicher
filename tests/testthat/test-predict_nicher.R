@@ -18,8 +18,9 @@ test_that("predict.nicher returns a one-layer SpatRaster in (0, 1]", {
   fit <- optimize_niche(
     env_occ    = example_env_occ_2d,
     env_m      = example_env_m_2d,
-    num_starts = 4L,
+    num_starts = 2L,
     likelihood = "kde_bias_corrected",
+    control    = list(maxeval = 120L),
     verbose    = FALSE
   )
   expect_identical(fit$var_names, colnames(example_env_occ_2d))
@@ -37,8 +38,9 @@ test_that("predict.nicher supports skew-family fits", {
   fit <- optimize_niche(
     env_occ    = example_env_occ_2d,
     env_m      = NULL,
-    num_starts = 3L,
+    num_starts = 2L,
     likelihood = "skew_normal",
+    control    = list(maxeval = 120L),
     verbose    = FALSE
   )
   env <- env_from_m(example_env_occ_2d, fit$var_names, seed = 18L)
@@ -56,8 +58,9 @@ test_that("predict.nicher reorders env layers by name", {
   fit <- optimize_niche(
     env_occ    = example_env_occ_2d,
     env_m      = example_env_m_2d,
-    num_starts = 3L,
+    num_starts = 2L,
     likelihood = "presence_only",
+    control    = list(maxeval = 120L),
     verbose    = FALSE
   )
   env <- env_from_m(example_env_m_2d, fit$var_names, seed = 11L)
@@ -74,8 +77,9 @@ test_that("predict.nicher errors when env is missing required layer names", {
   fit <- optimize_niche(
     env_occ    = example_env_occ_2d,
     env_m      = example_env_m_2d,
-    num_starts = 3L,
+    num_starts = 2L,
     likelihood = "kde_bias_corrected",
+    control    = list(maxeval = 120L),
     verbose    = FALSE
   )
   env_bad <- env_from_m(example_env_m_2d, fit$var_names, seed = 12L)
@@ -95,9 +99,10 @@ test_that("predict.nicher uses the eta stored on the fit (regression)", {
   fit <- optimize_niche(
     env_occ    = example_env_occ_2d,
     env_m      = example_env_m_2d,
-    num_starts = 3L,
+    num_starts = 2L,
     likelihood = "kde_bias_corrected",
     eta        = 2.5,
+    control    = list(maxeval = 120L),
     verbose    = FALSE
   )
   expect_equal(fit$eta, 2.5)
@@ -138,8 +143,9 @@ test_that("suitability evaluated at the fitted mu equals 1", {
   fit <- optimize_niche(
     env_occ    = example_env_occ_2d,
     env_m      = example_env_m_2d,
-    num_starts = 3L,
+    num_starts = 2L,
     likelihood = "kde_bias_corrected",
+    control    = list(maxeval = 120L),
     verbose    = FALSE
   )
   theta  <- fit$best$theta

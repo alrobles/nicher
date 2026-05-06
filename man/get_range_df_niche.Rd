@@ -18,8 +18,8 @@ get_range_df_niche(
 
 \item{skew}{Logical. If \code{TRUE}, append \code{p} skew parameters
 (\code{alpha_1, ..., alpha_p}) to the parameter vector with the
-default Sobol range \code{[-3, 0, 3]}. Default \code{FALSE}
-preserves the Gaussian-only behaviour of nicher 2.x.}
+default Sobol range \code{[-3, 0, 3]}. Default \code{FALSE} keeps
+the Gaussian-only parameterization.}
 
 \item{skew_t}{Logical. If \code{TRUE}, append a single \code{log_r}
 parameter (degrees-of-freedom for the multivariate non-central

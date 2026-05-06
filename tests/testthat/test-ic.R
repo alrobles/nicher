@@ -1,39 +1,41 @@
 # Information criteria (AIC/BIC) and compare_nicher()
 
-# Cheap reusable fixtures: small num_starts, default breadth, fixed seed.
-.fit_po <- function(seed = 1L) {
-  set.seed(seed)
-  optimize_niche(
-    env_occ    = example_env_occ_2d,
-    env_m      = NULL,
-    num_starts = 5L,
-    breadth    = 0.1,
-    likelihood = "presence_only",
-    verbose    = FALSE
+# Cheap reusable fixtures: IC helpers only need nicher object structure.
+.mock_fit_ic <- function(likelihood = "weighted", loglik = -100, df = 5L,
+                         env_occ = example_env_occ_2d,
+                         env_m = example_env_m_2d) {
+  theta <- stats::setNames(seq_len(df), paste0("theta", seq_len(df)))
+  best <- list(
+    theta = theta,
+    loglik = loglik,
+    loglik_unpenalised = loglik,
+    convergence = 1L,
+    nobs = nrow(env_occ),
+    env_occ_fingerprint = nicher:::.env_fingerprint(env_occ),
+    env_m_fingerprint = if (likelihood %in% c("presence_only", "skew_normal",
+                                              "skew_t")) {
+      NULL
+    } else {
+      nicher:::.env_fingerprint(env_m)
+    }
+  )
+  solutions <- data.frame(
+    start_id = 1L, loglik = loglik, convergence = 1L,
+    stringsAsFactors = FALSE
+  )
+  nicher:::new_nicher(
+    solutions = solutions,
+    best = best,
+    likelihood = likelihood,
+    n_starts = 1L,
+    var_names = colnames(env_occ)
   )
 }
-.fit_w <- function(seed = 1L) {
-  set.seed(seed)
-  optimize_niche(
-    env_occ    = example_env_occ_2d,
-    env_m      = example_env_m_2d,
-    num_starts = 5L,
-    breadth    = 0.1,
-    likelihood = "weighted",
-    verbose    = FALSE
-  )
-}
-.fit_skn_w <- function(seed = 1L) {
-  set.seed(seed)
-  optimize_niche(
-    env_occ    = example_env_occ_2d,
-    env_m      = example_env_m_2d,
-    num_starts = 5L,
-    breadth    = 0.45,
-    likelihood = "skew_normal_weighted",
-    verbose    = FALSE
-  )
-}
+.fit_po <- function() .mock_fit_ic("presence_only", loglik = -120, df = 5L,
+                                  env_m = NULL)
+.fit_w <- function() .mock_fit_ic("weighted", loglik = -100, df = 5L)
+.fit_skn_w <- function() .mock_fit_ic("skew_normal_weighted", loglik = -95,
+                                      df = 7L)
 
 # -----------------------------------------------------------------------
 test_that("logLik.nicher returns un-penalised log-likelihood with df, nobs", {
@@ -43,7 +45,6 @@ test_that("logLik.nicher returns un-penalised log-likelihood with df, nobs", {
   expect_true(is.finite(as.numeric(ll)))
   expect_identical(attr(ll, "df"),   length(fit$best$theta))
   expect_identical(attr(ll, "nobs"), nrow(example_env_occ_2d))
-  # presence_only has no penalty: best$loglik == loglik_unpenalised
   expect_equal(as.numeric(ll), fit$best$loglik, tolerance = 1e-8)
 })
 
@@ -53,10 +54,6 @@ test_that("logLik.nicher equals -1 * neg_loglik wrapper at zero penalty", {
   expect_s3_class(ll, "logLik")
   expect_identical(attr(ll, "df"),   length(fit$best$theta))
   expect_identical(attr(ll, "nobs"), nrow(example_env_occ_2d))
-  # For penalised fits, best$loglik (penalised) >= loglik_unpenalised:
-  # the penalty is non-negative, the optimiser MINIMISES (-loglik + pen),
-  # so the stored best$loglik == -(neg_loglik + penalty) <= -neg_loglik
-  # == loglik_unpenalised.  Equivalently:
   expect_lte(fit$best$loglik, as.numeric(ll) + 1e-8)
 })
 
@@ -101,14 +98,9 @@ test_that("compare_nicher produces a sensible IC table", {
 
 test_that("compare_nicher refuses different env_occ", {
   fit1 <- .fit_w()
-  # Build a second fit with a perturbed env_occ -> different fingerprint.
-  set.seed(2L)
   occ2 <- example_env_occ_2d
   occ2[1L, 1L] <- occ2[1L, 1L] + 100
-  fit2 <- optimize_niche(
-    env_occ = occ2, env_m = example_env_m_2d,
-    num_starts = 5L, breadth = 0.1, likelihood = "weighted", verbose = FALSE
-  )
+  fit2 <- .mock_fit_ic(env_occ = occ2)
   expect_error(
     compare_nicher(a = fit1, b = fit2),
     regexp = "different `env_occ`"
@@ -117,13 +109,9 @@ test_that("compare_nicher refuses different env_occ", {
 
 test_that("compare_nicher refuses different env_m", {
   fit1 <- .fit_w()
-  set.seed(3L)
   m2 <- example_env_m_2d
   m2[1L, 1L] <- m2[1L, 1L] + 100
-  fit2 <- optimize_niche(
-    env_occ = example_env_occ_2d, env_m = m2,
-    num_starts = 5L, breadth = 0.1, likelihood = "weighted", verbose = FALSE
-  )
+  fit2 <- .mock_fit_ic(env_m = m2)
   expect_error(
     compare_nicher(a = fit1, b = fit2),
     regexp = "different `env_m`"
