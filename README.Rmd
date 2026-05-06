@@ -42,7 +42,7 @@ families are:
 | Family | Uses `env_m`? | Shape | When to use it |
 |---|---:|---|---|
 | `"presence_only"` | No | Symmetric Gaussian | Baseline model using occurrences only |
-| `"kde_bias_corrected"` | Yes | Symmetric Gaussian | Legacy nicher 2.x weighted behavior |
+| `"kde_bias_corrected"` | Yes | Symmetric Gaussian | KDE-based sampling-bias correction |
 | `"weighted"` | Yes | Symmetric Gaussian | Paper-faithful weighted likelihood with ridge regularization |
 | `"skew_normal"` | No | Non-symmetric skew-normal | Presence-only niches with asymmetric responses |
 | `"skew_normal_weighted"` | Yes | Non-symmetric skew-normal | Asymmetric niches with background correction |

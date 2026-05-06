@@ -17,7 +17,6 @@ test_that(".validate_xptr_result evaluates the same subsampled objective the opt
       num_starts = 2L,
       breadth    = 0.1,
       likelihood = "kde_bias_corrected",
-      backend    = "cpp",
       seed       = 1L,
       control    = list(maxeval = 200L)
     )

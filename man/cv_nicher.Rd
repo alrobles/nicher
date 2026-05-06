@@ -18,8 +18,7 @@ cv_nicher(
 }
 \arguments{
 \item{fit}{A \code{"nicher"} object returned by
-\code{\link{optimize_niche}} (\code{>= 3.3.0}, which stores the fit
-recipe needed to refit on subsets).}
+\code{\link{optimize_niche}}.}
 
 \item{env_occ}{A \code{matrix} or \code{data.frame} of occurrences,
 identical (up to row order) to the one passed to the original

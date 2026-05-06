@@ -154,9 +154,8 @@
 #' }
 logLik.nicher <- function(object, ...) {
   if (is.null(object$best$loglik_unpenalised)) {
-    stop("This nicher object lacks `best$loglik_unpenalised` (likely fit ",
-         "with nicher < 3.2.0). Refit with the current version to use ",
-         "logLik() / AIC() / BIC().")
+    stop("This nicher object lacks `best$loglik_unpenalised`. Refit ",
+         "with the current version to use logLik() / AIC() / BIC().")
   }
   if (is.null(object$best$nobs)) {
     stop("This nicher object lacks `best$nobs`. Refit with the current ",
@@ -191,7 +190,8 @@ logLik.nicher <- function(object, ...) {
 #' @export
 nobs.nicher <- function(object, ...) {
   if (is.null(object$best$nobs)) {
-    stop("This nicher object lacks `best$nobs`. Refit with nicher >= 3.2.0.")
+    stop("This nicher object lacks `best$nobs`. Refit with the current ",
+         "version of nicher.")
   }
   as.integer(object$best$nobs)
 }
@@ -358,7 +358,8 @@ compare_nicher <- function(..., sort_by = c("AIC", "BIC", "loglik"),
     if (is.null(x$best$nobs)) NA_integer_ else as.integer(x$best$nobs)
   }, integer(1L))
   if (any(is.na(nobs_vec))) {
-    stop("One or more fits lack `best$nobs` -- refit with nicher >= 3.2.0.")
+    stop("One or more fits lack `best$nobs` -- refit with the current ",
+         "version of nicher.")
   }
   if (length(unique(nobs_vec)) > 1L) {
     stop("Fits have different `nobs` (", paste(nobs_vec, collapse = ", "),
@@ -375,7 +376,7 @@ compare_nicher <- function(..., sort_by = c("AIC", "BIC", "loglik"),
   occ_fps <- lapply(args, function(x) x$best$env_occ_fingerprint)
   if (any(vapply(occ_fps, is.null, logical(1L)))) {
     stop("One or more fits lack `best$env_occ_fingerprint` -- refit with ",
-         "nicher >= 3.2.0.")
+         "the current version of nicher.")
   }
   for (i in seq_along(args)[-1L]) {
     if (!identical(occ_fps[[i]], occ_fps[[1L]])) {

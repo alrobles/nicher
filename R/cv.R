@@ -162,8 +162,7 @@
 #' achieves higher out-of-sample loglik than the unpenalised MLE.
 #'
 #' @param fit A \code{"nicher"} object returned by
-#'   \code{\link{optimize_niche}} (\code{>= 3.3.0}, which stores the fit
-#'   recipe needed to refit on subsets).
+#'   \code{\link{optimize_niche}}.
 #' @param env_occ A \code{matrix} or \code{data.frame} of occurrences,
 #'   identical (up to row order) to the one passed to the original
 #'   \code{optimize_niche()} call. Validated against
@@ -233,8 +232,8 @@ cv_nicher <- function(fit, env_occ, env_m = NULL,
     stop("`fit` must be a `nicher` object returned by optimize_niche().")
   }
   if (is.null(fit$fit_args)) {
-    stop("This nicher object lacks `fit_args` (likely fit with ",
-         "nicher < 3.3.0). Refit with the current version to use cv_nicher().")
+    stop("This nicher object lacks `fit_args`. Refit with the current ",
+         "version to use cv_nicher().")
   }
   type <- match.arg(type)
 
@@ -246,7 +245,7 @@ cv_nicher <- function(fit, env_occ, env_m = NULL,
 
   # ---- validate env_occ / env_m against stored fingerprints ----------
   if (is.null(fit$best$env_occ_fingerprint)) {
-    stop("Fit lacks `env_occ_fingerprint`; refit with nicher >= 3.2.0.")
+    stop("Fit lacks `env_occ_fingerprint`; refit with the current version.")
   }
   if (!identical(.env_fingerprint(env_occ), fit$best$env_occ_fingerprint)) {
     stop("`env_occ` does not match the data the fit was trained on ",
@@ -319,7 +318,6 @@ cv_nicher <- function(fit, env_occ, env_m = NULL,
              num_starts = num_starts_cv,
              breadth    = args$breadth,
              likelihood = likelihood,
-             backend    = args$backend,
              grad       = args$grad,
              m_subsample            = args$m_subsample,
              m_kde_subsample        = args$m_kde_subsample,
