@@ -1,0 +1,254 @@
+---
+title: "Non-symmetric niche models"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Non-symmetric niche models}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment  = "#>"
+)
+library(nicher)
+```
+
+## Why non-symmetric models?
+
+The original nicher likelihoods represent a niche as a symmetric
+multivariate Gaussian ellipsoid. That is a useful baseline, but
+ecological responses are not always symmetric: suitability can decline
+slowly on one side of an optimum and sharply on the other. nicher
+therefore includes two non-symmetric families:
+
+| Family | Background correction | Extra parameters |
+|---|---:|---|
+| `"skew_normal"` | No | `alpha_1, ..., alpha_p` |
+| `"skew_normal_weighted"` | Yes | `alpha_1, ..., alpha_p` |
+| `"skew_t"` | No | `alpha_1, ..., alpha_p`, `log_r` |
+| `"skew_t_weighted"` | Yes | `alpha_1, ..., alpha_p`, `log_r` |
+
+`alpha` controls direction and strength of skew. `alpha = 0` recovers
+the symmetric Gaussian sub-model. The skew-t families add the degrees of
+freedom parameter `r`, stored as `log_r` on the unconstrained math scale;
+smaller `r` gives heavier tails and large `r` approaches the
+skew-normal.
+
+## Example data
+
+This vignette uses small subsets of the bundled hummingbird data so it
+knits quickly. For analyses, fit the full data and increase
+`num_starts` and `control$maxeval`.
+
+```{r data}
+env_occ <- example_env_occ_2d[seq_len(40), ]
+env_m   <- example_env_m_2d[seq_len(500), ]
+
+dim(env_occ)
+dim(env_m)
+head(env_occ)
+```
+
+## Starting values and parameter layout
+
+The Gaussian model has `mu`, `log_sigma`, and C-vine correlation
+parameters. The skew-normal appends one `alpha` per variable. The skew-t
+then appends `log_r`.
+
+```{r starts}
+theta_gaussian <- start_theta(env_occ)
+theta_skew     <- start_theta(env_occ, skew = TRUE)
+theta_skew_t   <- start_theta(env_occ, skew_t = TRUE)
+
+c(
+  gaussian = length(theta_gaussian),
+  skew_normal = length(theta_skew),
+  skew_t = length(theta_skew_t)
+)
+
+names(start_theta_multiple(env_occ, num_starts = 2L, skew_t = TRUE))
+```
+
+## Fit presence-only skew models
+
+Use `"skew_normal"` or `"skew_t"` when you want a non-symmetric model
+from occurrence data only.
+
+```{r fit-presence-skew}
+doc_control <- list(maxeval = 150L)
+
+fit_po <- optimize_niche(
+  env_occ = env_occ,
+  env_m = NULL,
+  num_starts = 3L,
+  likelihood = "presence_only",
+  seed = 10L,
+  control = doc_control,
+  verbose = FALSE
+)
+
+fit_sn <- optimize_niche(
+  env_occ = env_occ,
+  env_m = NULL,
+  num_starts = 3L,
+  likelihood = "skew_normal",
+  seed = 10L,
+  control = doc_control,
+  verbose = FALSE
+)
+
+fit_st <- optimize_niche(
+  env_occ = env_occ,
+  env_m = NULL,
+  num_starts = 3L,
+  likelihood = "skew_t",
+  seed = 10L,
+  control = doc_control,
+  verbose = FALSE
+)
+
+compare_nicher(
+  gaussian = fit_po,
+  skew_normal = fit_sn,
+  skew_t = fit_st
+)
+```
+
+## Fit weighted skew models
+
+Use `"skew_normal_weighted"` or `"skew_t_weighted"` when you want
+non-symmetric responses with the same *M*-background correction used by
+the weighted Gaussian family.
+
+```{r fit-weighted-skew}
+fit_w <- optimize_niche(
+  env_occ = env_occ,
+  env_m = env_m,
+  num_starts = 3L,
+  likelihood = "weighted",
+  seed = 10L,
+  m_subsample = nrow(env_m),
+  m_kde_subsample = nrow(env_m),
+  control = doc_control,
+  verbose = FALSE
+)
+
+fit_snw <- optimize_niche(
+  env_occ = env_occ,
+  env_m = env_m,
+  num_starts = 3L,
+  likelihood = "skew_normal_weighted",
+  seed = 10L,
+  m_subsample = nrow(env_m),
+  m_kde_subsample = nrow(env_m),
+  control = doc_control,
+  verbose = FALSE
+)
+
+fit_stw <- optimize_niche(
+  env_occ = env_occ,
+  env_m = env_m,
+  num_starts = 3L,
+  likelihood = "skew_t_weighted",
+  seed = 10L,
+  m_subsample = nrow(env_m),
+  m_kde_subsample = nrow(env_m),
+  control = doc_control,
+  verbose = FALSE
+)
+
+compare_nicher(
+  weighted = fit_w,
+  skew_normal_weighted = fit_snw,
+  skew_t_weighted = fit_stw
+)
+```
+
+## Extract skew parameters
+
+The helper below reads the `alpha` and `r` blocks from a fitted model.
+
+```{r extract-skew}
+extract_skew <- function(fit) {
+  p <- length(fit$var_names)
+  n_cor <- p * (p - 1L) / 2L
+  theta <- fit$best$theta
+  alpha_start <- 2L * p + n_cor + 1L
+
+  alpha <- theta[alpha_start + seq_len(p) - 1L]
+  names(alpha) <- paste0("alpha_", fit$var_names)
+
+  r <- if (grepl("skew_t", fit$likelihood)) {
+    exp(theta[alpha_start + p])
+  } else {
+    NA_real_
+  }
+
+  c(alpha, r = r)
+}
+
+rbind(
+  skew_normal = extract_skew(fit_sn),
+  skew_t = extract_skew(fit_st),
+  skew_normal_weighted = extract_skew(fit_snw),
+  skew_t_weighted = extract_skew(fit_stw)
+)
+```
+
+## Prediction
+
+`predict()` uses the fitted centroid and covariance to return the same
+standardized ellipsoidal suitability surface for all families. The skew
+parameters affect fitting, model comparison, and selected `theta`, but
+the current projection is still an ellipsoid in environmental space.
+
+```{r predict-skew}
+env_m_matrix <- as.matrix(env_m)
+
+template <- terra::rast(
+  nrows = 40,
+  ncols = 40,
+  xmin = min(env_m_matrix[, 1L]),
+  xmax = max(env_m_matrix[, 1L]),
+  ymin = min(env_m_matrix[, 2L]),
+  ymax = max(env_m_matrix[, 2L])
+)
+
+xy <- terra::crds(template, df = TRUE)
+env_rast <- c(template, template)
+terra::values(env_rast[[1L]]) <- xy[, 1L]
+terra::values(env_rast[[2L]]) <- xy[, 2L]
+names(env_rast) <- fit_snw$var_names
+
+skew_suitability <- predict(fit_snw, env_rast)
+terra::global(skew_suitability, c("min", "max"), na.rm = TRUE)
+```
+
+## Practical guidance
+
+* Start with `"presence_only"` and `"weighted"` as symmetric baselines.
+* Add `"skew_normal"` or `"skew_normal_weighted"` when occurrence data
+  suggest asymmetric environmental responses.
+* Add `"skew_t"` or `"skew_t_weighted"` when a few observations may be
+  from heavier-tailed responses.
+* Keep `prior_alpha_lambda > 0` unless you deliberately need the pure
+  maximum-likelihood skew fit; mild shrinkage stabilizes the direct
+  skew parameterization.
+* Use `cv_nicher()` to tune penalties before final model comparison.
+
+## References
+
+Azzalini, A., & Capitanio, A. (1999). Statistical applications of the
+multivariate skew normal distribution. *Journal of the Royal Statistical
+Society: Series B*, 61(3), 579-602.
+
+Branco, M. D., & Dey, D. K. (2001). A general class of multivariate
+skew-elliptical distributions. *Journal of Multivariate Analysis*,
+79(1), 99-113.
+
+Jiménez, L., Soberón, J., Christen, J. A., & Soto, D. (2022).
+On the problem of modeling a fundamental niche from occurrence data.
+*Ecological Modelling*, 397, 109823.
+<https://doi.org/10.1016/j.ecolmodel.2021.109823>
