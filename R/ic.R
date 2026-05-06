@@ -197,14 +197,14 @@ nobs.nicher <- function(object, ...) {
 }
 
 # -----------------------------------------------------------------------
-# AIC / BIC dispatch through stats::AIC.default / BIC.default
+# AIC / BIC dispatch
 # -----------------------------------------------------------------------
 
 #' Akaike information criterion for a nicher fit
 #'
 #' Computes \eqn{-2 \log L + 2 k}, where \eqn{\log L} is the un-penalised
 #' log-likelihood (see \code{\link{logLik.nicher}}) and \eqn{k} is the
-#' number of free parameters. Calls \code{\link[stats]{AIC.default}}.
+#' number of free parameters.
 #'
 #' @inheritParams stats::AIC
 #' @param ... Additional fitted model objects.
@@ -212,7 +212,7 @@ nobs.nicher <- function(object, ...) {
 #'   Pass \code{k = log(nobs(fit))} to recover BIC.
 #'
 #' @return Numeric scalar, or a \code{data.frame} when multiple objects
-#'   are passed (see \code{\link[stats]{AIC.default}}).
+#'   are passed.
 #' @export
 AIC.nicher <- function(object, ..., k = 2) {
   fits     <- c(list(object), list(...))
