@@ -12,9 +12,11 @@
 #' the standardized Gaussian suitability map of Jimenez et al. (2022,
 #' Eq. 2) over an environmental \code{\link[terra]{SpatRaster}}.
 #'
-#' The same procedure is used for both the \code{"kde_bias_corrected"} and
-#' \code{"presence_only"} likelihoods — only the way \eqn{(\mu,
-#' \Sigma)} were estimated differs, never the suitability evaluation.
+#' The same Gaussian suitability surface is used for every fitted family:
+#' \code{"weighted"}, \code{"kde_bias_corrected"}, \code{"presence_only"},
+#' and the skew-normal / skew-t variants all project the fitted
+#' \eqn{(\mu, \Sigma)} geometry. For skew fits, the skewness and tail
+#' parameters affect fitting but are not used by this Gaussian projection.
 #'
 #' @param object A \code{"nicher"} object returned by
 #'   \code{\link{optimize_niche}}.
@@ -66,7 +68,7 @@
 #'     env_occ    = example_env_occ_2d,
 #'     env_m      = example_env_m_2d,
 #'     num_starts = 10L,
-#'     likelihood = "kde_bias_corrected"
+#'     likelihood = "weighted"
 #'   )
 #'   env <- terra::rast(matrix(rnorm(100), 10), nlyrs = 2L)
 #'   names(env) <- colnames(example_env_occ_2d)
@@ -96,35 +98,14 @@ predict.nicher <- function(
     stop("object$best$theta is missing or malformed.")
   }
 
-  # Recover (mu, Sigma) from the (mu, log_sigma, v) parameterization
-  # used by optimize_niche / loglik_niche_math_*.
-  # length(theta) == p + p + p*(p-1)/2  =>  solve quadratic.
-  k <- length(theta)
-  # k = 2p + p(p-1)/2  =>  p^2 + 3p - 2k = 0  =>  p = (-3 + sqrt(9 + 8k)) / 2
-  p_dbl <- (-3 + sqrt(9 + 8 * k)) / 2
-  p <- as.integer(round(p_dbl))
-  if (abs(p_dbl - p) > 1e-8 || p < 1L ||
-      length(theta) != 2L * p + p * (p - 1L) / 2L) {
-    stop("Cannot infer p from length(object$best$theta) = ", k, ".")
-  }
+  pars <- .recover_mu_sigma(object)
+  p <- pars$p
 
   # Reorder env layers by name when names are available on the fit.
   env <- .reorder_env_for_predict(env, object$var_names, p)
 
-  mu     <- theta[seq_len(p)]
-  sigma  <- exp(theta[(p + 1L):(2L * p)])
-  v      <- if (p > 1L) theta[(2L * p + 1L):k] else numeric(0)
-
-  # Use the same `eta` the optimizer used at fit time. Fall back to 1.0
-  # (the LKJ-uniform default) for legacy `nicher` objects produced
-  # before nicher 2.2.1, which do not carry an `eta` field.
-  eta_fit <- if (is.null(object$eta)) 1.0 else object$eta
-  L_corr  <- cvine_cholesky(v, d = p, eta = eta_fit)
-  L_cov  <- diag(sigma, p) %*% L_corr
-  Sigma  <- tcrossprod(L_cov)
-
   habitat_suitability(
-    param      = list(mu = mu, Sigma = Sigma),
+    param      = list(mu = pars$mu, Sigma = pars$Sigma),
     env        = env,
     output     = output,
     overwrite  = overwrite,

@@ -31,6 +31,24 @@ test_that("predict.nicher returns a one-layer SpatRaster in (0, 1]", {
   expect_true(all(v > 0 & v <= 1))
 })
 
+test_that("predict.nicher supports skew-family fits", {
+  data(example_env_occ_2d, package = "nicher")
+  set.seed(17)
+  fit <- optimize_niche(
+    env_occ    = example_env_occ_2d,
+    env_m      = NULL,
+    num_starts = 3L,
+    likelihood = "skew_normal",
+    verbose    = FALSE
+  )
+  env <- env_from_m(example_env_occ_2d, fit$var_names, seed = 18L)
+  s <- predict(fit, env)
+  expect_s4_class(s, "SpatRaster")
+  expect_equal(terra::nlyr(s), 1L)
+  v <- terra::values(s, na.rm = TRUE)
+  expect_true(all(v > 0 & v <= 1))
+})
+
 test_that("predict.nicher reorders env layers by name", {
   data(example_env_occ_2d, package = "nicher")
   data(example_env_m_2d,   package = "nicher")

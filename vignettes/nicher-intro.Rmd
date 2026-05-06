@@ -133,14 +133,53 @@ cat("Flag:", diag_w$flag, "\n")
 cat("Recommendation:", diag_w$recommendation, "\n")
 ```
 
-The resulting parameter vector can be decoded into biological parameters with
-`get_ellipsoid_pars()`:
+The fitted object stores the optimizer's best parameter vector in
+`res_w$best$theta`. Its first entries are the fitted niche centroid (`mu`) on
+the original environmental scale; the next entries are `log(sigma)`, followed
+by the C-vine correlation parameters used internally.
 
 ```{r ellipsoid-pars}
 theta_best <- res_w$best$theta
-pars <- get_ellipsoid_pars(example_env_occ_2d)
-print(pars$mu)
-print(pars$s_mat)
+p <- length(res_w$var_names)
+mu_hat <- theta_best[seq_len(p)]
+print(mu_hat)
+```
+
+---
+
+## Projecting habitat suitability
+
+Use `predict()` with a `terra` raster stack whose layer names match the
+environmental variables used to fit the model. The prediction is the
+standardized Gaussian suitability surface:
+
+\[
+S(x) = \exp\left(-\frac{1}{2}(x - \mu)^\top \Sigma^{-1}(x - \mu)\right),
+\]
+
+so values are in `(0, 1]` and the fitted centroid has suitability 1.
+
+```{r predict-suitability}
+env_m_matrix <- as.matrix(example_env_m_2d)
+
+template <- terra::rast(
+  nrows = 40,
+  ncols = 40,
+  xmin  = min(env_m_matrix[, 1L]),
+  xmax  = max(env_m_matrix[, 1L]),
+  ymin  = min(env_m_matrix[, 2L]),
+  ymax  = max(env_m_matrix[, 2L])
+)
+
+xy <- terra::crds(template, df = TRUE)
+env_rast <- c(template, template)
+terra::values(env_rast[[1L]]) <- xy[, 1L]
+terra::values(env_rast[[2L]]) <- xy[, 2L]
+names(env_rast) <- res_w$var_names
+
+suitability <- predict(res_w, env_rast)
+suitability
+terra::global(suitability, c("min", "max"), na.rm = TRUE)
 ```
 
 ---
@@ -169,8 +208,9 @@ assess(res_po)$flag
 ## Low-level wrappers
 
 For maximum performance with a fixed starting vector, use the model-specific
-wrappers (`niche_presence_only`, `niche_weighted`). These
-call the compiled C++ XPtr backend directly.
+wrappers. `niche_presence_only()` handles presence-only fits, while
+`niche_kde_bias_corrected()` exposes the legacy KDE-bias-corrected weighted
+objective directly.
 
 ```{r low-level-wrappers}
 occ3    <- as.matrix(example_env_occ_3d)
