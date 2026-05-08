@@ -909,6 +909,208 @@ double loglik_niche_math_skew_t_weighted_eigen(
   return neg_log;
 }
 
+// ---------------------------------------------------------------------------
+// NCST (Non-Central Skew t, Hasan & Chen 2025) kernels via Gauss-Laguerre
+// ---------------------------------------------------------------------------
+//
+// Density of T = X / sqrt(Y/r), X ~ SN_k(xi, Omega, alpha), Y ~ chi^2_r:
+//   f_T(t) = (2 / Gamma(r/2)) * integral_0^inf
+//              (2u/r)^{k/2} * phi_k(t*sqrt(2u/r) - xi; Omega) *
+//              Phi(alpha^T omega^{-1} (t*sqrt(2u/r) - xi)) *
+//              u^{r/2-1} * exp(-u) du
+//
+// Unlike Azzalini/Branco-Dey's skew-t (T = mu + X*sqrt(r/Y), X centered),
+// the location xi enters the SN BEFORE chi-squared scaling, so q and z
+// must be recomputed at each quadrature node.
+//
+// Optimization: precompute y_t = L^{-1} t and y_xi = L^{-1} xi once,
+// then for node q with s_q = sqrt(2 u_q / r):
+//   q_iq = ||s_q * y_t - y_xi||^2 = s_q^2 qt - 2 s_q cross + qxi
+//   z_iq = s_q * zt - zxi
+// where qt = ||y_t||^2, cross = y_t . y_xi, qxi = ||y_xi||^2,
+// zt = (alpha/sigma)^T t, zxi = (alpha/sigma)^T xi.
+// This reduces the per-node cost from O(p^2) to O(1).
+
+// Compute log of the NCST integral for a single observation t_i using
+// precomputed per-observation and global quantities.
+static inline double log_ncst_integral(double qt_i, double cross_i,
+                                       double qxi, double zt_i,
+                                       double zxi, double r, int k) {
+  const double a = 0.5 * (k + r) - 1.0;
+  double terms[kGLQ];
+  double max_term = -std::numeric_limits<double>::infinity();
+  for (int idx = 0; idx < kGLQ; ++idx) {
+    const double u   = kGLNodes[idx];
+    const double w_q = kGLWeights[idx];
+    if (w_q <= 0.0) {
+      terms[idx] = -std::numeric_limits<double>::infinity();
+      continue;
+    }
+    const double s_q = std::sqrt(2.0 * u / r);
+    const double q_iq = s_q * s_q * qt_i - 2.0 * s_q * cross_i + qxi;
+    const double z_iq = s_q * zt_i - zxi;
+    const double log_phi = R::pnorm(z_iq, 0.0, 1.0, 1, 1);
+    const double t = std::log(w_q) + a * std::log(u) -
+                     0.5 * q_iq + log_phi;
+    terms[idx] = t;
+    if (t > max_term) max_term = t;
+  }
+  if (!std::isfinite(max_term))
+    return -std::numeric_limits<double>::infinity();
+  double s = 0.0;
+  for (int idx = 0; idx < kGLQ; ++idx) {
+    s += std::exp(terms[idx] - max_term);
+  }
+  return max_term + std::log(s);
+}
+
+// ---------------------------------------------------------------------------
+// NCST presence-only (math scale)
+// ---------------------------------------------------------------------------
+
+double loglik_niche_math_ncst_eigen(
+    const double* theta, int n_theta,
+    const Eigen::MatrixXd& env_occ, double eta,
+    const PriorParams& pp) {
+  const int p = env_occ.cols();
+  const int n_v = p * (p - 1) / 2;
+  const int expected = 3 * p + n_v + 1;
+  if (n_theta != expected) {
+    Rcpp::stop("theta length mismatch (got %d, expected %d for p=%d ncst).",
+               n_theta, expected, p);
+  }
+
+  Eigen::VectorXd xi, sigma;
+  Eigen::MatrixXd L_corr, L_cov;
+  build_L_cov(theta, p, n_v, eta, xi, sigma, L_corr, L_cov);
+
+  Eigen::Map<const Eigen::VectorXd> alpha(theta + 2 * p + n_v, p);
+  const double log_r = theta[3 * p + n_v];
+  const double r = std::exp(log_r);
+  if (!(r > 0.0) || !std::isfinite(r)) return OPTIM_PENALTY;
+
+  const int n_occ = env_occ.rows();
+
+  // Precompute global: L^{-1} xi
+  Eigen::VectorXd y_xi = L_cov.triangularView<Eigen::Lower>().solve(xi);
+  const double qxi = y_xi.squaredNorm();
+  Eigen::VectorXd a_over_s = alpha.array() / sigma.array();
+  const double zxi = a_over_s.dot(xi);
+
+  double log_det = 0.0;
+  for (int i = 0; i < p; ++i) log_det += std::log(L_cov(i, i));
+  log_det *= 2.0;
+
+  // Per-observation: L^{-1} t_i, then GL integral
+  double sum_log_I = 0.0;
+  for (int i = 0; i < n_occ; ++i) {
+    Eigen::VectorXd y_t = L_cov.triangularView<Eigen::Lower>().solve(
+        env_occ.row(i).transpose());
+    const double qt_i = y_t.squaredNorm();
+    const double cross_i = y_t.dot(y_xi);
+    const double zt_i = a_over_s.dot(env_occ.row(i).transpose());
+    sum_log_I += log_ncst_integral(qt_i, cross_i, qxi, zt_i, zxi, r, p);
+  }
+
+  // neg-loglik: same constant-dropping convention as skew-t
+  const double n = static_cast<double>(n_occ);
+  const double penalty = prior_penalty_value(theta, p, n_v,
+                                              /*has_alpha=*/true, pp);
+  double neg_log = 0.5 * n * log_det
+                 + 0.5 * n * static_cast<double>(p) * log_r
+                 + n * std::lgamma(0.5 * r)
+                 - sum_log_I
+                 + penalty;
+
+  if (!std::isfinite(neg_log)) neg_log = OPTIM_PENALTY;
+  return neg_log;
+}
+
+// ---------------------------------------------------------------------------
+// NCST weighted (math scale, paper Eq. 5 + ridge prior on log_sigma)
+// ---------------------------------------------------------------------------
+
+double loglik_niche_math_ncst_weighted_eigen(
+    const double* theta, int n_theta,
+    const Eigen::MatrixXd& env_occ,
+    const Eigen::MatrixXd& M_den,
+    const Eigen::VectorXd& w_occ,
+    const Eigen::VectorXd& w_den,
+    double eta,
+    const PriorParams& pp) {
+  const int p = env_occ.cols();
+  const int n_v = p * (p - 1) / 2;
+  const int expected = 3 * p + n_v + 1;
+  if (n_theta != expected) {
+    Rcpp::stop("theta length mismatch (got %d, expected %d for p=%d ncst).",
+               n_theta, expected, p);
+  }
+  if (M_den.cols() != p) Rcpp::stop("M_den must have p columns");
+  if (w_occ.size() != env_occ.rows())
+    Rcpp::stop("w_occ length must equal nrow(env_occ).");
+  if (w_den.size() != M_den.rows())
+    Rcpp::stop("w_den length must equal nrow(M_den).");
+
+  Eigen::VectorXd xi, sigma;
+  Eigen::MatrixXd L_corr, L_cov;
+  build_L_cov(theta, p, n_v, eta, xi, sigma, L_corr, L_cov);
+
+  Eigen::Map<const Eigen::VectorXd> alpha(theta + 2 * p + n_v, p);
+  const double log_r = theta[3 * p + n_v];
+  const double r = std::exp(log_r);
+  if (!(r > 0.0) || !std::isfinite(r)) return OPTIM_PENALTY;
+
+  const int n_occ = env_occ.rows();
+  const int n_den = M_den.rows();
+
+  // Precompute global quantities
+  Eigen::VectorXd y_xi = L_cov.triangularView<Eigen::Lower>().solve(xi);
+  const double qxi = y_xi.squaredNorm();
+  Eigen::VectorXd a_over_s = alpha.array() / sigma.array();
+  const double zxi = a_over_s.dot(xi);
+
+  // Occurrence side: log-density terms (constants cancel with denominator)
+  double sum_log_I_occ = 0.0;
+  for (int i = 0; i < n_occ; ++i) {
+    Eigen::VectorXd y_t = L_cov.triangularView<Eigen::Lower>().solve(
+        env_occ.row(i).transpose());
+    const double qt = y_t.squaredNorm();
+    const double cr = y_t.dot(y_xi);
+    const double zt = a_over_s.dot(env_occ.row(i).transpose());
+    sum_log_I_occ += log_ncst_integral(qt, cr, qxi, zt, zxi, r, p);
+  }
+
+  // Denominator side: log-sum-exp over j of (log w_j + log_I_j)
+  // (constants C(r, Sigma) cancel between numerator and denominator)
+  Eigen::ArrayXd log_w_den = w_den.array().max(MIN_KDE_WEIGHT).log();
+  Eigen::ArrayXd log_den_terms(n_den);
+  for (int j = 0; j < n_den; ++j) {
+    Eigen::VectorXd y_t = L_cov.triangularView<Eigen::Lower>().solve(
+        M_den.row(j).transpose());
+    const double qt = y_t.squaredNorm();
+    const double cr = y_t.dot(y_xi);
+    const double zt = a_over_s.dot(M_den.row(j).transpose());
+    log_den_terms(j) = log_w_den(j) +
+        log_ncst_integral(qt, cr, qxi, zt, zxi, r, p);
+  }
+  const double max_d = log_den_terms.maxCoeff();
+  const double log_sum_exp = max_d +
+      std::log((log_den_terms - max_d).exp().sum());
+
+  Eigen::ArrayXd log_w_occ = w_occ.array().max(MIN_KDE_WEIGHT).log();
+
+  const double penalty = prior_penalty_value(theta, p, n_v,
+                                              /*has_alpha=*/true, pp);
+
+  double neg_log = -sum_log_I_occ
+                 - log_w_occ.sum()
+                 + static_cast<double>(n_occ) * log_sum_exp
+                 + penalty;
+
+  if (!std::isfinite(neg_log)) neg_log = OPTIM_PENALTY;
+  return neg_log;
+}
+
 } // namespace nicher
 
 // ===========================================================================
@@ -1207,5 +1409,59 @@ double loglik_niche_math_skew_t_weighted_cpp(
       prior_log_sigma_lambda, prior_alpha_lambda);
 
   return nicher::loglik_niche_math_skew_t_weighted_eigen(
+      &theta[0], theta.size(), occ, mden, wocc, wden, eta, pp);
+}
+
+// [[Rcpp::export]]
+double loglik_niche_math_ncst_cpp(
+    NumericVector theta, NumericMatrix env_occ, double eta = 1.0,
+    Rcpp::Nullable<Rcpp::NumericVector> prior_mu_center = R_NilValue,
+    double prior_mu_lambda = 0.0,
+    Rcpp::Nullable<Rcpp::NumericVector> prior_log_sigma_center = R_NilValue,
+    double prior_log_sigma_lambda = 0.0,
+    double prior_alpha_lambda = 0.0) {
+  Eigen::Map<Eigen::MatrixXd> occ_map(
+      Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(env_occ));
+  Eigen::MatrixXd occ = occ_map;
+  nicher::PriorParams pp = build_prior_params(
+      occ.cols(),
+      prior_mu_center, prior_mu_lambda,
+      prior_log_sigma_center, prior_log_sigma_lambda, prior_alpha_lambda);
+  return nicher::loglik_niche_math_ncst_eigen(
+      &theta[0], theta.size(), occ, eta, pp);
+}
+
+// [[Rcpp::export]]
+double loglik_niche_math_ncst_weighted_cpp(
+    NumericVector theta,
+    NumericMatrix env_occ,
+    NumericMatrix M_den,
+    NumericVector w_occ,
+    NumericVector w_den,
+    NumericVector prior_log_sigma_center,
+    double prior_log_sigma_lambda,
+    double eta = 1.0,
+    Rcpp::Nullable<Rcpp::NumericVector> prior_mu_center = R_NilValue,
+    double prior_mu_lambda = 0.0,
+    double prior_alpha_lambda = 0.0) {
+  Eigen::Map<Eigen::MatrixXd> occ_map(
+      Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(env_occ));
+  Eigen::Map<Eigen::MatrixXd> mden_map(
+      Rcpp::as<Eigen::Map<Eigen::MatrixXd>>(M_den));
+  Eigen::Map<Eigen::VectorXd> wocc_map(
+      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_occ));
+  Eigen::Map<Eigen::VectorXd> wden_map(
+      Rcpp::as<Eigen::Map<Eigen::VectorXd>>(w_den));
+
+  Eigen::MatrixXd occ = occ_map, mden = mden_map;
+  Eigen::VectorXd wocc = wocc_map, wden = wden_map;
+
+  nicher::PriorParams pp = build_prior_params(
+      occ.cols(),
+      prior_mu_center, prior_mu_lambda,
+      Rcpp::Nullable<Rcpp::NumericVector>(prior_log_sigma_center),
+      prior_log_sigma_lambda, prior_alpha_lambda);
+
+  return nicher::loglik_niche_math_ncst_weighted_eigen(
       &theta[0], theta.size(), occ, mden, wocc, wden, eta, pp);
 }

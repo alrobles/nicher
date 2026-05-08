@@ -10,7 +10,7 @@ optimize_niche(
   num_starts = 100L,
   breadth = 0.1,
   likelihood = c("weighted", "ip_weighted", "presence_only", "skew_normal",
-    "skew_normal_weighted", "skew_t", "skew_t_weighted"),
+    "skew_normal_weighted", "skew_t", "skew_t_weighted", "ncst", "ncst_weighted"),
   grad = c("auto", "analytic", "central", "forward"),
   m_subsample = NULL,
   m_kde_subsample = NULL,

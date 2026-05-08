@@ -49,8 +49,10 @@
   k <- length(theta)
   lik <- if (!is.null(object$likelihood)) object$likelihood else ""
   is_skew   <- lik %in% c("skew_normal", "skew_normal_weighted",
-                          "skew_t", "skew_t_weighted")
-  is_skew_t <- lik %in% c("skew_t", "skew_t_weighted")
+                          "skew_t", "skew_t_weighted",
+                          "ncst", "ncst_weighted")
+  is_skew_t <- lik %in% c("skew_t", "skew_t_weighted",
+                          "ncst", "ncst_weighted")
 
   # Gaussian layout : k = 2p + p(p-1)/2          =>  p = (-3 + sqrt(9 + 8k))/2
   # Skew-normal     : k = 3p + p(p-1)/2          =>  p = (-5 + sqrt(25 + 8k))/2

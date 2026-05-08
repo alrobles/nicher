@@ -280,6 +280,27 @@ double loglik_niche_math_skew_t_weighted_eigen(
     double eta,
     const PriorParams& pp);
 
+// Math-scale NCST (Non-Central Skew t) presence-only negative log-likelihood.
+// Hasan & Chen (2025, arXiv:2507.10465v1): T = X / sqrt(Y/r),
+// X ~ SN_k(xi, Omega, alpha), Y ~ chi^2_r. Location xi enters BEFORE
+// chi-squared scaling (non-central). Same theta layout as skew-t:
+//   [xi(0..p-1), log_sigma(0..p-1), v(0..p*(p-1)/2 - 1),
+//    alpha(0..p-1), log_r(0)]
+double loglik_niche_math_ncst_eigen(
+    const double* theta, int n_theta,
+    const Eigen::MatrixXd& env_occ, double eta,
+    const PriorParams& pp);
+
+// Math-scale NCST weighted (NCST density + paper Eq. 5 + ridge prior).
+double loglik_niche_math_ncst_weighted_eigen(
+    const double* theta, int n_theta,
+    const Eigen::MatrixXd& env_occ,
+    const Eigen::MatrixXd& M_den,
+    const Eigen::VectorXd& w_occ,
+    const Eigen::VectorXd& w_den,
+    double eta,
+    const PriorParams& pp);
+
 }
 
 #endif

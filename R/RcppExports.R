@@ -57,6 +57,14 @@ loglik_niche_math_skew_t_weighted_cpp <- function(theta, env_occ, M_den, w_occ, 
     .Call(`_nicher_loglik_niche_math_skew_t_weighted_cpp`, theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta, prior_mu_center, prior_mu_lambda, prior_alpha_lambda)
 }
 
+loglik_niche_math_ncst_cpp <- function(theta, env_occ, eta = 1.0, prior_mu_center = NULL, prior_mu_lambda = 0.0, prior_log_sigma_center = NULL, prior_log_sigma_lambda = 0.0, prior_alpha_lambda = 0.0) {
+    .Call(`_nicher_loglik_niche_math_ncst_cpp`, theta, env_occ, eta, prior_mu_center, prior_mu_lambda, prior_log_sigma_center, prior_log_sigma_lambda, prior_alpha_lambda)
+}
+
+loglik_niche_math_ncst_weighted_cpp <- function(theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta = 1.0, prior_mu_center = NULL, prior_mu_lambda = 0.0, prior_alpha_lambda = 0.0) {
+    .Call(`_nicher_loglik_niche_math_ncst_weighted_cpp`, theta, env_occ, M_den, w_occ, w_den, prior_log_sigma_center, prior_log_sigma_lambda, eta, prior_mu_center, prior_mu_lambda, prior_alpha_lambda)
+}
+
 loglik_niche_presence_only_cpp <- function(mu, L, env_occ) {
     .Call(`_nicher_loglik_niche_presence_only_cpp`, mu, L, env_occ)
 }

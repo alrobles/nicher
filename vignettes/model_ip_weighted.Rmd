@@ -69,29 +69,6 @@ $\propto f \cdot g$.  The two DGPs yield different estimands:
 Neither is universally "correct"; the choice depends on the ecological
 question and the data-collection protocol.
 
-### 2.3 Addressing the DeepSeek Critique
-
-A recent analysis (anonymous reviewer using DeepSeek, May 2026) argued that
-the IPW denominator is statistically flawed because it does not correspond
-to the use-availability DGP ($\lambda \propto f \cdot g$).  This critique
-is **internally consistent under its assumed DGP** but does not engage with
-the Jimenez DGP (Eq. 1), under which the IPW denominator is a valid
-Horvitz--Thompson estimator of $\int_M f\,d\mathbf{x}$.
-
-Specifically:
-
-1. **The denominator** $\sum_j f(\mathbf{y}_j)/\hat{g}(\mathbf{y}_j)$
-   approximates $\int_M f(\mathbf{x})\,d\mathbf{x}$ by importance sampling,
-   where the background points $\{\mathbf{y}_j\}$ are treated as a sample
-   from $g$.
-
-2. **The sign convention** ($-\log\hat{g}$ in the denominator, $+\log\hat{g}$
-   in the numerator) is the algebraic consequence of $w = 1/\hat{g}$.
-
-3. **Self-regularisation** against $\sigma \to \infty$ arises because the
-   Horvitz--Thompson sum amplifies low-density tails where $1/\hat{g}$ is
-   large, making the denominator grow faster than the numerator.
-
 ## 3 Mathematical Specification
 
 ### 3.1 Restricted Log-Likelihood

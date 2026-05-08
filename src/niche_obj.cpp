@@ -48,7 +48,9 @@ enum LikType {
   LIK_SKEW_NORMAL           = 4,
   LIK_SKEW_NORMAL_WEIGHTED  = 5,
   LIK_SKEW_T                = 6,
-  LIK_SKEW_T_WEIGHTED       = 7
+  LIK_SKEW_T_WEIGHTED       = 7,
+  LIK_NCST                  = 8,
+  LIK_NCST_WEIGHTED         = 9
 };
 enum GradMode { GRAD_ANALYTIC = 0, GRAD_CENTRAL = 1, GRAD_FORWARD = 2 };
 
@@ -139,6 +141,13 @@ static double eval_value(const std::vector<double>& x,
       return nicher::loglik_niche_math_skew_t_weighted_eigen(
           x.data(), (int)x.size(), s.env_occ, s.M_den,
           s.w_occ, s.w_den, s.eta, s.pp);
+    case LIK_NCST:
+      return nicher::loglik_niche_math_ncst_eigen(
+          x.data(), (int)x.size(), s.env_occ, s.eta, s.pp);
+    case LIK_NCST_WEIGHTED:
+      return nicher::loglik_niche_math_ncst_weighted_eigen(
+          x.data(), (int)x.size(), s.env_occ, s.M_den,
+          s.w_occ, s.w_den, s.eta, s.pp);
     case LIK_UNWEIGHTED:
     default:
       return eval_unweighted_legacy(x, s);
@@ -215,6 +224,8 @@ SEXP create_niche_obj_ptr(
   else if (likelihood == "skew_normal_weighted") lt = LIK_SKEW_NORMAL_WEIGHTED;
   else if (likelihood == "skew_t")              lt = LIK_SKEW_T;
   else if (likelihood == "skew_t_weighted")     lt = LIK_SKEW_T_WEIGHTED;
+  else if (likelihood == "ncst")                 lt = LIK_NCST;
+  else if (likelihood == "ncst_weighted")        lt = LIK_NCST_WEIGHTED;
   else Rcpp::stop("Unknown likelihood type: %s", likelihood.c_str());
 
   GradMode gm;
@@ -241,7 +252,7 @@ SEXP create_niche_obj_ptr(
   }
 
   if (lt != LIK_PRESENCE_ONLY && lt != LIK_SKEW_NORMAL && lt != LIK_SKEW_T &&
-      env_m.isNull())
+      lt != LIK_NCST && env_m.isNull())
     Rcpp::stop("env_m must be provided for likelihood = '%s'.",
                likelihood.c_str());
 
@@ -270,7 +281,7 @@ SEXP create_niche_obj_ptr(
       state->pp.log_sigma_center(k) = pc[k];
   } else {
     if ((lt == LIK_WEIGHTED || lt == LIK_SKEW_NORMAL_WEIGHTED ||
-         lt == LIK_SKEW_T_WEIGHTED) &&
+         lt == LIK_SKEW_T_WEIGHTED || lt == LIK_NCST_WEIGHTED) &&
         prior_log_sigma_lambda > 0.0)
       Rcpp::stop("prior_log_sigma_center must be supplied when "
                  "likelihood='%s' and prior_log_sigma_lambda > 0.",
@@ -305,7 +316,8 @@ SEXP create_niche_obj_ptr(
     std::memcpy(state->env_m_full.data(), M.begin(),
                 sizeof(double) * M.size());
   } else if (lt == LIK_KDE_BIAS_CORRECTED || lt == LIK_WEIGHTED ||
-             lt == LIK_SKEW_NORMAL_WEIGHTED || lt == LIK_SKEW_T_WEIGHTED) {
+             lt == LIK_SKEW_NORMAL_WEIGHTED || lt == LIK_SKEW_T_WEIGHTED ||
+             lt == LIK_NCST_WEIGHTED) {
     NumericMatrix M(env_m);
     if (M.ncol() != state->p) Rcpp::stop("env_m must have same columns as env_occ");
     Eigen::Map<Eigen::MatrixXd> M_eig(

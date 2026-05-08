@@ -88,6 +88,20 @@
       eta = eta,
       prior_mu_center    = NULL, prior_mu_lambda    = 0,
       prior_alpha_lambda = 0
+    ),
+    ncst = loglik_niche_math_ncst_cpp(
+      theta = theta, env_occ = occ_mat, eta = eta,
+      prior_mu_center        = NULL, prior_mu_lambda        = 0,
+      prior_log_sigma_center = NULL, prior_log_sigma_lambda = 0,
+      prior_alpha_lambda     = 0
+    ),
+    ncst_weighted = loglik_niche_math_ncst_weighted_cpp(
+      theta = theta, env_occ = occ_mat, M_den = M_den,
+      w_occ = weighted_inputs$w_occ, w_den = weighted_inputs$w_den,
+      prior_log_sigma_center = zero_p, prior_log_sigma_lambda = 0,
+      eta = eta,
+      prior_mu_center    = NULL, prior_mu_lambda    = 0,
+      prior_alpha_lambda = 0
     )
   )
   -as.numeric(neg)

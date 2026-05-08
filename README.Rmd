@@ -140,7 +140,7 @@ suppressWarnings(
 ### Overlay iso-suitability contours
 
 The blue contours are the presence-only niche. The orange dashed
-contours are the weighted niche, regularized by the accessible
+contours are the inverse-weighted niche, regularized by the accessible
 background environment.
 
 ```{r quick-start-isosuitability, fig.width = 7, fig.height = 5}
@@ -161,18 +161,45 @@ ggplot() +
     linewidth = 0.7
   ) +
   labs(
-    title = "Presence-only vs weighted niches",
-    subtitle = "Blue = presence-only; orange dashed = weighted",
+    title = "Presence-only vs inverse-weighted niches",
+    subtitle = "Blue = presence-only; orange dashed = inverse-weighted",
     x = names(env_occ)[1],
     y = names(env_occ)[2]
   ) +
   theme_minimal()
 ```
 
+### Habitat suitability maps
+
+Project each fitted model onto the environmental rasters to produce
+geographic suitability maps. The `predict()` method converts the
+estimated niche centroid and covariance into a raster of suitability
+values in $(0, 1]$.
+
+```{r quick-start-suitability, fig.width = 10, fig.height = 4}
+suit_presence <- predict(fit_presence, env_rasters)
+suit_weighted <- predict(fit_weighted, env_rasters)
+
+op <- par(mfrow = c(1, 2), mar = c(3, 3, 3, 5))
+plot(suit_presence,
+     main = "Presence-only suitability",
+     col = hcl.colors(50, "YlOrRd", rev = TRUE))
+points(example_occ_df$lon, example_occ_df$lat, pch = 20, cex = 0.45)
+plot(suit_weighted,
+     main = "Inverse-weighted suitability",
+     col = hcl.colors(50, "YlOrRd", rev = TRUE))
+points(example_occ_df$lon, example_occ_df$lat, pch = 20, cex = 0.45)
+par(op)
+```
+
+The inverse-weighted model corrects for sampling bias in the accessible
+environment, typically producing a tighter, more ecologically realistic
+niche estimate than the presence-only model.
+
 ## Documentation at a glance
 
 | Article | What it covers |
 |---|---|
-| [Package workflow](vignettes/nicher-intro.Rmd) | End-to-end niche fitting and projection workflow |
+| [Package workflow](vignettes/nicher-workflow.Rmd) | End-to-end niche fitting and projection workflow |
 | [Non-symmetric models](vignettes/non_symmetric_models.Rmd) | Skew-normal and skew-t likelihood families |
 | [Cross-validation](vignettes/cross_validation.Rmd) | Penalty tuning and model selection with `cv_nicher()` |

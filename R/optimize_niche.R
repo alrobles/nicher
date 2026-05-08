@@ -239,7 +239,9 @@ optimize_niche <- function(env_occ,
                                           "skew_normal",
                                           "skew_normal_weighted",
                                           "skew_t",
-                                          "skew_t_weighted"),
+                                          "skew_t_weighted",
+                                          "ncst",
+                                          "ncst_weighted"),
                            grad       = c("auto", "analytic",
                                           "central", "forward"),
                            m_subsample     = NULL,
@@ -265,12 +267,15 @@ optimize_niche <- function(env_occ,
   # Convenience: treat the weighted family uniformly where logic is shared.
   is_weighted_family <- likelihood %in% c("ip_weighted", "weighted",
                                           "skew_normal_weighted",
-                                          "skew_t_weighted")
+                                          "skew_t_weighted",
+                                          "ncst_weighted")
   # Convenience: skew likelihoods carry an extra alpha block (length p).
   is_skew_family <- likelihood %in% c("skew_normal", "skew_normal_weighted",
-                                      "skew_t", "skew_t_weighted")
+                                      "skew_t", "skew_t_weighted",
+                                      "ncst", "ncst_weighted")
   # Convenience: skew-t likelihoods carry an additional log_r scalar.
-  is_skew_t_family <- likelihood %in% c("skew_t", "skew_t_weighted")
+  is_skew_t_family <- likelihood %in% c("skew_t", "skew_t_weighted",
+                                        "ncst", "ncst_weighted")
 
   # Resolve `eta` from `...` so we can both forward it to the objective
   # functions (already done downstream) and persist it on the returned
@@ -290,7 +295,7 @@ optimize_niche <- function(env_occ,
   # ------------------------------------------------------------------
   # Input validation
   # ------------------------------------------------------------------
-  if (!(likelihood %in% c("presence_only", "skew_normal", "skew_t"))) {
+  if (!(likelihood %in% c("presence_only", "skew_normal", "skew_t", "ncst"))) {
     if (missing(env_m) || is.null(env_m)) {
       stop("env_m must be provided for likelihood '", likelihood, "'")
     }
@@ -299,6 +304,9 @@ optimize_niche <- function(env_occ,
            " variables (column names)")
     }
   }
+  # Materialise env_m as NULL for presence-only families so downstream
+  # code (helper, warm-start) never sees a `missing` formal.
+  if (missing(env_m)) env_m <- NULL
   if (!is.numeric(breadth) || length(breadth) != 1L ||
       breadth <= 0 || breadth >= 0.5) {
     stop("breadth must be a single number in (0, 0.5)")
@@ -898,6 +906,37 @@ optimize_niche <- function(env_occ,
           prior_alpha_lambda = prior_alpha_lambda
         )
       }
+    },
+    ncst = function(theta) {
+      loglik_niche_math_ncst_cpp(
+        theta = theta,
+        env_occ = as.matrix(env_occ),
+        eta = if (!is.null(list(...)$eta)) list(...)$eta else 1.0,
+        prior_mu_center        = pmc,
+        prior_mu_lambda        = prior_mu_lambda,
+        prior_log_sigma_center = plsc,
+        prior_log_sigma_lambda = prior_log_sigma_lambda,
+        prior_alpha_lambda     = prior_alpha_lambda
+      )
+    },
+    ncst_weighted = {
+      env_m_mat <- as.matrix(env_m)
+      M_den <- env_m_mat[weighted_inputs$den_idx, , drop = FALSE]
+      function(theta) {
+        loglik_niche_math_ncst_weighted_cpp(
+          theta = theta,
+          env_occ = as.matrix(env_occ),
+          M_den   = M_den,
+          w_occ   = weighted_inputs$w_occ,
+          w_den   = weighted_inputs$w_den,
+          prior_log_sigma_center = as.numeric(prior_log_sigma_center),
+          prior_log_sigma_lambda = prior_log_sigma_lambda,
+          eta = if (!is.null(list(...)$eta)) list(...)$eta else 1.0,
+          prior_mu_center    = pmc,
+          prior_mu_lambda    = prior_mu_lambda,
+          prior_alpha_lambda = prior_alpha_lambda
+        )
+      }
     }
   )
   ref <- tryCatch({
@@ -948,7 +987,8 @@ optimize_niche <- function(env_occ,
 
   den_idx <- kde_idx <- precomp_w_occ <- precomp_w_den <- NULL
   if (likelihood %in% c("ip_weighted", "weighted",
-                        "skew_normal_weighted", "skew_t_weighted") &&
+                        "skew_normal_weighted", "skew_t_weighted",
+                        "ncst_weighted") &&
       !is.null(weighted_inputs)) {
     den_idx       <- weighted_inputs$den_idx
     kde_idx       <- weighted_inputs$kde_idx
@@ -968,7 +1008,7 @@ optimize_niche <- function(env_occ,
   # that don't carry them would ignore the terms anyway, but passing
   # nonzero lambdas with NULL centres would trigger validation errors).
   if (!(likelihood %in% c("weighted", "skew_normal_weighted",
-                          "skew_t_weighted"))) {
+                          "skew_t_weighted", "ncst_weighted"))) {
     plsl <- 0.0
     pml  <- 0.0
   }
