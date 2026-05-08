@@ -2,6 +2,8 @@
 
 ### All vignettes
 
+- [Cross-Validation: Penalty Tuning and Model
+  Selection](https://alrobles.github.io/nicher/articles/cross_validation.md):
 - [Model 3: Inverse-Probability-Weighted Normal Niche
   (Horvitz--Thompson)](https://alrobles.github.io/nicher/articles/model_ip_weighted.md):
 - [Model 1: Presence-Only Gaussian
@@ -18,5 +20,9 @@
   5/8)](https://alrobles.github.io/nicher/articles/model_weighted.md):
 - [Introduction to
   nicher](https://alrobles.github.io/nicher/articles/nicher-introduction.md):
+- [Package Workflow: End-to-End Niche Fitting and
+  Projection](https://alrobles.github.io/nicher/articles/nicher-workflow.md):
+- [Non-Symmetric Models: Skew-Normal, Skew-t, and NCST
+  Families](https://alrobles.github.io/nicher/articles/non_symmetric_models.md):
 - [Why the Weighted Model Struggles on the Vicugna
   Dataset](https://alrobles.github.io/nicher/articles/vicugna-weighted-model.md):

@@ -27,8 +27,8 @@ env_m   <- example_vicugna$env_m
 ## The core issue: multimodal M with a concentrated niche
 
 The vicugna occupies a narrow band in environmental space: most
-occurrences cluster tightly around bio1 \\\approx\\ 5–6 degrees Celsius
-and bio12 \\\approx\\ 100 mm. The accessible area (M), however, spans a
+occurrences cluster tightly around bio1 $`\approx`$ 5–6 degrees Celsius
+and bio12 $`\approx`$ 100 mm. The accessible area (M), however, spans a
 much wider and **multimodal** range of climates.
 
 ``` r
@@ -79,12 +79,15 @@ direct consequences for the weighted likelihood.
 
 ## The presence-only model: a clean baseline
 
-The presence-only family estimates \\(\mu, \Sigma)\\ by maximising the
-log-likelihood: \\\ell\_{\mathrm{PO}}(\theta) = \sum\_{i=1}^{n} \log
-f(x_i \mid \theta)\\ where \\f\\ is the multivariate Gaussian density.
-Since it only uses the occurrence data, the PO estimator reduces to the
-sample mean and covariance, which are well-defined for the unimodal,
-concentrated vicugna niche.
+The presence-only family estimates $`(\mu, \Sigma)`$ by maximising the
+log-likelihood:
+``` math
+\ell_{\mathrm{PO}}(\theta) = \sum_{i=1}^{n} \log f(x_i \mid \theta)
+```
+where $`f`$ is the multivariate Gaussian density. Since it only uses the
+occurrence data, the PO estimator reduces to the sample mean and
+covariance, which are well-defined for the unimodal, concentrated
+vicugna niche.
 
 ``` r
 
@@ -109,17 +112,20 @@ cat("PO mu:", round(fit_po$best$theta[seq_len(p)], 2), "\n")
 ```
 
 The PO estimates are stable and close to the empirical mean: bio1
-\\\approx\\ 6.1, bio12 \\\approx\\ 215.
+$`\approx`$ 6.1, bio12 $`\approx`$ 215.
 
 ## The weighted model: denominator instability
 
 The weighted likelihood (Jimenez et al. 2022) introduces a correction
-for the background: \\\ell\_{\mathrm{W}}(\theta) = \sum\_{i=1}^{n} \log
-\frac{f(x_i \mid \theta)}{\hat g(x_i)} - \log \sum\_{j=1}^{m}
-\frac{f(x_j^{(M)} \mid \theta)}{\hat g(x_j^{(M)})}\\ where \\\hat g\\ is
-a kernel density estimate of the background distribution. The
-denominator (the integral approximation) sums over background points,
-weighted inversely by the KDE.
+for the background:
+``` math
+\ell_{\mathrm{W}}(\theta) =
+  \sum_{i=1}^{n} \log \frac{f(x_i \mid \theta)}{\hat g(x_i)}
+  - \log \sum_{j=1}^{m} \frac{f(x_j^{(M)} \mid \theta)}{\hat g(x_j^{(M)})}
+```
+where $`\hat g`$ is a kernel density estimate of the background
+distribution. The denominator (the integral approximation) sums over
+background points, weighted inversely by the KDE.
 
 ``` r
 
@@ -142,36 +148,36 @@ cat("W mu:", round(fit_w$best$theta[seq_len(p)], 2), "\n")
 #> W mu: -0.62 235.01
 ```
 
-The weighted model’s \\\mu\\ estimate for bio1 is pulled far from the
+The weighted model’s $`\mu`$ estimate for bio1 is pulled far from the
 occurrence centre, and the log-sigma values are inflated. **The model
-fits worse by every metric**: higher (worse) AIC, and a \\\mu\\ that
+fits worse by every metric**: higher (worse) AIC, and a $`\mu`$ that
 does not correspond to the observed niche.
 
 ### Why this happens
 
 Three interacting factors create the problem:
 
-1.  **Multimodal KDE denominator.** When \\\hat g(x)\\ has multiple
-    modes, the inverse weights \\1/\hat g(x)\\ amplify points in the
+1.  **Multimodal KDE denominator.** When $`\hat g(x)`$ has multiple
+    modes, the inverse weights $`1/\hat g(x)`$ amplify points in the
     low-density valleys between modes. Background points near bio12
-    \\\approx\\ 400–600 mm (the trough between the 100 mm and 850 mm
+    $`\approx`$ 400–600 mm (the trough between the 100 mm and 850 mm
     peaks) receive disproportionately high weight, pulling the
     denominator integral and distorting the gradient landscape.
 
 2.  **Scale mismatch between niche and M.** The occurrences occupy a
     small, concentrated region of E-space, but M extends over a far
     wider volume. The denominator integral involves evaluating the
-    Gaussian \\f(x \mid \theta)\\ over a 10 000-point grid that mostly
-    lies far from \\\mu\\. Small changes in \\\Sigma\\ cause large
+    Gaussian $`f(x \mid \theta)`$ over a 10 000-point grid that mostly
+    lies far from $`\mu`$. Small changes in $`\Sigma`$ cause large
     changes in the denominator sum, creating a nearly flat or multimodal
     objective.
 
 3.  **Heavy right tail in bio12.** The precipitation variable has a
-    mean/median ratio of \\\approx 1.9\\ in the occurrences and
-    \\\approx 1.6\\ in M, indicating strong right-skewness. A symmetric
+    mean/median ratio of $`\approx 1.9`$ in the occurrences and
+    $`\approx 1.6`$ in M, indicating strong right-skewness. A symmetric
     Gaussian kernel in the weighted likelihood cannot represent this
     shape faithfully. The optimizer compensates by inflating
-    \\\sigma\_{\mathrm{bio12}}\\ and shifting \\\mu\\.
+    $`\sigma_{\mathrm{bio12}}`$ and shifting $`\mu`$.
 
 ## Model comparison
 
@@ -223,8 +229,8 @@ signal.
 
 3.  **Consider skew-normal families** when bio12 or other variables show
     strong asymmetry. The `skew_normal` family adds shape parameters
-    \\\alpha\\ that can capture the right tail without inflating
-    \\\Sigma\\.
+    $`\alpha`$ that can capture the right tail without inflating
+    $`\Sigma`$.
 
 4.  **Inspect the M distribution** before choosing a weighted family. If
     `density(env_m$variable)` shows multiple peaks, the KDE-based

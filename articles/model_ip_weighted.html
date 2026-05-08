@@ -6,13 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Model 3: Inverse-Probability-Weighted Normal Niche (Horvitz--Thompson) • nicher</title>
-<!-- mathjax math --><script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script><script>
-  window.MathJax = {
-    chtml: {
-      fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
-    }
-  };
-</script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
@@ -39,7 +33,8 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/model_ip_weighted.html">Model 3: Inverse-Probability-Weighted Normal Niche (Horvitz--Thompson)</a></li>
+<li><a class="dropdown-item" href="../articles/cross_validation.html">Cross-Validation: Penalty Tuning and Model Selection</a></li>
+    <li><a class="dropdown-item" href="../articles/model_ip_weighted.html">Model 3: Inverse-Probability-Weighted Normal Niche (Horvitz--Thompson)</a></li>
     <li><a class="dropdown-item" href="../articles/model_presence_only.html">Model 1: Presence-Only Gaussian Niche</a></li>
     <li><a class="dropdown-item" href="../articles/model_skew_normal_weighted.html">Model 5: Skew-Normal Weighted Niche</a></li>
     <li><a class="dropdown-item" href="../articles/model_skew_normal.html">Model 4: Skew-Normal Niche (Azzalini &amp; Capitanio 1999)</a></li>
@@ -47,6 +42,8 @@
     <li><a class="dropdown-item" href="../articles/model_skew_t.html">Model 6: Skew-t Niche (Branco &amp; Dey 2001)</a></li>
     <li><a class="dropdown-item" href="../articles/model_weighted.html">Model 2: Weighted-Normal Niche (Paper Eq. 5/8)</a></li>
     <li><a class="dropdown-item" href="../articles/nicher-introduction.html">Introduction to nicher</a></li>
+    <li><a class="dropdown-item" href="../articles/nicher-workflow.html">Package Workflow: End-to-End Niche Fitting and Projection</a></li>
+    <li><a class="dropdown-item" href="../articles/non_symmetric_models.html">Non-Symmetric Models: Skew-Normal, Skew-t, and NCST Families</a></li>
     <li><a class="dropdown-item" href="../articles/vicugna-weighted-model.html">Why the Weighted Model Struggles on the Vicugna Dataset</a></li>
   </ul>
 </li>
@@ -82,14 +79,21 @@
 <h2 id="ecological-motivation">1 Ecological Motivation<a class="anchor" aria-label="anchor" href="#ecological-motivation"></a>
 </h2>
 <p>When the environmental conditions available in the accessible area
-<span class="math inline">\(M\)</span> are unevenly distributed, a naive
-maximum-likelihood estimate of the niche centroid <span class="math inline">\(\mu\)</span> is biased toward whatever
-environments happen to be common in <span class="math inline">\(M\)</span>. For example, if 70 % of <span class="math inline">\(M\)</span> has temperature near 15 °C, the
-presence-only MLE will be pulled toward 15 °C even if the species
-tolerates a wider or differently centred range.</p>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>
+are unevenly distributed, a naive maximum-likelihood estimate of the
+niche centroid
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>μ</mi><annotation encoding="application/x-tex">\mu</annotation></semantics></math>
+is biased toward whatever environments happen to be common in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>.
+For example, if 70 % of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>
+has temperature near 15 °C, the presence-only MLE will be pulled toward
+15 °C even if the species tolerates a wider or differently centred
+range.</p>
 <p>The <strong>inverse-probability-weighted</strong> (IPW) model removes
 this environmental-availability confound by reweighting each background
-point by the <em>inverse</em> of its local environmental density <span class="math inline">\(w(\mathbf{x}) = 1/\hat{g}(\mathbf{x})\)</span>.
+point by the <em>inverse</em> of its local environmental density
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐱</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mn>1</mn><mi>/</mi><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><mi>𝐱</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">w(\mathbf{x}) = 1/\hat{g}(\mathbf{x})</annotation></semantics></math>.
 This converts the discrete sum over the heterogeneous background grid
 into a numerical approximation of a Lebesgue-measure integral,
 effectively projecting the niche onto a uniform environmental space.</p>
@@ -104,28 +108,39 @@ restricted likelihood framework of <span class="citation">Jimenez et al.
 <h3 id="the-jimenez-dgp">2.1 The Jimenez DGP<a class="anchor" aria-label="anchor" href="#the-jimenez-dgp"></a>
 </h3>
 <p>The IPW model assumes the <strong>Jimenez et al. (2019) DGP</strong>:
-presences are drawn from the fundamental niche density <span class="math inline">\(f(\mathbf{x};\mu,\Sigma)\)</span>
-<em>restricted</em> to the set of environments that exist in <span class="math inline">\(M\)</span>:</p>
-<p><span class="math display">\[
+presences are drawn from the fundamental niche density
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐱</mi><mo>;</mo><mi>μ</mi><mo>,</mo><mi mathvariant="normal">Σ</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">f(\mathbf{x};\mu,\Sigma)</annotation></semantics></math><em>restricted</em> to the set of environments that exist in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo>∣</mo><mrow><mtext mathvariant="normal">presence in </mtext><mspace width="0.333em"></mspace></mrow><mi>M</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mfrac><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo>;</mo><mi>μ</mi><mo>,</mo><mi mathvariant="normal">Σ</mi><mo stretchy="false" form="postfix">)</mo></mrow><mrow><msub><mo>∫</mo><mi>M</mi></msub><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐱</mi><mo>;</mo><mi>μ</mi><mo>,</mo><mi mathvariant="normal">Σ</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mi>d</mi><mi>𝐱</mi></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
 p(\mathbf{x}_i \mid \text{presence in } M) =
 \frac{f(\mathbf{x}_i;\mu,\Sigma)}
      {\int_M f(\mathbf{x};\mu,\Sigma)\,d\mathbf{x}}.
 \tag{1}
-\]</span></p>
-<p>Under this DGP the observation probability at environment <span class="math inline">\(\mathbf{x}\)</span> depends <em>only</em> on the
-species’ intrinsic tolerance, not on how common <span class="math inline">\(\mathbf{x}\)</span> is in <span class="math inline">\(M\)</span>. This is appropriate when:</p>
+</annotation></semantics></math></p>
+<p>Under this DGP the observation probability at environment
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝐱</mi><annotation encoding="application/x-tex">\mathbf{x}</annotation></semantics></math>
+depends <em>only</em> on the species’ intrinsic tolerance, not on how
+common
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝐱</mi><annotation encoding="application/x-tex">\mathbf{x}</annotation></semantics></math>
+is in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>.
+This is appropriate when:</p>
 <ul>
-<li>Sampling effort is approximately uniform across <span class="math inline">\(M\)</span> (e.g. systematic surveys).</li>
+<li>Sampling effort is approximately uniform across
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>
+(e.g. systematic surveys).</li>
 <li>The analyst explicitly wants to estimate the <em>fundamental</em>
-niche (Hutchinson 1957), not the realised niche shaped by <span class="math inline">\(M\)</span>.</li>
+niche (Hutchinson 1957), not the realised niche shaped by
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>.</li>
 </ul>
 </div>
 <div class="section level3">
 <h3 id="contrast-with-the-use-availability-dgp">2.2 Contrast with the Use-Availability DGP<a class="anchor" aria-label="anchor" href="#contrast-with-the-use-availability-dgp"></a>
 </h3>
 <p>The <code>"weighted"</code> model (Model 2) assumes instead that
-presence intensity <span class="math inline">\(\propto f \cdot
-g\)</span>. The two DGPs yield different estimands:</p>
+presence intensity
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>∝</mo><mi>f</mi><mo>⋅</mo><mi>g</mi></mrow><annotation encoding="application/x-tex">\propto f \cdot g</annotation></semantics></math>.
+The two DGPs yield different estimands:</p>
 <table class="table">
 <colgroup>
 <col width="21%">
@@ -140,42 +155,21 @@ g\)</span>. The two DGPs yield different estimands:</p>
 <tbody>
 <tr class="odd">
 <td>Jimenez (this model)</td>
-<td><span class="math inline">\(w = 1/\hat{g}\)</span></td>
-<td>Fundamental niche on uniform <span class="math inline">\(E\)</span>-space</td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mo>=</mo><mn>1</mn><mi>/</mi><mover><mi>g</mi><mo accent="true">̂</mo></mover></mrow><annotation encoding="application/x-tex">w = 1/\hat{g}</annotation></semantics></math></td>
+<td>Fundamental niche on uniform
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>E</mi><annotation encoding="application/x-tex">E</annotation></semantics></math>-space</td>
 </tr>
 <tr class="even">
 <td>Use-availability (Model 2)</td>
-<td><span class="math inline">\(w = \hat{g}\)</span></td>
-<td>Niche under <span class="math inline">\(M\)</span>-biased
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mo>=</mo><mover><mi>g</mi><mo accent="true">̂</mo></mover></mrow><annotation encoding="application/x-tex">w = \hat{g}</annotation></semantics></math></td>
+<td>Niche under
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>-biased
 observation</td>
 </tr>
 </tbody>
 </table>
 <p>Neither is universally “correct”; the choice depends on the
 ecological question and the data-collection protocol.</p>
-</div>
-<div class="section level3">
-<h3 id="addressing-the-deepseek-critique">2.3 Addressing the DeepSeek Critique<a class="anchor" aria-label="anchor" href="#addressing-the-deepseek-critique"></a>
-</h3>
-<p>A recent analysis (anonymous reviewer using DeepSeek, May 2026)
-argued that the IPW denominator is statistically flawed because it does
-not correspond to the use-availability DGP (<span class="math inline">\(\lambda \propto f \cdot g\)</span>). This critique
-is <strong>internally consistent under its assumed DGP</strong> but does
-not engage with the Jimenez DGP (Eq. 1), under which the IPW denominator
-is a valid Horvitz–Thompson estimator of <span class="math inline">\(\int_M f\,d\mathbf{x}\)</span>.</p>
-<p>Specifically:</p>
-<ol style="list-style-type: decimal">
-<li><p><strong>The denominator</strong> <span class="math inline">\(\sum_j
-f(\mathbf{y}_j)/\hat{g}(\mathbf{y}_j)\)</span> approximates <span class="math inline">\(\int_M f(\mathbf{x})\,d\mathbf{x}\)</span> by
-importance sampling, where the background points <span class="math inline">\(\{\mathbf{y}_j\}\)</span> are treated as a sample
-from <span class="math inline">\(g\)</span>.</p></li>
-<li><p><strong>The sign convention</strong> (<span class="math inline">\(-\log\hat{g}\)</span> in the denominator, <span class="math inline">\(+\log\hat{g}\)</span> in the numerator) is the
-algebraic consequence of <span class="math inline">\(w =
-1/\hat{g}\)</span>.</p></li>
-<li><p><strong>Self-regularisation</strong> against <span class="math inline">\(\sigma \to \infty\)</span> arises because the
-Horvitz–Thompson sum amplifies low-density tails where <span class="math inline">\(1/\hat{g}\)</span> is large, making the
-denominator grow faster than the numerator.</p></li>
-</ol>
 </div>
 </div>
 <div class="section level2">
@@ -185,23 +179,25 @@ denominator grow faster than the numerator.</p></li>
 <h3 id="restricted-log-likelihood">3.1 Restricted Log-Likelihood<a class="anchor" aria-label="anchor" href="#restricted-log-likelihood"></a>
 </h3>
 <p>Starting from Equation 8 of <span class="citation">Jimenez and
-Soberón (2022)</span> with <span class="math inline">\(w =
-1/\hat{g}\)</span>:</p>
-<p><span class="math display">\[
+Soberón (2022)</span> with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mo>=</mo><mn>1</mn><mi>/</mi><mover><mi>g</mi><mo accent="true">̂</mo></mover></mrow><annotation encoding="application/x-tex">w = 1/\hat{g}</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ℓ</mi><mo stretchy="false" form="prefix">(</mo><mi>μ</mi><mo>,</mo><mi mathvariant="normal">Σ</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>−</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mi>n</mi><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mspace width="-0.167em"></mspace><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>K</mi></munderover><mfrac><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
 \ell(\mu,\Sigma) =
 \sum_{i=1}^{n}\log f(\mathbf{x}_i)
 - \sum_{i=1}^{n}\log\hat{g}(\mathbf{x}_i)
 - n\,\log\!\sum_{j=1}^{K}\frac{f(\mathbf{y}_j)}{\hat{g}(\mathbf{y}_j)}.
 \tag{2}
-\]</span></p>
+</annotation></semantics></math></p>
 </div>
 <div class="section level3">
 <h3 id="negative-log-likelihood-minimised-objective">3.2 Negative Log-Likelihood (Minimised Objective)<a class="anchor" aria-label="anchor" href="#negative-log-likelihood-minimised-objective"></a>
 </h3>
-<p>Substituting <span class="math inline">\(f =
-\mathcal{N}(\mu,\Sigma)\)</span> and dropping the <span class="math inline">\((2\pi)^{-p/2}\)</span> constant (which cancels
-between numerator and denominator):</p>
-<p><span class="math display">\[
+<p>Substituting
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo>=</mo><mi>𝒩</mi><mo stretchy="false" form="prefix">(</mo><mi>μ</mi><mo>,</mo><mi mathvariant="normal">Σ</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">f = \mathcal{N}(\mu,\Sigma)</annotation></semantics></math>
+and dropping the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mn>2</mn><mi>π</mi><msup><mo stretchy="false" form="postfix">)</mo><mrow><mi>−</mi><mi>p</mi><mi>/</mi><mn>2</mn></mrow></msup></mrow><annotation encoding="application/x-tex">(2\pi)^{-p/2}</annotation></semantics></math>
+constant (which cancels between numerator and denominator):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><msup><mi>ℓ</mi><mo>*</mo></msup><mo stretchy="false" form="prefix">(</mo><mi>θ</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><msub><mi>q</mi><mi>i</mi></msub><mo>+</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>+</mo><mi>n</mi><mo>⋅</mo><msub><mrow><mi mathvariant="normal">logsumexp</mi><mo>⁡</mo></mrow><mi>j</mi></msub><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">[</mo><mi>−</mi><mstyle displaystyle="false"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><msub><mi>q</mi><mi>j</mi></msub><mo>−</mo><mi mathvariant="normal">log</mi><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo><mo stretchy="true" form="postfix">]</mo></mrow><mo>,</mo></mrow><annotation encoding="application/x-tex">
 -\ell^*(\theta) =
 \frac{1}{2}\sum_{i=1}^{n} q_i
 + \sum_{i=1}^{n}\log\hat{g}(\mathbf{x}_i)
@@ -209,11 +205,16 @@ between numerator and denominator):</p>
   -\tfrac{1}{2}q_j - \log\hat{g}(\mathbf{y}_j)
 \right],
 \tag{3}
-\]</span></p>
-<p>where <span class="math inline">\(q_i = \|L^{-1}(\mathbf{x}_i -
-\mu)\|^2\)</span> (squared Mahalanobis distance), <span class="math inline">\(q_j\)</span> is the same quantity at background
-point <span class="math inline">\(\mathbf{y}_j\)</span>, and <span class="math inline">\(\hat{g}(\cdot)\)</span> is the Gaussian KDE
-evaluated at the point.</p>
+</annotation></semantics></math></p>
+<p>where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>=</mo><mo stretchy="false" form="postfix">∥</mo><msup><mi>L</mi><mrow><mi>−</mi><mn>1</mn></mrow></msup><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo>−</mo><mi>μ</mi><mo stretchy="false" form="postfix">)</mo><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">q_i = \|L^{-1}(\mathbf{x}_i - \mu)\|^2</annotation></semantics></math>
+(squared Mahalanobis distance),
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>q</mi><mi>j</mi></msub><annotation encoding="application/x-tex">q_j</annotation></semantics></math>
+is the same quantity at background point
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝐲</mi><mi>j</mi></msub><annotation encoding="application/x-tex">\mathbf{y}_j</annotation></semantics></math>,
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><mi>⋅</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\hat{g}(\cdot)</annotation></semantics></math>
+is the Gaussian KDE evaluated at the point.</p>
 </div>
 <div class="section level3">
 <h3 id="sign-convention-vs--weighted">3.3 Sign Convention (vs. Weighted)<a class="anchor" aria-label="anchor" href="#sign-convention-vs--weighted"></a>
@@ -227,26 +228,22 @@ evaluated at the point.</p>
 <thead><tr class="header">
 <th>Term</th>
 <th>
-<code>"weighted"</code> (Eq. 8, <span class="math inline">\(w =
-\hat{g}\)</span>)</th>
+<code>"weighted"</code> (Eq. 8,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mo>=</mo><mover><mi>g</mi><mo accent="true">̂</mo></mover></mrow><annotation encoding="application/x-tex">w = \hat{g}</annotation></semantics></math>)</th>
 <th>
-<code>"ip_weighted"</code> (Eq. 8, <span class="math inline">\(w =
-1/\hat{g}\)</span>)</th>
+<code>"ip_weighted"</code> (Eq. 8,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mo>=</mo><mn>1</mn><mi>/</mi><mover><mi>g</mi><mo accent="true">̂</mo></mover></mrow><annotation encoding="application/x-tex">w = 1/\hat{g}</annotation></semantics></math>)</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
 <td>Numerator KDE</td>
-<td><span class="math inline">\(-\sum_i
-\log\hat{g}(\mathbf{x}_i)\)</span></td>
-<td><span class="math inline">\(+\sum_i
-\log\hat{g}(\mathbf{x}_i)\)</span></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><msub><mo>∑</mo><mi>i</mi></msub><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">-\sum_i \log\hat{g}(\mathbf{x}_i)</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>+</mi><msub><mo>∑</mo><mi>i</mi></msub><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">+\sum_i \log\hat{g}(\mathbf{x}_i)</annotation></semantics></math></td>
 </tr>
 <tr class="even">
 <td>Denominator integrand</td>
-<td><span class="math inline">\(+\log\hat{g}(\mathbf{y}_j) -
-\frac{1}{2}q_j\)</span></td>
-<td><span class="math inline">\(-\frac{1}{2}q_j -
-\log\hat{g}(\mathbf{y}_j)\)</span></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>+</mi><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><msub><mi>q</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">+\log\hat{g}(\mathbf{y}_j) - \frac{1}{2}q_j</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mfrac><mn>1</mn><mn>2</mn></mfrac><msub><mi>q</mi><mi>j</mi></msub><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">-\frac{1}{2}q_j - \log\hat{g}(\mathbf{y}_j)</annotation></semantics></math></td>
 </tr>
 </tbody>
 </table>
@@ -257,19 +254,25 @@ weight.</p>
 <div class="section level3">
 <h3 id="importance-sampling-interpretation">3.4 Importance-Sampling Interpretation<a class="anchor" aria-label="anchor" href="#importance-sampling-interpretation"></a>
 </h3>
-<p>The denominator <span class="math inline">\(\sum_j
-\exp(-\frac{1}{2}q_j - \log\hat{g}(\mathbf{y}_j))\)</span> is equivalent
-to the Horvitz–Thompson estimator:</p>
-<p><span class="math display">\[
+<p>The denominator
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>∑</mo><mi>j</mi></msub><mrow><mi mathvariant="normal">exp</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><mi>−</mi><mfrac><mn>1</mn><mn>2</mn></mfrac><msub><mi>q</mi><mi>j</mi></msub><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\sum_j \exp(-\frac{1}{2}q_j - \log\hat{g}(\mathbf{y}_j))</annotation></semantics></math>
+is equivalent to the Horvitz–Thompson estimator:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mrow><msub><mo>∫</mo><mi>M</mi></msub><mi>f</mi><mspace width="0.167em"></mspace><mi>d</mi><mi>𝐱</mi></mrow><mo accent="true">̂</mo></mover><mo>=</mo><mfrac><mn>1</mn><mi>K</mi></mfrac><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>K</mi></munderover><mfrac><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow></mfrac><mo>,</mo></mrow><annotation encoding="application/x-tex">
 \widehat{\int_M f\,d\mathbf{x}} =
 \frac{1}{K}\sum_{j=1}^{K}\frac{f(\mathbf{y}_j)}{\hat{g}(\mathbf{y}_j)},
 \tag{4}
-\]</span></p>
-<p>which converges to <span class="math inline">\(\int_M
-f(\mathbf{x})\,d\mathbf{x}\)</span> as <span class="math inline">\(K \to
-\infty\)</span> whenever <span class="math inline">\(\hat{g}(\mathbf{y}_j) &gt; 0\)</span> for all
-<span class="math inline">\(j\)</span> in the support of <span class="math inline">\(f\)</span> (<span class="citation">Horvitz and
-Thompson (1952)</span>; <span class="citation">Hahn (1998)</span>).</p>
+</annotation></semantics></math></p>
+<p>which converges to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>∫</mo><mi>M</mi></msub><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐱</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mi>d</mi><mi>𝐱</mi></mrow><annotation encoding="application/x-tex">\int_M f(\mathbf{x})\,d\mathbf{x}</annotation></semantics></math>
+as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi><mo>→</mo><mi>∞</mi></mrow><annotation encoding="application/x-tex">K \to \infty</annotation></semantics></math>
+whenever
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\hat{g}(\mathbf{y}_j) &gt; 0</annotation></semantics></math>
+for all
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
+in the support of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+(<span class="citation">Horvitz and Thompson (1952)</span>; <span class="citation">Hahn (1998)</span>).</p>
 </div>
 </div>
 <div class="section level2">
@@ -289,17 +292,23 @@ Thompson (1952)</span>; <span class="citation">Hahn (1998)</span>).</p>
 </h3>
 <p>The C++ kernel:</p>
 <ol style="list-style-type: decimal">
-<li>Reconstructs <span class="math inline">\(L_{\text{cov}}\)</span>
-from <span class="math inline">\(\theta\)</span> via
-<code>build_L_cov()</code> (line 123).</li>
+<li>Reconstructs
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mtext mathvariant="normal">cov</mtext></msub><annotation encoding="application/x-tex">L_{\text{cov}}</annotation></semantics></math>
+from
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+via <code>build_L_cov()</code> (line 123).</li>
 <li>Computes Mahalanobis distances for both occurrence and background
 points (lines 129–137).</li>
 <li>Clamps KDE weights: <code>w.max(MIN_KDE_WEIGHT).log()</code> with
-<code>MIN_KDE_WEIGHT = 1e-300</code> to prevent <span class="math inline">\(\log(0)\)</span> (lines 141–142).</li>
-<li>Computes the integrand <span class="math inline">\(a_j = -0.5 q_j -
-\log\hat{g}(\mathbf{y}_j)\)</span> (line 143).</li>
-<li>Evaluates <span class="math inline">\(\operatorname{logsumexp}(a)\)</span> via the
-max-shift trick (lines 145–147).</li>
+<code>MIN_KDE_WEIGHT = 1e-300</code> to prevent
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\log(0)</annotation></semantics></math>
+(lines 141–142).</li>
+<li>Computes the integrand
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mi>j</mi></msub><mo>=</mo><mi>−</mi><mn>0.5</mn><msub><mi>q</mi><mi>j</mi></msub><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">a_j = -0.5 q_j - \log\hat{g}(\mathbf{y}_j)</annotation></semantics></math>
+(line 143).</li>
+<li>Evaluates
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">logsumexp</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><mi>a</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\operatorname{logsumexp}(a)</annotation></semantics></math>
+via the max-shift trick (lines 145–147).</li>
 <li>Returns
 <code>0.5 * sum_q1 + log_w_occ.sum() + n * log_sum_exp</code> (lines
 149–151).</li>
@@ -312,16 +321,19 @@ max-shift trick (lines 145–147).</li>
 structure as the weighted gradient (see Model 2):</p>
 <ul>
 <li>
-<strong><span class="math inline">\(\nabla_\mu\)</span></strong>:
-Closed-form via <span class="math inline">\(\Sigma^{-1}[\text{weighted
-mean shift}]\)</span>, with softmax weights <span class="math inline">\(\pi_j = \exp(a_j)/\sum_k\exp(a_k)\)</span> on the
-background side (lines 263–271).</li>
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>∇</mi><mi>μ</mi></msub><annotation encoding="application/x-tex">\nabla_\mu</annotation></semantics></math></strong>:
+Closed-form via
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi mathvariant="normal">Σ</mi><mrow><mi>−</mi><mn>1</mn></mrow></msup><mo stretchy="false" form="prefix">[</mo><mtext mathvariant="normal">weighted mean shift</mtext><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">\Sigma^{-1}[\text{weighted mean shift}]</annotation></semantics></math>,
+with softmax weights
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>π</mi><mi>j</mi></msub><mo>=</mo><mrow><mi mathvariant="normal">exp</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>a</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo><mi>/</mi><msub><mo>∑</mo><mi>k</mi></msub><mrow><mi mathvariant="normal">exp</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>a</mi><mi>k</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\pi_j = \exp(a_j)/\sum_k\exp(a_k)</annotation></semantics></math>
+on the background side (lines 263–271).</li>
 <li>
-<strong><span class="math inline">\(\nabla_{\log\sigma_k}\)</span></strong>:
-Closed-form via <span class="math inline">\(U \odot V\)</span> products
-(lines 273–278).</li>
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>∇</mi><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mi>σ</mi><mi>k</mi></msub></mrow></msub><annotation encoding="application/x-tex">\nabla_{\log\sigma_k}</annotation></semantics></math></strong>:
+Closed-form via
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mo>⊙</mo><mi>V</mi></mrow><annotation encoding="application/x-tex">U \odot V</annotation></semantics></math>
+products (lines 273–278).</li>
 <li>
-<strong><span class="math inline">\(\nabla_{v_k}\)</span></strong>:
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>∇</mi><msub><mi>v</mi><mi>k</mi></msub></msub><annotation encoding="application/x-tex">\nabla_{v_k}</annotation></semantics></math></strong>:
 Central finite differences on the C-vine block (lines 280–298).</li>
 </ul>
 </div>
@@ -337,37 +349,49 @@ provides natural self-regularisation (see Section 6).</p>
 <div class="section level2">
 <h2 id="kde-computation">5 KDE Computation<a class="anchor" aria-label="anchor" href="#kde-computation"></a>
 </h2>
-<p>The KDE <span class="math inline">\(\hat{g}\)</span> is computed
-identically to Model 2 (Scott’s rule bandwidth, Gaussian kernel,
-precomputed before optimisation). The only difference is that <span class="math inline">\(\hat{g}\)</span> enters the likelihood with
-<strong>inverted sign</strong>:</p>
+<p>The KDE
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>g</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat{g}</annotation></semantics></math>
+is computed identically to Model 2 (Scott’s rule bandwidth, Gaussian
+kernel, precomputed before optimisation). The only difference is that
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>g</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat{g}</annotation></semantics></math>
+enters the likelihood with <strong>inverted sign</strong>:</p>
 <ul>
-<li>In <code>"weighted"</code>: the denominator uses <span class="math inline">\(+\log\hat{g}\)</span> (amplifying common
-environments).</li>
-<li>In <code>"ip_weighted"</code>: the denominator uses <span class="math inline">\(-\log\hat{g}\)</span> (down-weighting common
-environments).</li>
+<li>In <code>"weighted"</code>: the denominator uses
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>+</mi><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover></mrow><annotation encoding="application/x-tex">+\log\hat{g}</annotation></semantics></math>
+(amplifying common environments).</li>
+<li>In <code>"ip_weighted"</code>: the denominator uses
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover></mrow><annotation encoding="application/x-tex">-\log\hat{g}</annotation></semantics></math>
+(down-weighting common environments).</li>
 </ul>
 </div>
 <div class="section level2">
 <h2 id="self-regularisation">6 Self-Regularisation<a class="anchor" aria-label="anchor" href="#self-regularisation"></a>
 </h2>
 <p>Unlike the weighted model, the IPW model does <strong>not</strong>
-require a ridge prior on <span class="math inline">\(\log\sigma\)</span>
-to prevent <span class="math inline">\(\sigma \to \infty\)</span>. The
-mechanism:</p>
+require a ridge prior on
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>σ</mi></mrow><annotation encoding="application/x-tex">\log\sigma</annotation></semantics></math>
+to prevent
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>σ</mi><mo>→</mo><mi>∞</mi></mrow><annotation encoding="application/x-tex">\sigma \to \infty</annotation></semantics></math>.
+The mechanism:</p>
 <ol style="list-style-type: decimal">
-<li>As <span class="math inline">\(\sigma \to \infty\)</span>, <span class="math inline">\(f(\mathbf{y}_j) \to \text{const}\)</span> for all
-<span class="math inline">\(j\)</span>.</li>
-<li>The denominator becomes <span class="math inline">\(\sum_j
-\text{const}/\hat{g}(\mathbf{y}_j)\)</span>, which is large because
-<span class="math inline">\(1/\hat{g}\)</span> amplifies low-density
-tail points.</li>
-<li>Meanwhile the numerator <span class="math inline">\(\prod_i
-f(\mathbf{x}_i)\)</span> also flattens, but the denominator grows faster
-due to the tail amplification.</li>
-<li>The net effect is that <span class="math inline">\(-\ell^*\)</span>
-<em>increases</em> as <span class="math inline">\(\sigma \to
-\infty\)</span>, providing a natural penalty.</li>
+<li>As
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>σ</mi><mo>→</mo><mi>∞</mi></mrow><annotation encoding="application/x-tex">\sigma \to \infty</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>→</mo><mtext mathvariant="normal">const</mtext></mrow><annotation encoding="application/x-tex">f(\mathbf{y}_j) \to \text{const}</annotation></semantics></math>
+for all
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>.</li>
+<li>The denominator becomes
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>∑</mo><mi>j</mi></msub><mtext mathvariant="normal">const</mtext><mi>/</mi><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\sum_j \text{const}/\hat{g}(\mathbf{y}_j)</annotation></semantics></math>,
+which is large because
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mover><mi>g</mi><mo accent="true">̂</mo></mover></mrow><annotation encoding="application/x-tex">1/\hat{g}</annotation></semantics></math>
+amplifies low-density tail points.</li>
+<li>Meanwhile the numerator
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>∏</mo><mi>i</mi></msub><mi>f</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\prod_i f(\mathbf{x}_i)</annotation></semantics></math>
+also flattens, but the denominator grows faster due to the tail
+amplification.</li>
+<li>The net effect is that
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><msup><mi>ℓ</mi><mo>*</mo></msup></mrow><annotation encoding="application/x-tex">-\ell^*</annotation></semantics></math><em>increases</em> as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>σ</mi><mo>→</mo><mi>∞</mi></mrow><annotation encoding="application/x-tex">\sigma \to \infty</annotation></semantics></math>,
+providing a natural penalty.</li>
 </ol>
 <p>This self-regularisation is a property of the Horvitz–Thompson
 estimator, not an ad hoc fix.</p>
@@ -376,18 +400,21 @@ estimator, not an ad hoc fix.</p>
 <h2 id="limitations">7 Limitations<a class="anchor" aria-label="anchor" href="#limitations"></a>
 </h2>
 <ol style="list-style-type: decimal">
-<li><p><strong>Variance amplification</strong>. When <span class="math inline">\(\hat{g}(\mathbf{y}_j) \approx 0\)</span>
-(environmental deserts), the weight <span class="math inline">\(1/\hat{g}\)</span> can be extremely large,
-inflating the variance of the estimator. Diagnostic: check the effective
-sample size <span class="math inline">\(\text{ESS} = (\sum_j w_j)^2 /
-\sum_j w_j^2\)</span>.</p></li>
+<li><p><strong>Variance amplification</strong>. When
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>≈</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\hat{g}(\mathbf{y}_j) \approx 0</annotation></semantics></math>
+(environmental deserts), the weight
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mover><mi>g</mi><mo accent="true">̂</mo></mover></mrow><annotation encoding="application/x-tex">1/\hat{g}</annotation></semantics></math>
+can be extremely large, inflating the variance of the estimator.
+Diagnostic: check the effective sample size
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">ESS</mtext><mo>=</mo><mo stretchy="false" form="prefix">(</mo><msub><mo>∑</mo><mi>j</mi></msub><msub><mi>w</mi><mi>j</mi></msub><msup><mo stretchy="false" form="postfix">)</mo><mn>2</mn></msup><mi>/</mi><msub><mo>∑</mo><mi>j</mi></msub><msubsup><mi>w</mi><mi>j</mi><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">\text{ESS} = (\sum_j w_j)^2 / \sum_j w_j^2</annotation></semantics></math>.</p></li>
 <li><p><strong>KDE bandwidth sensitivity</strong>. Scott’s rule may
 under-smooth in low dimensions or over-smooth in high dimensions. Users
 should inspect the KDE fit.</p></li>
 <li><p><strong>DGP mismatch</strong>. If presences are genuinely
-generated by the use-availability process (<span class="math inline">\(\lambda \propto f \cdot g\)</span>), then the IPW
-estimator targets the wrong quantity. Use <code>"weighted"</code> (Model
-2) instead.</p></li>
+generated by the use-availability process
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mo>∝</mo><mi>f</mi><mo>⋅</mo><mi>g</mi></mrow><annotation encoding="application/x-tex">\lambda \propto f \cdot g</annotation></semantics></math>),
+then the IPW estimator targets the wrong quantity. Use
+<code>"weighted"</code> (Model 2) instead.</p></li>
 <li><p><strong>Normality assumption</strong>. Same as Model 1. For
 asymmetric niches, consider combining IPW with a skew-normal or skew-t
 kernel (not yet implemented in <code>nicher</code>).</p></li>

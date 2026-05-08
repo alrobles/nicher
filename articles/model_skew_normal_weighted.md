@@ -7,45 +7,52 @@ This model combines two extensions:
 1.  **Skewness** (from Model 4): the niche can be asymmetric along each
     environmental axis.
 2.  **Background weighting** (from Model 2): the non-uniform
-    distribution of environments in \\M\\ is modelled via a KDE
-    \\\hat{g}(\mathbf{x})\\.
+    distribution of environments in $`M`$ is modelled via a KDE
+    $`\hat{g}(\mathbf{x})`$.
 
 The result is a model that estimates an **asymmetric fundamental niche**
 while accounting for the fact that presence records are more likely in
-environments that are common in \\M\\ (the use-availability DGP).
+environments that are common in $`M`$ (the use-availability DGP).
 
 ## 2 Data-Generating Process
 
 The DGP is the same as Model 2, but with a skew-normal kernel replacing
 the Gaussian:
 
-\\ p(\mathbf{x}\_i \mid \text{presence in } M) =
-\frac{f\_{\text{SN}}(\mathbf{x}\_i;\mu,\Sigma,\alpha)\\\hat{g}(\mathbf{x}\_i)}
-{\int_M
-f\_{\text{SN}}(\mathbf{x};\mu,\Sigma,\alpha)\\\hat{g}(\mathbf{x})\\d\mathbf{x}},
-\tag{1} \\
+``` math
+p(\mathbf{x}_i \mid \text{presence in } M) =
+\frac{f_{\text{SN}}(\mathbf{x}_i;\mu,\Sigma,\alpha)\;\hat{g}(\mathbf{x}_i)}
+     {\int_M f_{\text{SN}}(\mathbf{x};\mu,\Sigma,\alpha)\;\hat{g}(\mathbf{x})\,d\mathbf{x}},
+\tag{1}
+```
 
-where \\f\_{\text{SN}}\\ is the skew-normal density (Model 4, Eq. 1).
+where $`f_{\text{SN}}`$ is the skew-normal density (Model 4, Eq. 1).
 
 ## 3 Mathematical Specification
 
 ### 3.1 Negative Log-Likelihood
 
-\\ -\ell^\*(\theta) = \frac{1}{2}\sum\_{i=1}^{n} q_i -
-\sum\_{i=1}^{n}\log\Phi(z_i) -
-\sum\_{i=1}^{n}\log\hat{g}(\mathbf{x}\_i) +
-n\cdot\operatorname{logsumexp}\_j\\\left\[ \log\hat{g}(\mathbf{y}\_j) +
-\log\Phi(z_j) - \tfrac{1}{2}q_j \right\] + \text{penalty}, \tag{2} \\
+``` math
+-\ell^*(\theta) =
+\frac{1}{2}\sum_{i=1}^{n} q_i
+- \sum_{i=1}^{n}\log\Phi(z_i)
+- \sum_{i=1}^{n}\log\hat{g}(\mathbf{x}_i)
++ n\cdot\operatorname{logsumexp}_j\!\left[
+  \log\hat{g}(\mathbf{y}_j) + \log\Phi(z_j) - \tfrac{1}{2}q_j
+\right]
++ \text{penalty},
+\tag{2}
+```
 
 where:
 
-- \\q_i = \\L^{-1}(\mathbf{x}\_i - \mu)\\^2\\ (squared Mahalanobis
-  distance at presence point \\i\\),
-- \\q_j\\ is the same at background point \\j\\,
-- \\z_i = \alpha^\top\operatorname{diag}(\sigma)^{-1}(\mathbf{x}\_i -
-  \mu)\\ is the skew score at presence point \\i\\,
-- \\z_j\\ is the skew score at background point \\j\\,
-- \\\hat{g}(\cdot)\\ is the Gaussian KDE of the background,
+- $`q_i = \|L^{-1}(\mathbf{x}_i - \mu)\|^2`$ (squared Mahalanobis
+  distance at presence point $`i`$),
+- $`q_j`$ is the same at background point $`j`$,
+- $`z_i = \alpha^\top\operatorname{diag}(\sigma)^{-1}(\mathbf{x}_i - \mu)`$
+  is the skew score at presence point $`i`$,
+- $`z_j`$ is the skew score at background point $`j`$,
+- $`\hat{g}(\cdot)`$ is the Gaussian KDE of the background,
 - the penalty term is as in Model 4, Eq. (4).
 
 ### 3.2 Structure of the Denominator
@@ -53,23 +60,26 @@ where:
 The denominator integrand (inside the logsumexp) has three log-scale
 terms:
 
-\\ a_j =
-\underbrace{\log\hat{g}(\mathbf{y}\_j)}\_{\text{availability}} +
-\underbrace{\log\Phi(z_j)}\_{\text{skewness}} -
-\underbrace{\tfrac{1}{2}q_j}\_{\text{Mahalanobis}}. \tag{3} \\
+``` math
+a_j = \underbrace{\log\hat{g}(\mathbf{y}_j)}_{\text{availability}}
+    + \underbrace{\log\Phi(z_j)}_{\text{skewness}}
+    - \underbrace{\tfrac{1}{2}q_j}_{\text{Mahalanobis}}.
+\tag{3}
+```
 
-This is exactly the log of \\\hat{g}(\mathbf{y}\_j) \cdot \Phi(z_j)
-\cdot \exp(-\frac{1}{2}q_j)\\, which is proportional to \\\hat{g} \cdot
-f\_{\text{SN}}\\ evaluated at background point \\j\\ — the discrete
-approximation to the denominator integral in Eq. (1).
+This is exactly the log of
+$`\hat{g}(\mathbf{y}_j) \cdot \Phi(z_j) \cdot \exp(-\frac{1}{2}q_j)`$,
+which is proportional to $`\hat{g} \cdot f_{\text{SN}}`$ evaluated at
+background point $`j`$ — the discrete approximation to the denominator
+integral in Eq. (1).
 
 ### 3.3 Relationship to Models 2 and 4
 
 | Component       | Model 2 (weighted) | Model 4 (skew-normal) | Model 5 (this) |
 |-----------------|--------------------|-----------------------|----------------|
-| Mahalanobis     | \\\checkmark\\     | \\\checkmark\\        | \\\checkmark\\ |
-| \\\log\Phi(z)\\ | —                  | \\\checkmark\\        | \\\checkmark\\ |
-| KDE weighting   | \\\checkmark\\     | —                     | \\\checkmark\\ |
+| Mahalanobis     | $`\checkmark`$     | $`\checkmark`$        | $`\checkmark`$ |
+| $`\log\Phi(z)`$ | —                  | $`\checkmark`$        | $`\checkmark`$ |
+| KDE weighting   | $`\checkmark`$     | —                     | $`\checkmark`$ |
 | Background data | Required           | Not used              | Required       |
 
 ## 4 Implementation Call Chain
@@ -93,14 +103,13 @@ approximation to the denominator integral in Eq. (1).
 
 The C++ kernel:
 
-1.  Reconstructs \\L\_{\text{cov}}\\ and maps \\\alpha\\ (lines
-    611–615).
+1.  Reconstructs $`L_{\text{cov}}`$ and maps $`\alpha`$ (lines 611–615).
 2.  Computes occurrence-side Mahalanobis distances and
-    \\\sum_i\log\Phi(z_i)\\ (lines 620–624).
-3.  Computes background-side Mahalanobis distances \\q_j\\ and skew
-    scores \\z_j\\ (lines 626–634).
-4.  Evaluates the denominator integrand \\a_j = \log\hat{g}\_j +
-    \log\Phi(z_j) - \frac{1}{2}q_j\\ (line 640).
+    $`\sum_i\log\Phi(z_i)`$ (lines 620–624).
+3.  Computes background-side Mahalanobis distances $`q_j`$ and skew
+    scores $`z_j`$ (lines 626–634).
+4.  Evaluates the denominator integrand
+    $`a_j = \log\hat{g}_j + \log\Phi(z_j) - \frac{1}{2}q_j`$ (line 640).
 5.  Applies the logsumexp trick (lines 642–644).
 6.  Adds the ridge + alpha penalty (lines 646–647).
 7.  Returns the guarded negative log-likelihood (lines 649–655).
@@ -126,16 +135,16 @@ optimize_niche(env_occ, env_m, likelihood = "skew_normal_weighted",
 
 ## 6 Limitations
 
-1.  **Parameter count**. Adds \\p\\ skewness parameters over Model 2.
+1.  **Parameter count**. Adds $`p`$ skewness parameters over Model 2.
     Requires larger sample sizes for reliable estimation.
 
 2.  **Patil & Ord drift** (shared with Model 2). The ridge prior on
-    \\\log\sigma\\ is essential; do not set \\\lambda = 0\\.
+    $`\log\sigma`$ is essential; do not set $`\lambda = 0`$.
 
 3.  **Unimodal**. The skew-normal is still unimodal. For bimodal niches,
     mixture extensions are needed (not implemented).
 
-4.  **Numerical stability**. The product \\\Phi(z_j) \cdot \hat{g}\_j\\
+4.  **Numerical stability**. The product $`\Phi(z_j) \cdot \hat{g}_j`$
     can be very small for background points far from the niche centre.
     The logsumexp trick (lines 642–644) handles this by working entirely
     in log space.

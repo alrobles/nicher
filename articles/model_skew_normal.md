@@ -9,7 +9,7 @@ The multivariate normal model (Models 1–3) forces ellipsoidal symmetry,
 which can misfit such species.
 
 The **skew-normal** model extends the Gaussian niche with a skewness
-parameter vector \\\alpha \in \mathbb{R}^p\\ that allows each
+parameter vector $`\alpha \in \mathbb{R}^p`$ that allows each
 environmental axis to have an asymmetric tail. The density is the
 multivariate skew-normal distribution of Azzalini and Capitanio (1999).
 
@@ -17,92 +17,107 @@ multivariate skew-normal distribution of Azzalini and Capitanio (1999).
 
 ### 2.1 Density
 
-The \\p\\-dimensional skew-normal density is
+The $`p`$-dimensional skew-normal density is
 
-\\ f\_{\text{SN}}(\mathbf{x};\mu,\Sigma,\alpha) =
-2\\\phi_p(\mathbf{x}-\mu;\Sigma)\\
-\Phi\\\left(\sum\_{k=1}^{p}\frac{\alpha_k(x_k -
-\mu_k)}{\sigma_k}\right), \tag{1} \\
+``` math
+f_{\text{SN}}(\mathbf{x};\mu,\Sigma,\alpha) =
+2\,\phi_p(\mathbf{x}-\mu;\Sigma)\,
+\Phi\!\left(\sum_{k=1}^{p}\frac{\alpha_k(x_k - \mu_k)}{\sigma_k}\right),
+\tag{1}
+```
 
 where:
 
-- \\\phi_p(\cdot;\Sigma)\\ is the \\p\\-variate normal density with
-  covariance \\\Sigma\\,
-- \\\Phi(\cdot)\\ is the standard univariate normal CDF,
-- \\\alpha = (\alpha_1,\dots,\alpha_p)^\top\\ is the skewness vector,
-- \\\sigma_k = \sqrt{\Sigma\_{kk}}\\ are the marginal standard
+- $`\phi_p(\cdot;\Sigma)`$ is the $`p`$-variate normal density with
+  covariance $`\Sigma`$,
+- $`\Phi(\cdot)`$ is the standard univariate normal CDF,
+- $`\alpha = (\alpha_1,\dots,\alpha_p)^\top`$ is the skewness vector,
+- $`\sigma_k = \sqrt{\Sigma_{kk}}`$ are the marginal standard
   deviations.
 
-When \\\alpha = \mathbf{0}\\, \\\Phi(0) = 1/2\\ and the density reduces
-to \\\phi_p\\, recovering the symmetric Gaussian niche.
+When $`\alpha = \mathbf{0}`$, $`\Phi(0) = 1/2`$ and the density reduces
+to $`\phi_p`$, recovering the symmetric Gaussian niche.
 
 ### 2.2 The Skewness Mechanism
 
 Define the standardised skew score
 
-\\ z_i = \sum\_{k=1}^{p}\frac{\alpha_k(x\_{ik} - \mu_k)}{\sigma_k} =
-\boldsymbol\alpha^\top\\\operatorname{diag}(\sigma)^{-1}(\mathbf{x}\_i -
-\mu). \tag{2} \\
+``` math
+z_i = \sum_{k=1}^{p}\frac{\alpha_k(x_{ik} - \mu_k)}{\sigma_k}
+    = \boldsymbol\alpha^\top\,\operatorname{diag}(\sigma)^{-1}(\mathbf{x}_i - \mu).
+\tag{2}
+```
 
-The factor \\\Phi(z_i)\\ modulates the Gaussian density:
+The factor $`\Phi(z_i)`$ modulates the Gaussian density:
 
-- When \\z_i \gg 0\\ (the point is in the direction favoured by
-  \\\alpha\\), \\\Phi(z_i) \approx 1\\ and the density is close to
-  \\2\phi_p\\.
-- When \\z_i \ll 0\\ (the point is in the opposite direction),
-  \\\Phi(z_i) \approx 0\\ and the density is suppressed.
+- When $`z_i \gg 0`$ (the point is in the direction favoured by
+  $`\alpha`$), $`\Phi(z_i) \approx 1`$ and the density is close to
+  $`2\phi_p`$.
+- When $`z_i \ll 0`$ (the point is in the opposite direction),
+  $`\Phi(z_i) \approx 0`$ and the density is suppressed.
 
 This creates an asymmetric niche that is elongated in the direction of
-\\\alpha\\ and truncated in the opposite direction.
+$`\alpha`$ and truncated in the opposite direction.
 
 ### 2.3 Negative Log-Likelihood
 
-Given \\n\\ presence records:
+Given $`n`$ presence records:
 
-\\ -\ell(\theta) = \frac{n}{2}\log\|\Sigma\| +
-\frac{1}{2}\sum\_{i=1}^{n} q_i - \sum\_{i=1}^{n}\log\Phi(z_i) +
-\text{penalty}, \tag{3} \\
+``` math
+-\ell(\theta) =
+\frac{n}{2}\log|\Sigma|
++ \frac{1}{2}\sum_{i=1}^{n} q_i
+- \sum_{i=1}^{n}\log\Phi(z_i)
++ \text{penalty},
+\tag{3}
+```
 
 where:
 
-- \\q_i = \\L^{-1}(\mathbf{x}\_i - \mu)\\^2\\ (squared Mahalanobis
+- $`q_i = \|L^{-1}(\mathbf{x}_i - \mu)\|^2`$ (squared Mahalanobis
   distance),
-- \\z_i\\ is defined in Eq. (2),
-- The constants \\n\log 2\\ and \\-\frac{np}{2}\log(2\pi)\\ are dropped
+- $`z_i`$ is defined in Eq. (2),
+- The constants $`n\log 2`$ and $`-\frac{np}{2}\log(2\pi)`$ are dropped
   (they do not affect the optimum and match the convention in Models
   1–3).
 
 ### 2.4 Prior Penalties
 
-The skew-normal model uses ridge penalties on both \\\log\sigma\\ and
-\\\alpha\\:
+The skew-normal model uses ridge penalties on both $`\log\sigma`$ and
+$`\alpha`$:
 
-\\ \text{penalty} = \lambda\_\sigma\sum\_{k=1}^{p}(\log\sigma_k -
-c_k)^2 + \lambda\_\alpha\sum\_{k=1}^{p}\alpha_k^2, \tag{4} \\
+``` math
+\text{penalty} =
+\lambda_\sigma\sum_{k=1}^{p}(\log\sigma_k - c_k)^2
++ \lambda_\alpha\sum_{k=1}^{p}\alpha_k^2,
+\tag{4}
+```
 
-where \\c_k = \log\hat\sigma_k(\text{env\\occ})\\. The \\\alpha\\
+where $`c_k = \log\hat\sigma_k(\text{env\_occ})`$. The $`\alpha`$
 penalty prevents extreme skewness that would effectively make one tail
 of the niche a step function.
 
 ## 3 Parameterisation
 
-The unconstrained parameter vector \\\theta\\ has length \\3p +
-p(p-1)/2\\:
+The unconstrained parameter vector $`\theta`$ has length
+$`3p + p(p-1)/2`$:
 
-\\ \theta = \bigl\[\underbrace{\mu}\_{p},\\
-\underbrace{\log\sigma}\_{p},\\
-\underbrace{v\_{\text{C-vine}}}\_{p(p-1)/2},\\
-\underbrace{\alpha}\_{p}\bigr\]. \\
+``` math
+\theta = \bigl[\underbrace{\mu}_{p},\;
+         \underbrace{\log\sigma}_{p},\;
+         \underbrace{v_{\text{C-vine}}}_{p(p-1)/2},\;
+         \underbrace{\alpha}_{p}\bigr].
+```
 
 | Block | Length | Constraint | Meaning |
 |----|----|----|----|
-| \\\mu\\ | \\p\\ | Unconstrained | Niche centroid |
-| \\\log\sigma\\ | \\p\\ | \\\sigma_k \> 0\\ via \\\exp\\ | Marginal standard deviations |
-| \\v\\ | \\p(p-1)/2\\ | Unconstrained | C-vine partial correlations |
-| \\\alpha\\ | \\p\\ | Unconstrained | Skewness parameters |
+| $`\mu`$ | $`p`$ | Unconstrained | Niche centroid |
+| $`\log\sigma`$ | $`p`$ | $`\sigma_k > 0`$ via $`\exp`$ | Marginal standard deviations |
+| $`v`$ | $`p(p-1)/2`$ | Unconstrained | C-vine partial correlations |
+| $`\alpha`$ | $`p`$ | Unconstrained | Skewness parameters |
 
-Note the \\\alpha\\ block is appended *after* the C-vine block, at
-position \\\theta\[2p + n_v \dots 3p + n_v - 1\]\\.
+Note the $`\alpha`$ block is appended *after* the C-vine block, at
+position $`\theta[2p + n_v \dots 3p + n_v - 1]`$.
 
 ## 4 Implementation Call Chain
 
@@ -121,17 +136,17 @@ position \\\theta\[2p + n_v \dots 3p + n_v - 1\]\\.
 
 The C++ kernel:
 
-1.  Reconstructs \\L\_{\text{cov}}\\ from \\\theta\\ via `build_L_cov()`
+1.  Reconstructs $`L_{\text{cov}}`$ from $`\theta`$ via `build_L_cov()`
     (line 557).
-2.  Maps the \\\alpha\\ block from \\\theta\\ (line 559).
+2.  Maps the $`\alpha`$ block from $`\theta`$ (line 559).
 3.  Computes Mahalanobis distances via forward solve (lines 565–566).
-4.  Computes \\\log\|\Sigma\|\\ from the Cholesky diagonal (lines
+4.  Computes $`\log|\Sigma|`$ from the Cholesky diagonal (lines
     568–570).
-5.  Evaluates \\\sum_i \log\Phi(z_i)\\ via `sum_log_pnorm()` (line 572),
-    which internally calls `skew_z()` (lines 520–527) to compute \\z_i =
-    \alpha^\top\operatorname{diag}(\sigma)^{-1}\text{diff}\_i\\ and then
-    `R::pnorm(..., log_p=1)` (line 515) for numerically stable
-    \\\log\Phi\\.
+5.  Evaluates $`\sum_i \log\Phi(z_i)`$ via `sum_log_pnorm()` (line 572),
+    which internally calls `skew_z()` (lines 520–527) to compute
+    $`z_i = \alpha^\top\operatorname{diag}(\sigma)^{-1}\text{diff}_i`$
+    and then `R::pnorm(..., log_p=1)` (line 515) for numerically stable
+    $`\log\Phi`$.
 6.  Adds the ridge penalty via `prior_penalty_value()` (lines 578–579).
 7.  Returns the guarded negative log-likelihood (line 581).
 
@@ -139,9 +154,9 @@ The C++ kernel:
 
 | Function | Lines | Purpose |
 |----|----|----|
-| `log_pnorm(z)` | 514–516 | Stable \\\log\Phi(z)\\ via `R::pnorm` |
-| `skew_z(diff, sigma, alpha)` | 520–527 | Vectorised \\z_i = (\alpha/\sigma)^\top\text{diff}\_i\\ |
-| `sum_log_pnorm(diff, sigma, alpha)` | 530–537 | \\\sum_i\log\Phi(z_i)\\ |
+| `log_pnorm(z)` | 514–516 | Stable $`\log\Phi(z)`$ via `R::pnorm` |
+| `skew_z(diff, sigma, alpha)` | 520–527 | Vectorised $`z_i = (\alpha/\sigma)^\top\text{diff}_i`$ |
+| `sum_log_pnorm(diff, sigma, alpha)` | 530–537 | $`\sum_i\log\Phi(z_i)`$ |
 
 ### 4.3 R Entry Point
 
@@ -160,16 +175,16 @@ optimize_niche(env_occ, likelihood = "skew_normal",
 - As a **model-selection candidate**: fit both `"presence_only"`
   (symmetric) and `"skew_normal"` (asymmetric), then compare via
   AIC/BIC.
-- When the sample size is large enough to estimate \\p\\ additional
-  parameters reliably (\\n \gg 3p + p(p-1)/2\\).
+- When the sample size is large enough to estimate $`p`$ additional
+  parameters reliably ($`n \gg 3p + p(p-1)/2`$).
 
 ## 6 Limitations
 
-1.  **Additional parameters**. The skewness vector adds \\p\\
-    parameters. For \\p = 5\\ environmental variables, the total
-    parameter count goes from \\2p + p(p-1)/2 = 20\\ to \\3p + p(p-1)/2
-    = 25\\. With small \\n\\, the extra parameters may not be
-    well-identified.
+1.  **Additional parameters**. The skewness vector adds $`p`$
+    parameters. For $`p = 5`$ environmental variables, the total
+    parameter count goes from $`2p + p(p-1)/2 = 20`$ to
+    $`3p + p(p-1)/2 = 25`$. With small $`n`$, the extra parameters may
+    not be well-identified.
 
 2.  **Unimodal skewness**. The skew-normal is still unimodal; it cannot
     capture bimodal niches.
@@ -178,10 +193,10 @@ optimize_niche(env_occ, likelihood = "skew_normal",
     background-corrected skew-normal, use `"skew_normal_weighted"`
     (Model 5).
 
-4.  **Near-singular \\\Phi\\**. When \\\|z_i\|\\ is very large,
-    \\\log\Phi(z_i)\\ can be numerically challenging. The implementation
-    uses `R::pnorm` with `log_p = TRUE`, which is stable for \\z\\ down
-    to about \\-37\\.
+4.  **Near-singular $`\Phi`$**. When $`|z_i|`$ is very large,
+    $`\log\Phi(z_i)`$ can be numerically challenging. The implementation
+    uses `R::pnorm` with `log_p = TRUE`, which is stable for $`z`$ down
+    to about $`-37`$.
 
 ## References
 

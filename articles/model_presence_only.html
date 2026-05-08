@@ -6,13 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Model 1: Presence-Only Gaussian Niche • nicher</title>
-<!-- mathjax math --><script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script><script>
-  window.MathJax = {
-    chtml: {
-      fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
-    }
-  };
-</script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
@@ -39,7 +33,8 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/model_ip_weighted.html">Model 3: Inverse-Probability-Weighted Normal Niche (Horvitz--Thompson)</a></li>
+<li><a class="dropdown-item" href="../articles/cross_validation.html">Cross-Validation: Penalty Tuning and Model Selection</a></li>
+    <li><a class="dropdown-item" href="../articles/model_ip_weighted.html">Model 3: Inverse-Probability-Weighted Normal Niche (Horvitz--Thompson)</a></li>
     <li><a class="dropdown-item" href="../articles/model_presence_only.html">Model 1: Presence-Only Gaussian Niche</a></li>
     <li><a class="dropdown-item" href="../articles/model_skew_normal_weighted.html">Model 5: Skew-Normal Weighted Niche</a></li>
     <li><a class="dropdown-item" href="../articles/model_skew_normal.html">Model 4: Skew-Normal Niche (Azzalini &amp; Capitanio 1999)</a></li>
@@ -47,6 +42,8 @@
     <li><a class="dropdown-item" href="../articles/model_skew_t.html">Model 6: Skew-t Niche (Branco &amp; Dey 2001)</a></li>
     <li><a class="dropdown-item" href="../articles/model_weighted.html">Model 2: Weighted-Normal Niche (Paper Eq. 5/8)</a></li>
     <li><a class="dropdown-item" href="../articles/nicher-introduction.html">Introduction to nicher</a></li>
+    <li><a class="dropdown-item" href="../articles/nicher-workflow.html">Package Workflow: End-to-End Niche Fitting and Projection</a></li>
+    <li><a class="dropdown-item" href="../articles/non_symmetric_models.html">Non-Symmetric Models: Skew-Normal, Skew-t, and NCST Families</a></li>
     <li><a class="dropdown-item" href="../articles/vicugna-weighted-model.html">Why the Weighted Model Struggles on the Vicugna Dataset</a></li>
   </ul>
 </li>
@@ -84,13 +81,21 @@
 <p>The fundamental ecological niche of a species (sensu Hutchinson 1957)
 is the set of environmental conditions under which the species can
 maintain a viable population. When the niche is modelled as a
-multivariate normal density <span class="math inline">\(f(\mathbf{x};\mu,\Sigma)\)</span> in <span class="math inline">\(p\)</span>-dimensional environmental space, the
-problem reduces to estimating the centroid <span class="math inline">\(\mu\)</span> and the shape/orientation matrix
-<span class="math inline">\(\Sigma\)</span> from observed presence
-records.</p>
+multivariate normal density
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐱</mi><mo>;</mo><mi>μ</mi><mo>,</mo><mi mathvariant="normal">Σ</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">f(\mathbf{x};\mu,\Sigma)</annotation></semantics></math>
+in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-dimensional
+environmental space, the problem reduces to estimating the centroid
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>μ</mi><annotation encoding="application/x-tex">\mu</annotation></semantics></math>
+and the shape/orientation matrix
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi mathvariant="normal">Σ</mi><annotation encoding="application/x-tex">\Sigma</annotation></semantics></math>
+from observed presence records.</p>
 <p>The <strong>presence-only</strong> model is the simplest formulation:
-it treats the occurrence records <span class="math inline">\(\{\mathbf{x}_1,\dots,\mathbf{x}_n\}\)</span> as an
-i.i.d. sample from the normal density and estimates <span class="math inline">\((\mu,\Sigma)\)</span> by maximum likelihood.</p>
+it treats the occurrence records
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">{</mo><msub><mi>𝐱</mi><mn>1</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>𝐱</mi><mi>n</mi></msub><mo stretchy="false" form="postfix">}</mo></mrow><annotation encoding="application/x-tex">\{\mathbf{x}_1,\dots,\mathbf{x}_n\}</annotation></semantics></math>
+as an i.i.d. sample from the normal density and estimates
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mi>μ</mi><mo>,</mo><mi mathvariant="normal">Σ</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(\mu,\Sigma)</annotation></semantics></math>
+by maximum likelihood.</p>
 </div>
 <div class="section level2">
 <h2 id="mathematical-specification">2 Mathematical Specification<a class="anchor" aria-label="anchor" href="#mathematical-specification"></a>
@@ -98,49 +103,57 @@ i.i.d. sample from the normal density and estimates <span class="math inline">\(
 <div class="section level3">
 <h3 id="density">2.1 Density<a class="anchor" aria-label="anchor" href="#density"></a>
 </h3>
-<p>The multivariate normal density in <span class="math inline">\(p\)</span> dimensions is</p>
-<p><span class="math display">\[
+<p>The multivariate normal density in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+dimensions is</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐱</mi><mo>;</mo><mi>μ</mi><mo>,</mo><mi mathvariant="normal">Σ</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mo stretchy="false" form="prefix">(</mo><mn>2</mn><mi>π</mi><msup><mo stretchy="false" form="postfix">)</mo><mrow><mi>−</mi><mi>p</mi><mi>/</mi><mn>2</mn></mrow></msup><mspace width="0.167em"></mspace><mo stretchy="false" form="prefix">|</mo><mi mathvariant="normal">Σ</mi><msup><mo stretchy="false" form="prefix">|</mo><mrow><mi>−</mi><mn>1</mn><mi>/</mi><mn>2</mn></mrow></msup><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">exp</mi><mo>⁡</mo></mrow><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">[</mo><mi>−</mi><mstyle displaystyle="false"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><mo stretchy="false" form="prefix">(</mo><mi>𝐱</mi><mo>−</mo><mi>μ</mi><msup><mo stretchy="false" form="postfix">)</mo><mi>⊤</mi></msup><msup><mi mathvariant="normal">Σ</mi><mrow><mi>−</mi><mn>1</mn></mrow></msup><mo stretchy="false" form="prefix">(</mo><mi>𝐱</mi><mo>−</mo><mi>μ</mi><mo stretchy="false" form="postfix">)</mo><mo stretchy="true" form="postfix">]</mo></mrow><mi>.</mi></mrow><annotation encoding="application/x-tex">
 f(\mathbf{x};\mu,\Sigma) =
 (2\pi)^{-p/2}\,|\Sigma|^{-1/2}\,
 \exp\!\left[-\tfrac{1}{2}
   (\mathbf{x}-\mu)^\top\Sigma^{-1}(\mathbf{x}-\mu)\right].
 \tag{1}
-\]</span></p>
+</annotation></semantics></math></p>
 <p>This is Equation 2 of <span class="citation">Jimenez et al.
 (2019)</span>, written for a single observation.</p>
 </div>
 <div class="section level3">
 <h3 id="log-likelihood">2.2 Log-Likelihood<a class="anchor" aria-label="anchor" href="#log-likelihood"></a>
 </h3>
-<p>Given <span class="math inline">\(n\)</span> presence records, the
-log-likelihood is</p>
-<p><span class="math display">\[
+<p>Given
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+presence records, the log-likelihood is</p>
+<p><span class="math display">$$
 \ell(\mu,\Sigma) =
 -\frac{n}{2}\log|\Sigma|
 -\frac{1}{2}\sum_{i=1}^{n}
   (\mathbf{x}_i-\mu)^\top\Sigma^{-1}(\mathbf{x}_i-\mu)
 + \text{const.}
 \tag{2}
-\]</span></p>
-<p>The constant <span class="math inline">\(-\frac{np}{2}\log(2\pi)\)</span> does not depend
-on <span class="math inline">\((\mu,\Sigma)\)</span> and is dropped in
-the implementation because it does not affect the optimum.</p>
+$$</span></p>
+<p>The constant
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mfrac><mrow><mi>n</mi><mi>p</mi></mrow><mn>2</mn></mfrac><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><mn>2</mn><mi>π</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">-\frac{np}{2}\log(2\pi)</annotation></semantics></math>
+does not depend on
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mi>μ</mi><mo>,</mo><mi mathvariant="normal">Σ</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(\mu,\Sigma)</annotation></semantics></math>
+and is dropped in the implementation because it does not affect the
+optimum.</p>
 </div>
 <div class="section level3">
 <h3 id="negative-log-likelihood-minimised-objective">2.3 Negative Log-Likelihood (Minimised Objective)<a class="anchor" aria-label="anchor" href="#negative-log-likelihood-minimised-objective"></a>
 </h3>
 <p>The optimizer minimises the <em>negative</em> log-likelihood:</p>
-<p><span class="math display">\[
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mi>ℓ</mi><mo stretchy="false" form="prefix">(</mo><mi>μ</mi><mo>,</mo><mi mathvariant="normal">Σ</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mfrac><mi>n</mi><mn>2</mn></mfrac><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">|</mo><mi mathvariant="normal">Σ</mi><mo stretchy="false" form="prefix">|</mo><mi>+</mi><mfrac><mn>1</mn><mn>2</mn></mfrac><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><msub><mi>q</mi><mi>i</mi></msub><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>q</mi><mi>i</mi></msub><mo>=</mo><mo stretchy="false" form="postfix">∥</mo><msup><mi>L</mi><mrow><mi>−</mi><mn>1</mn></mrow></msup><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo>−</mo><mi>μ</mi><mo stretchy="false" form="postfix">)</mo><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup><mo>,</mo></mrow><annotation encoding="application/x-tex">
 -\ell(\mu,\Sigma) =
 \frac{n}{2}\log|\Sigma|
 + \frac{1}{2}\sum_{i=1}^{n} q_i,
 \qquad
 q_i = \|L^{-1}(\mathbf{x}_i-\mu)\|^2,
 \tag{3}
-\]</span></p>
-<p>where <span class="math inline">\(\Sigma = LL^\top\)</span> (Cholesky
-factorisation) and <span class="math inline">\(q_i\)</span> is the
-squared Mahalanobis distance.</p>
+</annotation></semantics></math></p>
+<p>where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">Σ</mi><mo>=</mo><mi>L</mi><msup><mi>L</mi><mi>⊤</mi></msup></mrow><annotation encoding="application/x-tex">\Sigma = LL^\top</annotation></semantics></math>
+(Cholesky factorisation) and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>q</mi><mi>i</mi></msub><annotation encoding="application/x-tex">q_i</annotation></semantics></math>
+is the squared Mahalanobis distance.</p>
 </div>
 </div>
 <div class="section level2">
@@ -149,12 +162,15 @@ squared Mahalanobis distance.</p>
 <div class="section level3">
 <h3 id="theta-layout">3.1 Theta Layout<a class="anchor" aria-label="anchor" href="#theta-layout"></a>
 </h3>
-<p>The unconstrained parameter vector <span class="math inline">\(\theta\)</span> has length <span class="math inline">\(2p + p(p-1)/2\)</span>:</p>
-<p><span class="math display">\[
+<p>The unconstrained parameter vector
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+has length
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>p</mi><mo>+</mo><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mo>−</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">2p + p(p-1)/2</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>θ</mi><mo>=</mo><mo minsize="120%" maxsize="120%" stretchy="true" form="prefix">[</mo><munder><munder><mrow><msub><mi>μ</mi><mn>1</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>μ</mi><mi>p</mi></msub></mrow><mo accent="true">⏟</mo></munder><mi>p</mi></munder><mo>,</mo><mspace width="0.278em"></mspace><munder><munder><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mi>σ</mi><mn>1</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mi>σ</mi><mi>p</mi></msub></mrow><mo accent="true">⏟</mo></munder><mi>p</mi></munder><mo>,</mo><mspace width="0.278em"></mspace><munder><munder><mrow><msub><mi>v</mi><mn>1</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>v</mi><mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mo>−</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mn>2</mn></mrow></msub></mrow><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">C-vine</mtext></munder><mo minsize="120%" maxsize="120%" stretchy="true" form="postfix">]</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
 \theta = \bigl[\underbrace{\mu_1,\dots,\mu_p}_{p},\;
          \underbrace{\log\sigma_1,\dots,\log\sigma_p}_{p},\;
          \underbrace{v_1,\dots,v_{p(p-1)/2}}_{\text{C-vine}}\bigr].
-\]</span></p>
+</annotation></semantics></math></p>
 <table class="table">
 <colgroup>
 <col width="20%">
@@ -170,22 +186,24 @@ squared Mahalanobis distance.</p>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td><span class="math inline">\(\mu\)</span></td>
-<td><span class="math inline">\(p\)</span></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>μ</mi><annotation encoding="application/x-tex">\mu</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math></td>
 <td>Unconstrained</td>
 <td>Niche centroid</td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(\log\sigma\)</span></td>
-<td><span class="math inline">\(p\)</span></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>σ</mi></mrow><annotation encoding="application/x-tex">\log\sigma</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math></td>
 <td>
-<span class="math inline">\(\sigma_k &gt; 0\)</span> via <span class="math inline">\(\exp\)</span>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>σ</mi><mi>k</mi></msub><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\sigma_k &gt; 0</annotation></semantics></math>
+via
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi mathvariant="normal">exp</mi><annotation encoding="application/x-tex">\exp</annotation></semantics></math>
 </td>
 <td>Marginal standard deviations</td>
 </tr>
 <tr class="odd">
-<td><span class="math inline">\(v\)</span></td>
-<td><span class="math inline">\(p(p-1)/2\)</span></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>v</mi><annotation encoding="application/x-tex">v</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mo>−</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">p(p-1)/2</annotation></semantics></math></td>
 <td>Unconstrained</td>
 <td>C-vine partial correlations</td>
 </tr>
@@ -195,16 +213,21 @@ squared Mahalanobis distance.</p>
 <div class="section level3">
 <h3 id="covariance-reconstruction">3.2 Covariance Reconstruction<a class="anchor" aria-label="anchor" href="#covariance-reconstruction"></a>
 </h3>
-<p>The covariance matrix is reconstructed as <span class="math inline">\(\Sigma =
-L_{\text{cov}}\,L_{\text{cov}}^\top\)</span>, where</p>
-<p><span class="math display">\[
+<p>The covariance matrix is reconstructed as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">Σ</mi><mo>=</mo><msub><mi>L</mi><mtext mathvariant="normal">cov</mtext></msub><mspace width="0.167em"></mspace><msubsup><mi>L</mi><mtext mathvariant="normal">cov</mtext><mi>⊤</mi></msubsup></mrow><annotation encoding="application/x-tex">\Sigma = L_{\text{cov}}\,L_{\text{cov}}^\top</annotation></semantics></math>,
+where</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mtext mathvariant="normal">cov</mtext></msub><mo>=</mo><mrow><mi mathvariant="normal">diag</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><mi>σ</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.278em"></mspace><mo>⋅</mo><mspace width="0.278em"></mspace><msub><mi>L</mi><mtext mathvariant="normal">corr</mtext></msub><mo>,</mo></mrow><annotation encoding="application/x-tex">
 L_{\text{cov}} = \operatorname{diag}(\sigma)\;\cdot\;L_{\text{corr}},
-\]</span></p>
-<p>and <span class="math inline">\(L_{\text{corr}}\)</span> is the
-lower-triangular Cholesky factor of the correlation matrix <span class="math inline">\(R\)</span>, built from the C-vine parameterisation
-of Lewandowski, Kurowicka &amp; Joe (2009). The LKJ prior with shape
-<span class="math inline">\(\eta\)</span> penalises extreme correlations
-when <span class="math inline">\(\eta &gt; 1\)</span>.</p>
+</annotation></semantics></math></p>
+<p>and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mtext mathvariant="normal">corr</mtext></msub><annotation encoding="application/x-tex">L_{\text{corr}}</annotation></semantics></math>
+is the lower-triangular Cholesky factor of the correlation matrix
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>R</mi><annotation encoding="application/x-tex">R</annotation></semantics></math>,
+built from the C-vine parameterisation of Lewandowski, Kurowicka &amp;
+Joe (2009). The LKJ prior with shape
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>η</mi><annotation encoding="application/x-tex">\eta</annotation></semantics></math>
+penalises extreme correlations when
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>η</mi><mo>&gt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\eta &gt; 1</annotation></semantics></math>.</p>
 </div>
 </div>
 <div class="section level2">
@@ -221,15 +244,20 @@ when <span class="math inline">\(\eta &gt; 1\)</span>.</p>
 </h3>
 <p>The C++ kernel:</p>
 <ol style="list-style-type: decimal">
-<li>Reconstructs <span class="math inline">\(L_{\text{cov}}\)</span>
-from <span class="math inline">\(\theta\)</span> via
-<code>build_L_cov()</code> (lines 40–59).</li>
-<li>Computes <span class="math inline">\(Y = L_{\text{cov}}^{-1}(X -
-\mu)\)</span> by triangular forward solve (line 84).</li>
-<li>Sums squared column norms <span class="math inline">\(\sum_i
-\|y_i\|^2\)</span> (line 85).</li>
-<li>Computes <span class="math inline">\(\log|\Sigma| = 2\sum_k \log
-L_{\text{cov}}(k,k)\)</span> (lines 87–89).</li>
+<li>Reconstructs
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mtext mathvariant="normal">cov</mtext></msub><annotation encoding="application/x-tex">L_{\text{cov}}</annotation></semantics></math>
+from
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+via <code>build_L_cov()</code> (lines 40–59).</li>
+<li>Computes
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Y</mi><mo>=</mo><msubsup><mi>L</mi><mtext mathvariant="normal">cov</mtext><mrow><mi>−</mi><mn>1</mn></mrow></msubsup><mo stretchy="false" form="prefix">(</mo><mi>X</mi><mo>−</mo><mi>μ</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">Y = L_{\text{cov}}^{-1}(X - \mu)</annotation></semantics></math>
+by triangular forward solve (line 84).</li>
+<li>Sums squared column norms
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>∑</mo><mi>i</mi></msub><mo stretchy="false" form="postfix">∥</mo><msub><mi>y</mi><mi>i</mi></msub><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\sum_i \|y_i\|^2</annotation></semantics></math>
+(line 85).</li>
+<li>Computes
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">|</mo><mi mathvariant="normal">Σ</mi><mo stretchy="false" form="prefix">|</mo><mo>=</mo><mn>2</mn><msub><mo>∑</mo><mi>k</mi></msub><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mi>L</mi><mtext mathvariant="normal">cov</mtext></msub><mo stretchy="false" form="prefix">(</mo><mi>k</mi><mo>,</mo><mi>k</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\log|\Sigma| = 2\sum_k \log L_{\text{cov}}(k,k)</annotation></semantics></math>
+(lines 87–89).</li>
 <li>Returns <code>0.5 * n * log_det + 0.5 * sum_q</code> (line 92),
 guarded by <code>OPTIM_PENALTY</code> for NaN/Inf (line 93).</li>
 </ol>
@@ -239,8 +267,9 @@ guarded by <code>OPTIM_PENALTY</code> for NaN/Inf (line 93).</li>
 </h3>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/loglik_niche_math_presence_only.html">loglik_niche_math_presence_only</a></span><span class="op">(</span><span class="va">theta</span>, <span class="va">env_occ</span>, eta <span class="op">=</span> <span class="fl">1</span>, neg <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
-<p>This function reconstructs <span class="math inline">\(L_{\text{cov}}\)</span> via
-<code><a href="../reference/cvine_cholesky.html">cvine_cholesky()</a></code> in R, then calls
+<p>This function reconstructs
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mtext mathvariant="normal">cov</mtext></msub><annotation encoding="application/x-tex">L_{\text{cov}}</annotation></semantics></math>
+via <code><a href="../reference/cvine_cholesky.html">cvine_cholesky()</a></code> in R, then calls
 <code>loglik_niche_presence_only_cpp()</code> (the Rcpp-exported
 wrapper).</p>
 </div>
@@ -259,15 +288,19 @@ wrapper).</p>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td>MLE for <span class="math inline">\(\mu\)</span>
+<td>MLE for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>μ</mi><annotation encoding="application/x-tex">\mu</annotation></semantics></math>
 </td>
-<td>Sample mean <span class="math inline">\(\bar{\mathbf{x}}\)</span>
+<td>Sample mean
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>𝐱</mi><mo accent="true">‾</mo></mover><annotation encoding="application/x-tex">\bar{\mathbf{x}}</annotation></semantics></math>
 </td>
 </tr>
 <tr class="even">
-<td>MLE for <span class="math inline">\(\Sigma\)</span>
+<td>MLE for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi mathvariant="normal">Σ</mi><annotation encoding="application/x-tex">\Sigma</annotation></semantics></math>
 </td>
-<td>Sample covariance <span class="math inline">\(\frac{1}{n}\sum_i(\mathbf{x}_i-\bar{\mathbf{x}})(\mathbf{x}_i-\bar{\mathbf{x}})^\top\)</span>
+<td>Sample covariance
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>1</mn><mi>n</mi></mfrac><msub><mo>∑</mo><mi>i</mi></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo>−</mo><mover><mi>𝐱</mi><mo accent="true">‾</mo></mover><mo stretchy="false" form="postfix">)</mo><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo>−</mo><mover><mi>𝐱</mi><mo accent="true">‾</mo></mover><msup><mo stretchy="false" form="postfix">)</mo><mi>⊤</mi></msup></mrow><annotation encoding="application/x-tex">\frac{1}{n}\sum_i(\mathbf{x}_i-\bar{\mathbf{x}})(\mathbf{x}_i-\bar{\mathbf{x}})^\top</annotation></semantics></math>
 </td>
 </tr>
 <tr class="odd">
@@ -276,7 +309,11 @@ wrapper).</p>
 </tr>
 <tr class="even">
 <td>Identifiability</td>
-<td>Full: <span class="math inline">\(\mu\)</span> and <span class="math inline">\(\Sigma\)</span> are both identifiable</td>
+<td>Full:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>μ</mi><annotation encoding="application/x-tex">\mu</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi mathvariant="normal">Σ</mi><annotation encoding="application/x-tex">\Sigma</annotation></semantics></math>
+are both identifiable</td>
 </tr>
 <tr class="odd">
 <td>Background data</td>
@@ -285,8 +322,9 @@ wrapper).</p>
 <tr class="even">
 <td>Dropped constants</td>
 <td>
-<span class="math inline">\((2\pi)^{-np/2}\)</span> — does not
-affect <span class="math inline">\(\hat\theta\)</span>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mn>2</mn><mi>π</mi><msup><mo stretchy="false" form="postfix">)</mo><mrow><mi>−</mi><mi>n</mi><mi>p</mi><mi>/</mi><mn>2</mn></mrow></msup></mrow><annotation encoding="application/x-tex">(2\pi)^{-np/2}</annotation></semantics></math>
+— does not affect
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>θ</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat\theta</annotation></semantics></math>
 </td>
 </tr>
 </tbody>
@@ -306,8 +344,8 @@ numerical results should match the sample mean and covariance exactly
 MLE as the initial point for the more complex weighted models.</li>
 <li>
 <strong>No background available</strong>: When the accessible area
-<span class="math inline">\(M\)</span> is unknown or the background
-sample is unreliable.</li>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>
+is unknown or the background sample is unreliable.</li>
 </ul>
 </div>
 <div class="section level2">
@@ -316,14 +354,18 @@ sample is unreliable.</li>
 <ol style="list-style-type: decimal">
 <li><p><strong>Ignores environmental availability</strong>. The estimate
 reflects the <em>observed</em> distribution of presences, which is
-confounded by the distribution of environments in <span class="math inline">\(M\)</span>. If <span class="math inline">\(M\)</span> over-represents certain environments,
-<span class="math inline">\(\hat\mu\)</span> will be biased toward those
-environments.</p></li>
+confounded by the distribution of environments in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>.
+If
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>
+over-represents certain environments,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>μ</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat\mu</annotation></semantics></math>
+will be biased toward those environments.</p></li>
 <li><p><strong>No background correction</strong>. Unlike the
 <code>"weighted"</code> and <code>"ip_weighted"</code> models, no KDE of
-<span class="math inline">\(g(\mathbf{x})\)</span> is used. The
-resulting niche estimate is the <em>realised</em> niche (or a biased
-estimate of it), not the fundamental niche.</p></li>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>g</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐱</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">g(\mathbf{x})</annotation></semantics></math>
+is used. The resulting niche estimate is the <em>realised</em> niche (or
+a biased estimate of it), not the fundamental niche.</p></li>
 <li><p><strong>Normality assumption</strong>. The niche is assumed to be
 ellipsoidal. For species with multi-modal or strongly skewed niches,
 consider <code>"skew_normal"</code> or <code>"skew_t"</code>.</p></li>

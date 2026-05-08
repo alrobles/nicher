@@ -6,13 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Model 6: Skew-t Niche (Branco &amp; Dey 2001) • nicher</title>
-<!-- mathjax math --><script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script><script>
-  window.MathJax = {
-    chtml: {
-      fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
-    }
-  };
-</script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
@@ -39,7 +33,8 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/model_ip_weighted.html">Model 3: Inverse-Probability-Weighted Normal Niche (Horvitz--Thompson)</a></li>
+<li><a class="dropdown-item" href="../articles/cross_validation.html">Cross-Validation: Penalty Tuning and Model Selection</a></li>
+    <li><a class="dropdown-item" href="../articles/model_ip_weighted.html">Model 3: Inverse-Probability-Weighted Normal Niche (Horvitz--Thompson)</a></li>
     <li><a class="dropdown-item" href="../articles/model_presence_only.html">Model 1: Presence-Only Gaussian Niche</a></li>
     <li><a class="dropdown-item" href="../articles/model_skew_normal_weighted.html">Model 5: Skew-Normal Weighted Niche</a></li>
     <li><a class="dropdown-item" href="../articles/model_skew_normal.html">Model 4: Skew-Normal Niche (Azzalini &amp; Capitanio 1999)</a></li>
@@ -47,6 +42,8 @@
     <li><a class="dropdown-item" href="../articles/model_skew_t.html">Model 6: Skew-t Niche (Branco &amp; Dey 2001)</a></li>
     <li><a class="dropdown-item" href="../articles/model_weighted.html">Model 2: Weighted-Normal Niche (Paper Eq. 5/8)</a></li>
     <li><a class="dropdown-item" href="../articles/nicher-introduction.html">Introduction to nicher</a></li>
+    <li><a class="dropdown-item" href="../articles/nicher-workflow.html">Package Workflow: End-to-End Niche Fitting and Projection</a></li>
+    <li><a class="dropdown-item" href="../articles/non_symmetric_models.html">Non-Symmetric Models: Skew-Normal, Skew-t, and NCST Families</a></li>
     <li><a class="dropdown-item" href="../articles/vicugna-weighted-model.html">Why the Weighted Model Struggles on the Vicugna Dataset</a></li>
   </ul>
 </li>
@@ -88,13 +85,17 @@ skew-normal model would predict. This is common for generalist species
 or species at range edges where occasional extreme events (heat waves,
 droughts) are tolerated.</p>
 <p>The <strong>skew-t</strong> model extends the skew-normal (Model 4)
-by adding a degrees-of-freedom parameter <span class="math inline">\(r
-&gt; 0\)</span> that controls tail heaviness:</p>
+by adding a degrees-of-freedom parameter
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">r &gt; 0</annotation></semantics></math>
+that controls tail heaviness:</p>
 <ul>
-<li>As <span class="math inline">\(r \to \infty\)</span>, the skew-t
-converges to the skew-normal.</li>
-<li>For small <span class="math inline">\(r\)</span> (e.g. <span class="math inline">\(r = 3\)</span>–<span class="math inline">\(5\)</span>), the tails are substantially heavier
-than Gaussian.</li>
+<li>As
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>→</mo><mi>∞</mi></mrow><annotation encoding="application/x-tex">r \to \infty</annotation></semantics></math>,
+the skew-t converges to the skew-normal.</li>
+<li>For small
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math>
+(e.g. <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>=</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">r = 3</annotation></semantics></math>–<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>5</mn><annotation encoding="application/x-tex">5</annotation></semantics></math>),
+the tails are substantially heavier than Gaussian.</li>
 </ul>
 <p>The distribution follows the noncentral skew-t (NCST) of <span class="citation">Branco and Dey (2001)</span>.</p>
 </div>
@@ -105,70 +106,94 @@ than Gaussian.</li>
 <h3 id="density">2.1 Density<a class="anchor" aria-label="anchor" href="#density"></a>
 </h3>
 <p>The skew-t density is derived as a scale mixture of skew-normals:</p>
-<p><span class="math display">\[
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>T</mi><mo>=</mo><mi>μ</mi><mo>+</mo><mi>X</mi><msqrt><mrow><mi>r</mi><mi>/</mi><mi>Y</mi></mrow></msqrt><mo>,</mo><mspace width="2.0em"></mspace><mi>X</mi><mo>∼</mo><msub><mtext mathvariant="normal">SN</mtext><mi>p</mi></msub><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><mi mathvariant="normal">Σ</mi><mo>,</mo><mi>α</mi><mo stretchy="false" form="postfix">)</mo><mo>,</mo><mspace width="1.0em"></mspace><mi>Y</mi><mo>∼</mo><msubsup><mi>χ</mi><mi>r</mi><mn>2</mn></msubsup><mi>.</mi></mrow><annotation encoding="application/x-tex">
 T = \mu + X\sqrt{r/Y}, \qquad
 X \sim \text{SN}_p(0, \Sigma, \alpha), \quad
 Y \sim \chi^2_r.
 \tag{1}
-\]</span></p>
-<p>The resulting density at <span class="math inline">\(\mathbf{t}\)</span> is:</p>
-<p><span class="math display">\[
+</annotation></semantics></math></p>
+<p>The resulting density at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝐭</mi><annotation encoding="application/x-tex">\mathbf{t}</annotation></semantics></math>
+is:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>f</mi><mi>T</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>𝐭</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mi>C</mi><mo stretchy="false" form="prefix">(</mo><mi>r</mi><mo>,</mo><mi mathvariant="normal">Σ</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.278em"></mspace><msup><mrow><mo stretchy="true" form="prefix">(</mo><mfrac><mn>2</mn><mrow><mi>A</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐭</mi><mo stretchy="false" form="postfix">)</mo></mrow></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mo>+</mo><mi>r</mi><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mn>2</mn></mrow></msup><mspace width="0.278em"></mspace><mi>I</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐭</mi><mo stretchy="false" form="postfix">)</mo><mo>,</mo></mrow><annotation encoding="application/x-tex">
 f_T(\mathbf{t}) =
 C(r,\Sigma)\;\left(\frac{2}{A(\mathbf{t})}\right)^{(p+r)/2}\;I(\mathbf{t}),
 \tag{2}
-\]</span></p>
+</annotation></semantics></math></p>
 <p>where:</p>
-<p><span class="math display">\[
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐭</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mn>1</mn><mo>+</mo><mfrac><mrow><mi>q</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐭</mi><mo stretchy="false" form="postfix">)</mo></mrow><mi>r</mi></mfrac><mo>,</mo><mspace width="2.0em"></mspace><mi>q</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐭</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mo stretchy="false" form="prefix">(</mo><mi>𝐭</mi><mo>−</mo><mi>μ</mi><msup><mo stretchy="false" form="postfix">)</mo><mi>⊤</mi></msup><msup><mi mathvariant="normal">Σ</mi><mrow><mi>−</mi><mn>1</mn></mrow></msup><mo stretchy="false" form="prefix">(</mo><mi>𝐭</mi><mo>−</mo><mi>μ</mi><mo stretchy="false" form="postfix">)</mo><mo>,</mo></mrow><annotation encoding="application/x-tex">
 A(\mathbf{t}) = 1 + \frac{q(\mathbf{t})}{r}, \qquad
 q(\mathbf{t}) = (\mathbf{t}-\mu)^\top\Sigma^{-1}(\mathbf{t}-\mu),
 \tag{3}
-\]</span></p>
-<p><span class="math display">\[
+</annotation></semantics></math></p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>z</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐭</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>p</mi></munderover><mfrac><mrow><msub><mi>α</mi><mi>k</mi></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>t</mi><mi>k</mi></msub><mo>−</mo><msub><mi>μ</mi><mi>k</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><msub><mi>σ</mi><mi>k</mi></msub></mfrac><mo>,</mo></mrow><annotation encoding="application/x-tex">
 z(\mathbf{t}) = \sum_{k=1}^{p}\frac{\alpha_k(t_k - \mu_k)}{\sigma_k},
 \tag{4}
-\]</span></p>
-<p><span class="math display">\[
+</annotation></semantics></math></p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>I</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐭</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><msubsup><mo>∫</mo><mn>0</mn><mi>∞</mi></msubsup><msup><mi>u</mi><mrow><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mo>+</mo><mi>r</mi><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mn>2</mn><mo>−</mo><mn>1</mn></mrow></msup><mspace width="0.167em"></mspace><msup><mi>e</mi><mrow><mi>−</mi><mi>u</mi></mrow></msup><mspace width="0.167em"></mspace><mi mathvariant="normal">Φ</mi><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐭</mi><mo stretchy="false" form="postfix">)</mo><msqrt><mfrac><mrow><mn>2</mn><mi>u</mi></mrow><mrow><mi>A</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐭</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mi>r</mi></mrow></mfrac></msqrt><mo stretchy="true" form="postfix">)</mo></mrow><mi>d</mi><mi>u</mi><mo>,</mo></mrow><annotation encoding="application/x-tex">
 I(\mathbf{t}) = \int_0^\infty
 u^{(p+r)/2 - 1}\,e^{-u}\,
 \Phi\!\left(z(\mathbf{t})\sqrt{\frac{2u}{A(\mathbf{t})\,r}}\right)du,
 \tag{5}
-\]</span></p>
-<p>and <span class="math inline">\(C(r,\Sigma)\)</span> collects the
-normalisation constants.</p>
+</annotation></semantics></math></p>
+<p>and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>C</mi><mo stretchy="false" form="prefix">(</mo><mi>r</mi><mo>,</mo><mi mathvariant="normal">Σ</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">C(r,\Sigma)</annotation></semantics></math>
+collects the normalisation constants.</p>
 </div>
 <div class="section level3">
-<h3 id="the-integral-imathbft">2.2 The Integral <span class="math inline">\(I(\mathbf{t})\)</span><a class="anchor" aria-label="anchor" href="#the-integral-imathbft"></a>
+<h3 id="the-integral-imathbft">2.2 The Integral
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>I</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐭</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">I(\mathbf{t})</annotation></semantics></math><a class="anchor" aria-label="anchor" href="#the-integral-imathbft"></a>
 </h3>
-<p>The integral in Eq. (5) does not have a closed form for <span class="math inline">\(p &gt; 1\)</span> and must be evaluated
-numerically. The integrand has the form <span class="math inline">\(u^a\,e^{-u}\,\Phi(\cdot)\)</span>, where <span class="math inline">\(a = (p+r)/2 - 1\)</span>. The factor <span class="math inline">\(u^a e^{-u}\)</span> is exactly the kernel of a
-Gamma distribution, which makes <strong>Gauss–Laguerre
-quadrature</strong> the natural choice:</p>
-<p><span class="math display">\[
+<p>The integral in Eq. (5) does not have a closed form for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>&gt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">p &gt; 1</annotation></semantics></math>
+and must be evaluated numerically. The integrand has the form
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>u</mi><mi>a</mi></msup><mspace width="0.167em"></mspace><msup><mi>e</mi><mrow><mi>−</mi><mi>u</mi></mrow></msup><mspace width="0.167em"></mspace><mi mathvariant="normal">Φ</mi><mo stretchy="false" form="prefix">(</mo><mi>⋅</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">u^a\,e^{-u}\,\Phi(\cdot)</annotation></semantics></math>,
+where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>a</mi><mo>=</mo><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mo>+</mo><mi>r</mi><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mn>2</mn><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">a = (p+r)/2 - 1</annotation></semantics></math>.
+The factor
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>u</mi><mi>a</mi></msup><msup><mi>e</mi><mrow><mi>−</mi><mi>u</mi></mrow></msup></mrow><annotation encoding="application/x-tex">u^a e^{-u}</annotation></semantics></math>
+is exactly the kernel of a Gamma distribution, which makes
+<strong>Gauss–Laguerre quadrature</strong> the natural choice:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>I</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐭</mi><mo stretchy="false" form="postfix">)</mo><mo>≈</mo><munderover><mo>∑</mo><mrow><mi>q</mi><mo>=</mo><mn>1</mn></mrow><mi>Q</mi></munderover><msub><mi>w</mi><mi>q</mi></msub><mspace width="0.278em"></mspace><msubsup><mi>u</mi><mi>q</mi><mi>a</mi></msubsup><mspace width="0.278em"></mspace><mi mathvariant="normal">Φ</mi><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mi>z</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐭</mi><mo stretchy="false" form="postfix">)</mo><msqrt><mfrac><mrow><mn>2</mn><msub><mi>u</mi><mi>q</mi></msub></mrow><mrow><mi>A</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐭</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mi>r</mi></mrow></mfrac></msqrt><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo></mrow><annotation encoding="application/x-tex">
 I(\mathbf{t}) \approx \sum_{q=1}^{Q}
 w_q\;u_q^a\;\Phi\!\left(z(\mathbf{t})\sqrt{\frac{2u_q}{A(\mathbf{t})\,r}}\right),
 \tag{6}
-\]</span></p>
-<p>where <span class="math inline">\((u_q, w_q)_{q=1}^Q\)</span> are the
-standard Gauss–Laguerre nodes and weights (i.e. the quadrature rule for
-<span class="math inline">\(\int_0^\infty e^{-u}\,g(u)\,du\)</span>),
-and <span class="math inline">\(Q = 32\)</span> in the
-implementation.</p>
+</annotation></semantics></math></p>
+<p>where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>u</mi><mi>q</mi></msub><mo>,</mo><msub><mi>w</mi><mi>q</mi></msub><msubsup><mo stretchy="false" form="postfix">)</mo><mrow><mi>q</mi><mo>=</mo><mn>1</mn></mrow><mi>Q</mi></msubsup></mrow><annotation encoding="application/x-tex">(u_q, w_q)_{q=1}^Q</annotation></semantics></math>
+are the standard Gauss–Laguerre nodes and weights (i.e. the quadrature
+rule for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mo>∫</mo><mn>0</mn><mi>∞</mi></msubsup><msup><mi>e</mi><mrow><mi>−</mi><mi>u</mi></mrow></msup><mspace width="0.167em"></mspace><mi>g</mi><mo stretchy="false" form="prefix">(</mo><mi>u</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mi>d</mi><mi>u</mi></mrow><annotation encoding="application/x-tex">\int_0^\infty e^{-u}\,g(u)\,du</annotation></semantics></math>),
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>=</mo><mn>32</mn></mrow><annotation encoding="application/x-tex">Q = 32</annotation></semantics></math>
+in the implementation.</p>
 </div>
 <div class="section level3">
-<h3 id="why-q-32">2.3 Why <span class="math inline">\(Q = 32\)</span>?<a class="anchor" aria-label="anchor" href="#why-q-32"></a>
+<h3 id="why-q-32">2.3 Why
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>=</mo><mn>32</mn></mrow><annotation encoding="application/x-tex">Q = 32</annotation></semantics></math>?<a class="anchor" aria-label="anchor" href="#why-q-32"></a>
 </h3>
-<p>The choice <span class="math inline">\(Q = 32\)</span> was validated
-by parity tests against R’s
-<code>stats::integrate(rel.tol = 1e-12)</code> for <span class="math inline">\(p = 2\)</span> and <span class="math inline">\(\log r \in [\log 2,
-\log 100]\)</span>. For <span class="math inline">\(p = 2\)</span>, the
-quadrature error is below <span class="math inline">\(10^{-10}\)</span>
-across the tested range. For higher dimensions (<span class="math inline">\(p \geq 3\)</span>), the exponent <span class="math inline">\(a\)</span> increases and additional nodes may be
-needed; users should verify with the parity test suite.</p>
+<p>The choice
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>=</mo><mn>32</mn></mrow><annotation encoding="application/x-tex">Q = 32</annotation></semantics></math>
+was validated by parity tests against R’s
+<code>stats::integrate(rel.tol = 1e-12)</code> for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">p = 2</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>r</mi><mo>∈</mo><mo stretchy="false" form="prefix">[</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mn>2</mn><mo>,</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mn>100</mn><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">\log r \in [\log 2,
+\log 100]</annotation></semantics></math>. For
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">p = 2</annotation></semantics></math>,
+the quadrature error is below
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>10</mn><mrow><mi>−</mi><mn>10</mn></mrow></msup><annotation encoding="application/x-tex">10^{-10}</annotation></semantics></math>
+across the tested range. For higher dimensions
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>≥</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">p \geq 3</annotation></semantics></math>),
+the exponent
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>a</mi><annotation encoding="application/x-tex">a</annotation></semantics></math>
+increases and additional nodes may be needed; users should verify with
+the parity test suite.</p>
 </div>
 <div class="section level3">
 <h3 id="negative-log-likelihood">2.4 Negative Log-Likelihood<a class="anchor" aria-label="anchor" href="#negative-log-likelihood"></a>
 </h3>
-<p><span class="math display">\[
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mi>ℓ</mi><mo stretchy="false" form="prefix">(</mo><mi>θ</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mfrac><mi>n</mi><mn>2</mn></mfrac><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">|</mo><mi mathvariant="normal">Σ</mi><mo stretchy="false" form="prefix">|</mo><mi>+</mi><mfrac><mrow><mi>n</mi><mi>p</mi></mrow><mn>2</mn></mfrac><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>r</mi><mo>+</mo><mi>n</mi><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi mathvariant="normal">Γ</mi><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mfrac><mi>r</mi><mn>2</mn></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mo>+</mo><mfrac><mrow><mi>p</mi><mo>+</mo><mi>r</mi></mrow><mn>2</mn></mfrac><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mi>A</mi><mi>i</mi></msub><mo>−</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mi>I</mi><mi>i</mi></msub><mo>+</mo><mtext mathvariant="normal">penalty</mtext><mo>,</mo></mrow><annotation encoding="application/x-tex">
 -\ell(\theta) =
 \frac{n}{2}\log|\Sigma|
 + \frac{np}{2}\log r
@@ -177,35 +202,43 @@ needed; users should verify with the parity test suite.</p>
 - \sum_{i=1}^{n}\log I_i
 + \text{penalty},
 \tag{7}
-\]</span></p>
+</annotation></semantics></math></p>
 <p>where:</p>
 <ul>
 <li>
-<span class="math inline">\(\log|\Sigma| = 2\sum_k\log
-L_{\text{cov}}(k,k)\)</span>,</li>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">|</mo><mi mathvariant="normal">Σ</mi><mo stretchy="false" form="prefix">|</mo><mo>=</mo><mn>2</mn><msub><mo>∑</mo><mi>k</mi></msub><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mi>L</mi><mtext mathvariant="normal">cov</mtext></msub><mo stretchy="false" form="prefix">(</mo><mi>k</mi><mo>,</mo><mi>k</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\log|\Sigma| = 2\sum_k\log L_{\text{cov}}(k,k)</annotation></semantics></math>,</li>
 <li>
-<span class="math inline">\(A_i = 1 + q_i/r\)</span>,</li>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>A</mi><mi>i</mi></msub><mo>=</mo><mn>1</mn><mo>+</mo><msub><mi>q</mi><mi>i</mi></msub><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">A_i = 1 + q_i/r</annotation></semantics></math>,</li>
 <li>
-<span class="math inline">\(I_i\)</span> is evaluated via Eq.
-(6),</li>
-<li>the penalty includes ridge terms on <span class="math inline">\(\log\sigma\)</span>, <span class="math inline">\(\alpha\)</span>, and <span class="math inline">\(\log r\)</span>.</li>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>I</mi><mi>i</mi></msub><annotation encoding="application/x-tex">I_i</annotation></semantics></math>
+is evaluated via Eq. (6),</li>
+<li>the penalty includes ridge terms on
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>σ</mi></mrow><annotation encoding="application/x-tex">\log\sigma</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>,
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>r</mi></mrow><annotation encoding="application/x-tex">\log r</annotation></semantics></math>.</li>
 </ul>
-<p>Note: the constants <span class="math inline">\(-(p/2 + 1)\,n\log
-2\)</span> and <span class="math inline">\(\frac{p}{2}\,n\log(2\pi)\)</span> are dropped to
-match the convention in Models 1–4.</p>
+<p>Note: the constants
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mi>/</mi><mn>2</mn><mo>+</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mi>n</mi><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mn>2</mn></mrow><annotation encoding="application/x-tex">-(p/2 + 1)\,n\log 2</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mi>p</mi><mn>2</mn></mfrac><mspace width="0.167em"></mspace><mi>n</mi><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><mn>2</mn><mi>π</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\frac{p}{2}\,n\log(2\pi)</annotation></semantics></math>
+are dropped to match the convention in Models 1–4.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="parameterisation">3 Parameterisation<a class="anchor" aria-label="anchor" href="#parameterisation"></a>
 </h2>
-<p>The unconstrained parameter vector <span class="math inline">\(\theta\)</span> has length <span class="math inline">\(3p + p(p-1)/2 + 1\)</span>:</p>
-<p><span class="math display">\[
+<p>The unconstrained parameter vector
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+has length
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>3</mn><mi>p</mi><mo>+</mo><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mo>−</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mn>2</mn><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">3p + p(p-1)/2 + 1</annotation></semantics></math>:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>θ</mi><mo>=</mo><mo minsize="120%" maxsize="120%" stretchy="true" form="prefix">[</mo><munder><munder><mi>μ</mi><mo accent="true">⏟</mo></munder><mi>p</mi></munder><mo>,</mo><mspace width="0.278em"></mspace><munder><munder><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>σ</mi></mrow><mo accent="true">⏟</mo></munder><mi>p</mi></munder><mo>,</mo><mspace width="0.278em"></mspace><munder><munder><msub><mi>v</mi><mtext mathvariant="normal">C-vine</mtext></msub><mo accent="true">⏟</mo></munder><mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mo>−</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mn>2</mn></mrow></munder><mo>,</mo><mspace width="0.278em"></mspace><munder><munder><mi>α</mi><mo accent="true">⏟</mo></munder><mi>p</mi></munder><mo>,</mo><mspace width="0.278em"></mspace><munder><munder><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>r</mi></mrow><mo accent="true">⏟</mo></munder><mn>1</mn></munder><mo minsize="120%" maxsize="120%" stretchy="true" form="postfix">]</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
 \theta = \bigl[\underbrace{\mu}_{p},\;
          \underbrace{\log\sigma}_{p},\;
          \underbrace{v_{\text{C-vine}}}_{p(p-1)/2},\;
          \underbrace{\alpha}_{p},\;
          \underbrace{\log r}_{1}\bigr].
-\]</span></p>
+</annotation></semantics></math></p>
 <table class="table">
 <thead><tr class="header">
 <th>Block</th>
@@ -215,41 +248,48 @@ match the convention in Models 1–4.</p>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td><span class="math inline">\(\mu\)</span></td>
-<td><span class="math inline">\(p\)</span></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>μ</mi><annotation encoding="application/x-tex">\mu</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math></td>
 <td>Unconstrained</td>
 <td>Niche centroid</td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(\log\sigma\)</span></td>
-<td><span class="math inline">\(p\)</span></td>
-<td><span class="math inline">\(\sigma_k &gt; 0\)</span></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>σ</mi></mrow><annotation encoding="application/x-tex">\log\sigma</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>σ</mi><mi>k</mi></msub><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\sigma_k &gt; 0</annotation></semantics></math></td>
 <td>Marginal standard deviations</td>
 </tr>
 <tr class="odd">
-<td><span class="math inline">\(v\)</span></td>
-<td><span class="math inline">\(p(p-1)/2\)</span></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>v</mi><annotation encoding="application/x-tex">v</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mo>−</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">p(p-1)/2</annotation></semantics></math></td>
 <td>Unconstrained</td>
 <td>C-vine partial correlations</td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(\alpha\)</span></td>
-<td><span class="math inline">\(p\)</span></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math></td>
 <td>Unconstrained</td>
 <td>Skewness parameters</td>
 </tr>
 <tr class="odd">
-<td><span class="math inline">\(\log r\)</span></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>r</mi></mrow><annotation encoding="application/x-tex">\log r</annotation></semantics></math></td>
 <td>1</td>
 <td>
-<span class="math inline">\(r &gt; 0\)</span> via <span class="math inline">\(\exp\)</span>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">r &gt; 0</annotation></semantics></math>
+via
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi mathvariant="normal">exp</mi><annotation encoding="application/x-tex">\exp</annotation></semantics></math>
 </td>
 <td>Degrees of freedom</td>
 </tr>
 </tbody>
 </table>
-<p>The degrees-of-freedom parameter <span class="math inline">\(r\)</span> is stored as <span class="math inline">\(\log r\)</span> at position <span class="math inline">\(\theta[3p + n_v]\)</span> to enforce
-positivity.</p>
+<p>The degrees-of-freedom parameter
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math>
+is stored as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>r</mi></mrow><annotation encoding="application/x-tex">\log r</annotation></semantics></math>
+at position
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>θ</mi><mo stretchy="false" form="prefix">[</mo><mn>3</mn><mi>p</mi><mo>+</mo><msub><mi>n</mi><mi>v</mi></msub><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">\theta[3p + n_v]</annotation></semantics></math>
+to enforce positivity.</p>
 </div>
 <div class="section level2">
 <h2 id="implementation-call-chain">4 Implementation Call Chain<a class="anchor" aria-label="anchor" href="#implementation-call-chain"></a>
@@ -276,22 +316,32 @@ positivity.</p>
 <h3 id="the-quadrature-engine-lines-725752">4.1 The Quadrature Engine (lines 725–752)<a class="anchor" aria-label="anchor" href="#the-quadrature-engine-lines-725752"></a>
 </h3>
 <p>The function <code>log_skew_t_integral(q, z, r, k)</code> evaluates
-<span class="math inline">\(\log I\)</span> for a single point:</p>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>I</mi></mrow><annotation encoding="application/x-tex">\log I</annotation></semantics></math>
+for a single point:</p>
 <ol style="list-style-type: decimal">
-<li>Computes <span class="math inline">\(A = 1 + q/r\)</span> and the
-exponent <span class="math inline">\(a = (p+r)/2 - 1\)</span> (lines
-727–728).</li>
-<li>Loops over <span class="math inline">\(Q = 32\)</span>
-Gauss–Laguerre nodes <span class="math inline">\((u_q, w_q)\)</span>
+<li>Computes
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo>=</mo><mn>1</mn><mo>+</mo><mi>q</mi><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">A = 1 + q/r</annotation></semantics></math>
+and the exponent
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>a</mi><mo>=</mo><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mo>+</mo><mi>r</mi><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mn>2</mn><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">a = (p+r)/2 - 1</annotation></semantics></math>
+(lines 727–728).</li>
+<li>Loops over
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>=</mo><mn>32</mn></mrow><annotation encoding="application/x-tex">Q = 32</annotation></semantics></math>
+Gauss–Laguerre nodes
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>u</mi><mi>q</mi></msub><mo>,</mo><msub><mi>w</mi><mi>q</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(u_q, w_q)</annotation></semantics></math>
 (lines 733–744):
 <ul>
-<li>Argument to <span class="math inline">\(\Phi\)</span>: <span class="math inline">\(\text{arg} = z\sqrt{2u_q/(Ar)}\)</span> (line
-740).</li>
-<li>Log-term: <span class="math inline">\(\log w_q + a\log u_q +
-\log\Phi(\text{arg})\)</span> (line 742).</li>
+<li>Argument to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi mathvariant="normal">Φ</mi><annotation encoding="application/x-tex">\Phi</annotation></semantics></math>:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">arg</mtext><mo>=</mo><mi>z</mi><msqrt><mrow><mn>2</mn><msub><mi>u</mi><mi>q</mi></msub><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mi>A</mi><mi>r</mi><mo stretchy="false" form="postfix">)</mo></mrow></msqrt></mrow><annotation encoding="application/x-tex">\text{arg} = z\sqrt{2u_q/(Ar)}</annotation></semantics></math>
+(line 740).</li>
+<li>Log-term:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mi>w</mi><mi>q</mi></msub><mo>+</mo><mi>a</mi><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mi>u</mi><mi>q</mi></msub><mo>+</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi mathvariant="normal">Φ</mi><mo stretchy="false" form="prefix">(</mo><mtext mathvariant="normal">arg</mtext><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\log w_q + a\log u_q + \log\Phi(\text{arg})</annotation></semantics></math>
+(line 742).</li>
 </ul>
 </li>
-<li>Applies the max-shift logsumexp trick across all <span class="math inline">\(Q\)</span> terms (lines 746–751).</li>
+<li>Applies the max-shift logsumexp trick across all
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Q</mi><annotation encoding="application/x-tex">Q</annotation></semantics></math>
+terms (lines 746–751).</li>
 </ol>
 <p>The nodes and weights are hard-coded as <code>constexpr double</code>
 arrays (<code>kGLNodes</code>, <code>kGLWeights</code>, lines 677–715),
@@ -321,29 +371,33 @@ generated by <code>numpy.polynomial.laguerre.laggauss(32)</code>.</p>
 <tbody>
 <tr class="odd">
 <td>Parameters</td>
-<td><span class="math inline">\(3p + p(p-1)/2 + 1\)</span></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>3</mn><mi>p</mi><mo>+</mo><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mo>−</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mn>2</mn><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">3p + p(p-1)/2 + 1</annotation></semantics></math></td>
 </tr>
 <tr class="even">
-<td>Special case <span class="math inline">\(r \to \infty\)</span>
+<td>Special case
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>→</mo><mi>∞</mi></mrow><annotation encoding="application/x-tex">r \to \infty</annotation></semantics></math>
 </td>
 <td>Skew-normal (Model 4)</td>
 </tr>
 <tr class="odd">
-<td>Special case <span class="math inline">\(\alpha = 0\)</span>
+<td>Special case
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\alpha = 0</annotation></semantics></math>
 </td>
-<td>(Non-skewed) multivariate <span class="math inline">\(t\)</span>
+<td>(Non-skewed) multivariate
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
 </td>
 </tr>
 <tr class="even">
-<td>Special case <span class="math inline">\(\alpha = 0, r \to
-\infty\)</span>
+<td>Special case
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>0</mn><mo>,</mo><mi>r</mi><mo>→</mo><mi>∞</mi></mrow><annotation encoding="application/x-tex">\alpha = 0, r \to \infty</annotation></semantics></math>
 </td>
 <td>Multivariate normal (Model 1)</td>
 </tr>
 <tr class="odd">
 <td>Quadrature nodes</td>
 <td>
-<span class="math inline">\(Q = 32\)</span> (Gauss–Laguerre)</td>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>=</mo><mn>32</mn></mrow><annotation encoding="application/x-tex">Q = 32</annotation></semantics></math>
+(Gauss–Laguerre)</td>
 </tr>
 <tr class="even">
 <td>Background data</td>
@@ -361,8 +415,8 @@ environmental tolerances (survives extreme conditions more than a
 Gaussian predicts).</li>
 <li>As a <strong>model-selection candidate</strong>: compare AIC/BIC
 with <code>"skew_normal"</code> and <code>"presence_only"</code>. If
-<span class="math inline">\(\hat{r} &gt; 50\)</span>, the skew-t is not
-adding value over the skew-normal.</li>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>r</mi><mo accent="true">̂</mo></mover><mo>&gt;</mo><mn>50</mn></mrow><annotation encoding="application/x-tex">\hat{r} &gt; 50</annotation></semantics></math>,
+the skew-t is not adding value over the skew-normal.</li>
 <li>For species at <strong>range margins</strong> where extreme
 environmental events are ecologically relevant.</li>
 </ul>
@@ -372,19 +426,36 @@ environmental events are ecologically relevant.</li>
 </h2>
 <ol style="list-style-type: decimal">
 <li><p><strong>Computational cost</strong>. Each log-likelihood
-evaluation requires <span class="math inline">\(Q = 32\)</span> <span class="math inline">\(\Phi\)</span> evaluations per data point, making
-this model approximately <span class="math inline">\(32
-\times\)</span> slower than the skew-normal per evaluation.</p></li>
-<li><p><strong>Quadrature accuracy for <span class="math inline">\(p
-\geq 3\)</span></strong>. The parity tests validate <span class="math inline">\(Q = 32\)</span> for <span class="math inline">\(p
-= 2\)</span>. For higher dimensions, the exponent <span class="math inline">\(a = (p+r)/2 - 1\)</span> increases, potentially
-requiring more nodes. Users should run the parity test suite
-(<code>test-loglik_math_cpp_parity.R</code>) for their specific <span class="math inline">\(p\)</span>.</p></li>
+evaluation requires
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>=</mo><mn>32</mn></mrow><annotation encoding="application/x-tex">Q = 32</annotation></semantics></math><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi mathvariant="normal">Φ</mi><annotation encoding="application/x-tex">\Phi</annotation></semantics></math>
+evaluations per data point, making this model approximately
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>32</mn><mo>×</mo></mrow><annotation encoding="application/x-tex">32
+\times</annotation></semantics></math> slower than the skew-normal per
+evaluation.</p></li>
+<li><p><strong>Quadrature accuracy for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>≥</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">p \geq 3</annotation></semantics></math></strong>.
+The parity tests validate
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>=</mo><mn>32</mn></mrow><annotation encoding="application/x-tex">Q = 32</annotation></semantics></math>
+for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">p = 2</annotation></semantics></math>.
+For higher dimensions, the exponent
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>a</mi><mo>=</mo><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mo>+</mo><mi>r</mi><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mn>2</mn><mo>−</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">a = (p+r)/2 - 1</annotation></semantics></math>
+increases, potentially requiring more nodes. Users should run the parity
+test suite (<code>test-loglik_math_cpp_parity.R</code>) for their
+specific
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>.</p></li>
 <li><p><strong>No background correction</strong>. This is a
 presence-only model. For background-corrected skew-t, use
 <code>"skew_t_weighted"</code> (Model 7).</p></li>
-<li><p><strong>Parameter identifiability</strong>. With <span class="math inline">\(3p + p(p-1)/2 + 1\)</span> parameters, the model
-requires large <span class="math inline">\(n\)</span>. For <span class="math inline">\(p = 2\)</span>, this is 8 parameters; for <span class="math inline">\(p = 5\)</span>, it is 26 parameters.</p></li>
+<li><p><strong>Parameter identifiability</strong>. With
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>3</mn><mi>p</mi><mo>+</mo><mi>p</mi><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mo>−</mo><mn>1</mn><mo stretchy="false" form="postfix">)</mo><mi>/</mi><mn>2</mn><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">3p + p(p-1)/2 + 1</annotation></semantics></math>
+parameters, the model requires large
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>.
+For
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">p = 2</annotation></semantics></math>,
+this is 8 parameters; for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">p = 5</annotation></semantics></math>,
+it is 26 parameters.</p></li>
 </ol>
 </div>
 <div class="section level2 unnumbered">

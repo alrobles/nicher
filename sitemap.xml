@@ -1,6 +1,7 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://alrobles.github.io/nicher/404.html</loc></url>
 <url><loc>https://alrobles.github.io/nicher/LICENSE.html</loc></url>
+<url><loc>https://alrobles.github.io/nicher/articles/cross_validation.html</loc></url>
 <url><loc>https://alrobles.github.io/nicher/articles/index.html</loc></url>
 <url><loc>https://alrobles.github.io/nicher/articles/model_ip_weighted.html</loc></url>
 <url><loc>https://alrobles.github.io/nicher/articles/model_presence_only.html</loc></url>
@@ -10,6 +11,8 @@
 <url><loc>https://alrobles.github.io/nicher/articles/model_skew_t_weighted.html</loc></url>
 <url><loc>https://alrobles.github.io/nicher/articles/model_weighted.html</loc></url>
 <url><loc>https://alrobles.github.io/nicher/articles/nicher-introduction.html</loc></url>
+<url><loc>https://alrobles.github.io/nicher/articles/nicher-workflow.html</loc></url>
+<url><loc>https://alrobles.github.io/nicher/articles/non_symmetric_models.html</loc></url>
 <url><loc>https://alrobles.github.io/nicher/articles/vicugna-weighted-model.html</loc></url>
 <url><loc>https://alrobles.github.io/nicher/authors.html</loc></url>
 <url><loc>https://alrobles.github.io/nicher/index.html</loc></url>
@@ -45,6 +48,7 @@
 <url><loc>https://alrobles.github.io/nicher/reference/loglik_niche_math_cpp.html</loc></url>
 <url><loc>https://alrobles.github.io/nicher/reference/loglik_niche_math_ip_weighted.html</loc></url>
 <url><loc>https://alrobles.github.io/nicher/reference/loglik_niche_math_ip_weighted_integrated.html</loc></url>
+<url><loc>https://alrobles.github.io/nicher/reference/loglik_niche_math_ncst_r.html</loc></url>
 <url><loc>https://alrobles.github.io/nicher/reference/loglik_niche_math_presence_only.html</loc></url>
 <url><loc>https://alrobles.github.io/nicher/reference/new_nicher.html</loc></url>
 <url><loc>https://alrobles.github.io/nicher/reference/niche_ip_weighted.html</loc></url>

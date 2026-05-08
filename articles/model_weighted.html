@@ -6,13 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Model 2: Weighted-Normal Niche (Paper Eq. 5/8) • nicher</title>
-<!-- mathjax math --><script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script><script>
-  window.MathJax = {
-    chtml: {
-      fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
-    }
-  };
-</script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
@@ -39,7 +33,8 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/model_ip_weighted.html">Model 3: Inverse-Probability-Weighted Normal Niche (Horvitz--Thompson)</a></li>
+<li><a class="dropdown-item" href="../articles/cross_validation.html">Cross-Validation: Penalty Tuning and Model Selection</a></li>
+    <li><a class="dropdown-item" href="../articles/model_ip_weighted.html">Model 3: Inverse-Probability-Weighted Normal Niche (Horvitz--Thompson)</a></li>
     <li><a class="dropdown-item" href="../articles/model_presence_only.html">Model 1: Presence-Only Gaussian Niche</a></li>
     <li><a class="dropdown-item" href="../articles/model_skew_normal_weighted.html">Model 5: Skew-Normal Weighted Niche</a></li>
     <li><a class="dropdown-item" href="../articles/model_skew_normal.html">Model 4: Skew-Normal Niche (Azzalini &amp; Capitanio 1999)</a></li>
@@ -47,6 +42,8 @@
     <li><a class="dropdown-item" href="../articles/model_skew_t.html">Model 6: Skew-t Niche (Branco &amp; Dey 2001)</a></li>
     <li><a class="dropdown-item" href="../articles/model_weighted.html">Model 2: Weighted-Normal Niche (Paper Eq. 5/8)</a></li>
     <li><a class="dropdown-item" href="../articles/nicher-introduction.html">Introduction to nicher</a></li>
+    <li><a class="dropdown-item" href="../articles/nicher-workflow.html">Package Workflow: End-to-End Niche Fitting and Projection</a></li>
+    <li><a class="dropdown-item" href="../articles/non_symmetric_models.html">Non-Symmetric Models: Skew-Normal, Skew-t, and NCST Families</a></li>
     <li><a class="dropdown-item" href="../articles/vicugna-weighted-model.html">Why the Weighted Model Struggles on the Vicugna Dataset</a></li>
   </ul>
 </li>
@@ -82,36 +79,50 @@
 <h2 id="ecological-motivation">1 Ecological Motivation<a class="anchor" aria-label="anchor" href="#ecological-motivation"></a>
 </h2>
 <p>The presence-only model (Model 1) ignores the distribution of
-environments in the accessible area <span class="math inline">\(M\)</span>. When some environments are more common
-than others, the uncorrected MLE is biased toward those common
-environments.</p>
+environments in the accessible area
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>.
+When some environments are more common than others, the uncorrected MLE
+is biased toward those common environments.</p>
 <p>The <strong>weighted-normal</strong> model corrects for this by
-incorporating a kernel density estimate (KDE) <span class="math inline">\(\hat{g}(\mathbf{x})\)</span> of the environmental
-density in <span class="math inline">\(M\)</span>. The weight function
-<span class="math inline">\(w(\mathbf{x}) = \hat{g}(\mathbf{x})\)</span>
+incorporating a kernel density estimate (KDE)
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><mi>𝐱</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\hat{g}(\mathbf{x})</annotation></semantics></math>
+of the environmental density in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>.
+The weight function
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐱</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><mi>𝐱</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">w(\mathbf{x}) = \hat{g}(\mathbf{x})</annotation></semantics></math>
 enters both the numerator and denominator of the restricted likelihood,
 modelling an observation process where the probability of recording a
-presence at <span class="math inline">\(\mathbf{x}\)</span> is
-proportional to the product of the species’ suitability <span class="math inline">\(f(\mathbf{x})\)</span> and the environmental
-availability <span class="math inline">\(g(\mathbf{x})\)</span>.</p>
+presence at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝐱</mi><annotation encoding="application/x-tex">\mathbf{x}</annotation></semantics></math>
+is proportional to the product of the species’ suitability
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐱</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">f(\mathbf{x})</annotation></semantics></math>
+and the environmental availability
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>g</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐱</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">g(\mathbf{x})</annotation></semantics></math>.</p>
 <p>This is the <strong>default model</strong> in <code>nicher</code> and
-implements Equation 5 (or equivalently Equation 8 with <span class="math inline">\(w = \hat{g}\)</span>) of <span class="citation">Jimenez and Soberón (2022)</span>.</p>
+implements Equation 5 (or equivalently Equation 8 with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mo>=</mo><mover><mi>g</mi><mo accent="true">̂</mo></mover></mrow><annotation encoding="application/x-tex">w = \hat{g}</annotation></semantics></math>)
+of <span class="citation">Jimenez and Soberón (2022)</span>.</p>
 </div>
 <div class="section level2">
 <h2 id="data-generating-process">2 Data-Generating Process<a class="anchor" aria-label="anchor" href="#data-generating-process"></a>
 </h2>
 <p>The weighted model assumes the <strong>use-availability</strong>
 DGP:</p>
-<p><span class="math display">\[
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo>∣</mo><mrow><mtext mathvariant="normal">presence in </mtext><mspace width="0.333em"></mspace></mrow><mi>M</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mfrac><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo>;</mo><mi>μ</mi><mo>,</mo><mi mathvariant="normal">Σ</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.278em"></mspace><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><mrow><msub><mo>∫</mo><mi>M</mi></msub><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>𝐱</mi><mo>;</mo><mi>μ</mi><mo>,</mo><mi mathvariant="normal">Σ</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.278em"></mspace><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><mi>𝐱</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mi>d</mi><mi>𝐱</mi></mrow></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">
 p(\mathbf{x}_i \mid \text{presence in } M) =
 \frac{f(\mathbf{x}_i;\mu,\Sigma)\;\hat{g}(\mathbf{x}_i)}
-     {\int_M
-f(\mathbf{x};\mu,\Sigma)\;\hat{g}(\mathbf{x})\,d\mathbf{x}}.
+     {\int_M f(\mathbf{x};\mu,\Sigma)\;\hat{g}(\mathbf{x})\,d\mathbf{x}}.
 \tag{1}
-\]</span></p>
+</annotation></semantics></math></p>
 <p>This assumes that the intensity of presence records at environment
-<span class="math inline">\(\mathbf{x}\)</span> is proportional to both
-the species’ fundamental niche density <span class="math inline">\(f\)</span> and the environmental density <span class="math inline">\(g\)</span> in <span class="math inline">\(M\)</span>. This is appropriate when:</p>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝐱</mi><annotation encoding="application/x-tex">\mathbf{x}</annotation></semantics></math>
+is proportional to both the species’ fundamental niche density
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+and the environmental density
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>g</mi><annotation encoding="application/x-tex">g</annotation></semantics></math>
+in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>.
+This is appropriate when:</p>
 <ul>
 <li>Observation probability correlates with environmental density (e.g.
 opportunistic citizen-science records where more observers visit common
@@ -126,24 +137,29 @@ both intrinsic tolerances and environmental availability.</li>
 <div class="section level3">
 <h3 id="restricted-log-likelihood-paper-eq--5">3.1 Restricted Log-Likelihood (Paper Eq. 5)<a class="anchor" aria-label="anchor" href="#restricted-log-likelihood-paper-eq--5"></a>
 </h3>
-<p><span class="math display">\[
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ℓ</mi><mo stretchy="false" form="prefix">(</mo><mi>μ</mi><mo>,</mo><mi mathvariant="normal">Σ</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>+</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mi>n</mi><mspace width="0.167em"></mspace><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mspace width="-0.167em"></mspace><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>K</mi></munderover><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mi>f</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>,</mo></mrow><annotation encoding="application/x-tex">
 \ell(\mu,\Sigma) =
 \sum_{i=1}^{n}\log f(\mathbf{x}_i)
 + \sum_{i=1}^{n}\log \hat{g}(\mathbf{x}_i)
 - n\,\log\!\sum_{j=1}^{K}\hat{g}(\mathbf{y}_j)\,f(\mathbf{y}_j),
 \tag{2}
-\]</span></p>
-<p>where <span class="math inline">\(\{\mathbf{y}_j\}_{j=1}^K\)</span>
-are background points sampled from <span class="math inline">\(M\)</span>.</p>
+</annotation></semantics></math></p>
+<p>where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">{</mo><msub><mi>𝐲</mi><mi>j</mi></msub><msubsup><mo stretchy="false" form="postfix">}</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>K</mi></msubsup></mrow><annotation encoding="application/x-tex">\{\mathbf{y}_j\}_{j=1}^K</annotation></semantics></math>
+are background points sampled from
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>.</p>
 </div>
 <div class="section level3">
 <h3 id="negative-log-likelihood-minimised-objective">3.2 Negative Log-Likelihood (Minimised Objective)<a class="anchor" aria-label="anchor" href="#negative-log-likelihood-minimised-objective"></a>
 </h3>
-<p>Dropping the <span class="math inline">\(\log f\)</span>
-normalisation constant <span class="math inline">\((2\pi)^{-p/2}|\Sigma|^{-1/2}\)</span> from the
-denominator (it cancels between numerator and denominator up to a factor
-that does not affect the optimum), the minimised objective is:</p>
-<p><span class="math display">\[
+<p>Dropping the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>f</mi></mrow><annotation encoding="application/x-tex">\log f</annotation></semantics></math>
+normalisation constant
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mn>2</mn><mi>π</mi><msup><mo stretchy="false" form="postfix">)</mo><mrow><mi>−</mi><mi>p</mi><mi>/</mi><mn>2</mn></mrow></msup><mo stretchy="false" form="prefix">|</mo><mi mathvariant="normal">Σ</mi><msup><mo stretchy="false" form="prefix">|</mo><mrow><mi>−</mi><mn>1</mn><mi>/</mi><mn>2</mn></mrow></msup></mrow><annotation encoding="application/x-tex">(2\pi)^{-p/2}|\Sigma|^{-1/2}</annotation></semantics></math>
+from the denominator (it cancels between numerator and denominator up to
+a factor that does not affect the optimum), the minimised objective
+is:</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><msup><mi>ℓ</mi><mo>*</mo></msup><mo stretchy="false" form="prefix">(</mo><mi>θ</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><msub><mi>q</mi><mi>i</mi></msub><mo>−</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>+</mo><mi>n</mi><mo>⋅</mo><msub><mrow><mi mathvariant="normal">logsumexp</mi><mo>⁡</mo></mrow><mi>j</mi></msub><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">[</mo><mi mathvariant="normal">log</mi><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mstyle displaystyle="false"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><msub><mi>q</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">]</mo></mrow><mo>+</mo><mi>λ</mi><munderover><mo>∑</mo><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><mi>p</mi></munderover><mo stretchy="false" form="prefix">(</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mi>σ</mi><mi>k</mi></msub><mo>−</mo><msub><mi>c</mi><mi>k</mi></msub><msup><mo stretchy="false" form="postfix">)</mo><mn>2</mn></msup><mo>,</mo></mrow><annotation encoding="application/x-tex">
 -\ell^*(\theta) =
 \frac{1}{2}\sum_{i=1}^{n} q_i
 - \sum_{i=1}^{n}\log\hat{g}(\mathbf{x}_i)
@@ -152,43 +168,50 @@ that does not affect the optimum), the minimised objective is:</p>
 \right]
 + \lambda\sum_{k=1}^{p}(\log\sigma_k - c_k)^2,
 \tag{3}
-\]</span></p>
+</annotation></semantics></math></p>
 <p>where:</p>
 <ul>
 <li>
-<span class="math inline">\(q_i = \|L^{-1}(\mathbf{x}_i -
-\mu)\|^2\)</span> is the squared Mahalanobis distance at presence point
-<span class="math inline">\(i\)</span>,</li>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>=</mo><mo stretchy="false" form="postfix">∥</mo><msup><mi>L</mi><mrow><mi>−</mi><mn>1</mn></mrow></msup><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo>−</mo><mi>μ</mi><mo stretchy="false" form="postfix">)</mo><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">q_i = \|L^{-1}(\mathbf{x}_i - \mu)\|^2</annotation></semantics></math>
+is the squared Mahalanobis distance at presence point
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>,</li>
 <li>
-<span class="math inline">\(q_j = \|L^{-1}(\mathbf{y}_j -
-\mu)\|^2\)</span> at background point <span class="math inline">\(j\)</span>,</li>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>q</mi><mi>j</mi></msub><mo>=</mo><mo stretchy="false" form="postfix">∥</mo><msup><mi>L</mi><mrow><mi>−</mi><mn>1</mn></mrow></msup><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo>−</mo><mi>μ</mi><mo stretchy="false" form="postfix">)</mo><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">q_j = \|L^{-1}(\mathbf{y}_j - \mu)\|^2</annotation></semantics></math>
+at background point
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>,</li>
 <li>
-<span class="math inline">\(\hat{g}(\cdot)\)</span> is the Gaussian
-KDE of the background evaluated at the point,</li>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><mi>⋅</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\hat{g}(\cdot)</annotation></semantics></math>
+is the Gaussian KDE of the background evaluated at the point,</li>
 <li>
-<span class="math inline">\(c_k =
-\log\hat\sigma_k(\text{env\_occ})\)</span> centres the ridge prior at
-the sample standard deviation of each variable,</li>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>c</mi><mi>k</mi></msub><mo>=</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mover><mi>σ</mi><mo accent="true">̂</mo></mover><mi>k</mi></msub><mo stretchy="false" form="prefix">(</mo><mtext mathvariant="normal">env_occ</mtext><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">c_k = \log\hat\sigma_k(\text{env\_occ})</annotation></semantics></math>
+centres the ridge prior at the sample standard deviation of each
+variable,</li>
 <li>
-<span class="math inline">\(\lambda\)</span> controls the ridge
-strength (default 1.0; set to 0 for pure paper Eq. 5).</li>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>λ</mi><annotation encoding="application/x-tex">\lambda</annotation></semantics></math>
+controls the ridge strength (default 1.0; set to 0 for pure paper Eq.
+5).</li>
 </ul>
 </div>
 <div class="section level3">
 <h3 id="the-ridge-prior">3.3 The Ridge Prior<a class="anchor" aria-label="anchor" href="#the-ridge-prior"></a>
 </h3>
 <p>The pure MLE of the weighted-normal model is susceptible to the Patil
-&amp; Ord (1976) drift: as <span class="math inline">\(\sigma_k \to
-\infty\)</span>, the numerator density <span class="math inline">\(f(\mathbf{x}_i)\)</span> flattens, the denominator
-approaches <span class="math inline">\(\sum_j
-\hat{g}(\mathbf{y}_j)\)</span> (a constant), and the likelihood
-increases without bound.</p>
-<p>The ridge term <span class="math inline">\(\lambda\sum_k(\log\sigma_k
-- c_k)^2\)</span> is a weakly informative prior that penalises
-log-standard-deviations far from the empirical scale, preventing this
-drift while having negligible influence near the optimum. Users can set
-<span class="math inline">\(\lambda = 0\)</span> to recover the exact
-paper formula, but this is not recommended for multimodal <span class="math inline">\(M\)</span>.</p>
+&amp; Ord (1976) drift: as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>σ</mi><mi>k</mi></msub><mo>→</mo><mi>∞</mi></mrow><annotation encoding="application/x-tex">\sigma_k \to \infty</annotation></semantics></math>,
+the numerator density
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">f(\mathbf{x}_i)</annotation></semantics></math>
+flattens, the denominator approaches
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>∑</mo><mi>j</mi></msub><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\sum_j \hat{g}(\mathbf{y}_j)</annotation></semantics></math>
+(a constant), and the likelihood increases without bound.</p>
+<p>The ridge term
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><msub><mo>∑</mo><mi>k</mi></msub><mo stretchy="false" form="prefix">(</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mi>σ</mi><mi>k</mi></msub><mo>−</mo><msub><mi>c</mi><mi>k</mi></msub><msup><mo stretchy="false" form="postfix">)</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\lambda\sum_k(\log\sigma_k - c_k)^2</annotation></semantics></math>
+is a weakly informative prior that penalises log-standard-deviations far
+from the empirical scale, preventing this drift while having negligible
+influence near the optimum. Users can set
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\lambda = 0</annotation></semantics></math>
+to recover the exact paper formula, but this is not recommended for
+multimodal
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>.</p>
 </div>
 <div class="section level3">
 <h3 id="sign-convention-vs--ip_weighted">3.4 Sign Convention (vs. ip_weighted)<a class="anchor" aria-label="anchor" href="#sign-convention-vs--ip_weighted"></a>
@@ -210,22 +233,22 @@ paper formula, but this is not recommended for multimodal <span class="math inli
 <tbody>
 <tr class="odd">
 <td>Denominator integrand</td>
-<td><span class="math inline">\(+\log\hat{g}(\mathbf{y}_j) -
-\frac{1}{2}q_j\)</span></td>
-<td><span class="math inline">\(-\frac{1}{2}q_j -
-\log\hat{g}(\mathbf{y}_j)\)</span></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>+</mi><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><msub><mi>q</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">+\log\hat{g}(\mathbf{y}_j) - \frac{1}{2}q_j</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><mfrac><mn>1</mn><mn>2</mn></mfrac><msub><mi>q</mi><mi>j</mi></msub><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">-\frac{1}{2}q_j - \log\hat{g}(\mathbf{y}_j)</annotation></semantics></math></td>
 </tr>
 <tr class="even">
 <td>Numerator KDE</td>
-<td><span class="math inline">\(-\sum_i\log\hat{g}(\mathbf{x}_i)\)</span></td>
-<td><span class="math inline">\(+\sum_i\log\hat{g}(\mathbf{x}_i)\)</span></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><msub><mo>∑</mo><mi>i</mi></msub><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">-\sum_i\log\hat{g}(\mathbf{x}_i)</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>+</mi><msub><mo>∑</mo><mi>i</mi></msub><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">+\sum_i\log\hat{g}(\mathbf{x}_i)</annotation></semantics></math></td>
 </tr>
 </tbody>
 </table>
-<p>These sign differences correspond to <span class="math inline">\(w =
-\hat{g}\)</span> (weighted) vs. <span class="math inline">\(w =
-1/\hat{g}\)</span> (ip_weighted). Both are instances of Equation 8 with
-different weight functions.</p>
+<p>These sign differences correspond to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mo>=</mo><mover><mi>g</mi><mo accent="true">̂</mo></mover></mrow><annotation encoding="application/x-tex">w = \hat{g}</annotation></semantics></math>
+(weighted) vs.
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>w</mi><mo>=</mo><mn>1</mn><mi>/</mi><mover><mi>g</mi><mo accent="true">̂</mo></mover></mrow><annotation encoding="application/x-tex">w = 1/\hat{g}</annotation></semantics></math>
+(ip_weighted). Both are instances of Equation 8 with different weight
+functions.</p>
 </div>
 </div>
 <div class="section level2">
@@ -245,15 +268,19 @@ different weight functions.</p>
 </h3>
 <p>The C++ kernel:</p>
 <ol style="list-style-type: decimal">
-<li>Reconstructs <span class="math inline">\(L_{\text{cov}}\)</span>
-from <span class="math inline">\(\theta\)</span> via
-<code>build_L_cov()</code>.</li>
+<li>Reconstructs
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mtext mathvariant="normal">cov</mtext></msub><annotation encoding="application/x-tex">L_{\text{cov}}</annotation></semantics></math>
+from
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+via <code>build_L_cov()</code>.</li>
 <li>Computes Mahalanobis distances for both presence and background
 points.</li>
 <li>Clamps KDE weights: <code>w.max(MIN_KDE_WEIGHT).log()</code> with
-<code>MIN_KDE_WEIGHT = 1e-300</code> to prevent <span class="math inline">\(\log(0) = -\infty\)</span>.</li>
-<li>Computes the logsumexp of <span class="math inline">\(a_j =
-\log\hat{g}(\mathbf{y}_j) - \frac{1}{2}q_j\)</span> (line 366).</li>
+<code>MIN_KDE_WEIGHT = 1e-300</code> to prevent
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mi>−</mi><mi>∞</mi></mrow><annotation encoding="application/x-tex">\log(0) = -\infty</annotation></semantics></math>.</li>
+<li>Computes the logsumexp of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mi>j</mi></msub><mo>=</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><msub><mi>q</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">a_j = \log\hat{g}(\mathbf{y}_j) - \frac{1}{2}q_j</annotation></semantics></math>
+(line 366).</li>
 <li>Adds the ridge penalty via <code>prior_penalty_value()</code> (line
 372–373).</li>
 <li>Returns the guarded negative log-likelihood (line 379).</li>
@@ -262,22 +289,31 @@ points.</li>
 <div class="section level3">
 <h3 id="analytic-gradient-lines-383499">4.2 Analytic Gradient (lines 383–499)<a class="anchor" aria-label="anchor" href="#analytic-gradient-lines-383499"></a>
 </h3>
-<p>The gradient is computed analytically for <span class="math inline">\(\mu\)</span> and <span class="math inline">\(\log\sigma\)</span>, and by central finite
-differences for the C-vine partial-correlation block <span class="math inline">\(v\)</span>:</p>
+<p>The gradient is computed analytically for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>μ</mi><annotation encoding="application/x-tex">\mu</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>σ</mi></mrow><annotation encoding="application/x-tex">\log\sigma</annotation></semantics></math>,
+and by central finite differences for the C-vine partial-correlation
+block
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>v</mi><annotation encoding="application/x-tex">v</annotation></semantics></math>:</p>
 <ul>
 <li>
-<strong><span class="math inline">\(\nabla_\mu\)</span></strong>:
-Closed-form via <span class="math inline">\(\Sigma^{-1}[\text{weighted
-mean shift}]\)</span> (lines 449–457).</li>
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>∇</mi><mi>μ</mi></msub><annotation encoding="application/x-tex">\nabla_\mu</annotation></semantics></math></strong>:
+Closed-form via
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi mathvariant="normal">Σ</mi><mrow><mi>−</mi><mn>1</mn></mrow></msup><mo stretchy="false" form="prefix">[</mo><mtext mathvariant="normal">weighted mean shift</mtext><mo stretchy="false" form="postfix">]</mo></mrow><annotation encoding="application/x-tex">\Sigma^{-1}[\text{weighted mean shift}]</annotation></semantics></math>
+(lines 449–457).</li>
 <li>
-<strong><span class="math inline">\(\nabla_{\log\sigma_k}\)</span></strong>:
-Closed-form via <span class="math inline">\(U \odot V\)</span> products
-with softmax weights <span class="math inline">\(\pi_j\)</span> (lines
-459–464).</li>
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>∇</mi><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mi>σ</mi><mi>k</mi></msub></mrow></msub><annotation encoding="application/x-tex">\nabla_{\log\sigma_k}</annotation></semantics></math></strong>:
+Closed-form via
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>U</mi><mo>⊙</mo><mi>V</mi></mrow><annotation encoding="application/x-tex">U \odot V</annotation></semantics></math>
+products with softmax weights
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>π</mi><mi>j</mi></msub><annotation encoding="application/x-tex">\pi_j</annotation></semantics></math>
+(lines 459–464).</li>
 <li>
-<strong><span class="math inline">\(\nabla_{v_k}\)</span></strong>:
-Central FD with step <span class="math inline">\(\Delta = |v_k| \cdot
-h_{\text{rel}} + h_{\text{abs}}\)</span> (lines 466–484).</li>
+<strong><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>∇</mi><msub><mi>v</mi><mi>k</mi></msub></msub><annotation encoding="application/x-tex">\nabla_{v_k}</annotation></semantics></math></strong>:
+Central FD with step
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">Δ</mi><mo>=</mo><mo stretchy="false" form="prefix">|</mo><msub><mi>v</mi><mi>k</mi></msub><mo stretchy="false" form="prefix">|</mo><mi>⋅</mi><msub><mi>h</mi><mtext mathvariant="normal">rel</mtext></msub><mo>+</mo><msub><mi>h</mi><mtext mathvariant="normal">abs</mtext></msub></mrow><annotation encoding="application/x-tex">\Delta = |v_k| \cdot h_{\text{rel}} + h_{\text{abs}}</annotation></semantics></math>
+(lines 466–484).</li>
 <li>
 <strong>Ridge gradient</strong>: Added by
 <code>prior_penalty_grad_add()</code> (line 493).</li>
@@ -294,19 +330,27 @@ h_{\text{rel}} + h_{\text{abs}}\)</span> (lines 466–484).</li>
 <div class="section level2">
 <h2 id="kde-computation">5 KDE Computation<a class="anchor" aria-label="anchor" href="#kde-computation"></a>
 </h2>
-<p>The background KDE <span class="math inline">\(\hat{g}\)</span> is
-computed <strong>once</strong> before optimisation begins (it depends
-only on the data, not on <span class="math inline">\(\theta\)</span>).
+<p>The background KDE
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>g</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat{g}</annotation></semantics></math>
+is computed <strong>once</strong> before optimisation begins (it depends
+only on the data, not on
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>).
 The KDE uses a Gaussian kernel with Scott’s rule bandwidth:</p>
-<p><span class="math display">\[
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>h</mi><mi>k</mi></msub><mo>=</mo><msub><mover><mi>σ</mi><mo accent="true">̂</mo></mover><mi>k</mi></msub><mo>⋅</mo><msup><mi>K</mi><mrow><mi>−</mi><mn>1</mn><mi>/</mi><mo stretchy="false" form="prefix">(</mo><mi>p</mi><mo>+</mo><mn>4</mn><mo stretchy="false" form="postfix">)</mo></mrow></msup><mo>,</mo></mrow><annotation encoding="application/x-tex">
 h_k = \hat\sigma_k \cdot K^{-1/(p+4)},
-\]</span></p>
-<p>where <span class="math inline">\(K\)</span> is the number of
-reference points and <span class="math inline">\(\hat\sigma_k\)</span>
-is the sample standard deviation of the <span class="math inline">\(k\)</span>-th environmental variable in the
-background. For <span class="math inline">\(p = 2\)</span>, a
-specialised <code>kde_2d()</code> kernel is used; for <span class="math inline">\(p \geq 3\)</span>, the general
-<code>kde_eigen()</code> kernel handles arbitrary dimensions.</p>
+</annotation></semantics></math></p>
+<p>where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+is the number of reference points and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mover><mi>σ</mi><mo accent="true">̂</mo></mover><mi>k</mi></msub><annotation encoding="application/x-tex">\hat\sigma_k</annotation></semantics></math>
+is the sample standard deviation of the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>-th
+environmental variable in the background. For
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">p = 2</annotation></semantics></math>,
+a specialised <code>kde_2d()</code> kernel is used; for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>≥</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">p \geq 3</annotation></semantics></math>,
+the general <code>kde_eigen()</code> kernel handles arbitrary
+dimensions.</p>
 </div>
 <div class="section level2">
 <h2 id="analytical-properties">6 Analytical Properties<a class="anchor" aria-label="anchor" href="#analytical-properties"></a>
@@ -322,24 +366,30 @@ specialised <code>kde_2d()</code> kernel is used; for <span class="math inline">
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td>MLE for <span class="math inline">\(\mu\)</span>
+<td>MLE for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>μ</mi><annotation encoding="application/x-tex">\mu</annotation></semantics></math>
 </td>
 <td>No closed form (implicit through the weighted denominator)</td>
 </tr>
 <tr class="even">
 <td>Likelihood shape</td>
-<td>Can be multimodal for complex <span class="math inline">\(M\)</span>
+<td>Can be multimodal for complex
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>
 </td>
 </tr>
 <tr class="odd">
 <td>Identifiability</td>
-<td>Full for finite <span class="math inline">\(M\)</span> with ridge
-(<span class="math inline">\(\lambda &gt; 0\)</span>)</td>
+<td>Full for finite
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>
+with ridge
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\lambda &gt; 0</annotation></semantics></math>)</td>
 </tr>
 <tr class="even">
 <td>Background data</td>
-<td>Required (<span class="math inline">\(\mathbf{y}_j\)</span> from
-<span class="math inline">\(M\)</span>)</td>
+<td>Required
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝐲</mi><mi>j</mi></msub><annotation encoding="application/x-tex">\mathbf{y}_j</annotation></semantics></math>
+from
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>)</td>
 </tr>
 <tr class="odd">
 <td>KDE weights</td>
@@ -347,8 +397,10 @@ specialised <code>kde_2d()</code> kernel is used; for <span class="math inline">
 </tr>
 <tr class="even">
 <td>Regularisation</td>
-<td>Ridge prior on <span class="math inline">\(\log\sigma\)</span>
-(default <span class="math inline">\(\lambda = 1\)</span>)</td>
+<td>Ridge prior on
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>σ</mi></mrow><annotation encoding="application/x-tex">\log\sigma</annotation></semantics></math>
+(default
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\lambda = 1</annotation></semantics></math>)</td>
 </tr>
 </tbody>
 </table>
@@ -364,23 +416,33 @@ modelling workflows.</li>
 (opportunistic records, citizen-science data).</li>
 <li>When the goal is to estimate the niche <em>as observed through M’s
 lens</em> (realised niche under the use-availability DGP).</li>
-<li>When <span class="math inline">\(M\)</span> is unimodal or mildly
-multimodal (the ridge prior handles moderate non-convexity).</li>
+<li>When
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>
+is unimodal or mildly multimodal (the ridge prior handles moderate
+non-convexity).</li>
 </ul>
 </div>
 <div class="section level2">
 <h2 id="limitations">8 Limitations<a class="anchor" aria-label="anchor" href="#limitations"></a>
 </h2>
 <ol style="list-style-type: decimal">
-<li><p><strong>DGP assumption</strong>. Assumes presence intensity <span class="math inline">\(\propto f \cdot g\)</span>. If sampling effort is
-uniform across <span class="math inline">\(M\)</span> and the goal is
-the fundamental niche on Lebesgue measure, consider
+<li><p><strong>DGP assumption</strong>. Assumes presence intensity
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>∝</mo><mi>f</mi><mo>⋅</mo><mi>g</mi></mrow><annotation encoding="application/x-tex">\propto f \cdot g</annotation></semantics></math>.
+If sampling effort is uniform across
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>
+and the goal is the fundamental niche on Lebesgue measure, consider
 <code>"ip_weighted"</code> (Model 3) instead.</p></li>
 <li><p><strong>Patil &amp; Ord drift</strong> (without ridge). Setting
-<span class="math inline">\(\lambda = 0\)</span> recovers the exact
-paper Eq. 5 but the MLE may not exist (<span class="math inline">\(\sigma \to \infty\)</span>). Always use <span class="math inline">\(\lambda &gt; 0\)</span> in practice.</p></li>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\lambda = 0</annotation></semantics></math>
+recovers the exact paper Eq. 5 but the MLE may not exist
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>σ</mi><mo>→</mo><mi>∞</mi></mrow><annotation encoding="application/x-tex">\sigma \to \infty</annotation></semantics></math>).
+Always use
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mo>&gt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\lambda &gt; 0</annotation></semantics></math>
+in practice.</p></li>
 <li><p><strong>KDE bandwidth sensitivity</strong>. Scott’s rule may
-over- or under-smooth. Diagnostic plots of <span class="math inline">\(\hat{g}\)</span> are recommended.</p></li>
+over- or under-smooth. Diagnostic plots of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>g</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat{g}</annotation></semantics></math>
+are recommended.</p></li>
 <li><p><strong>Normality assumption</strong>. The niche is ellipsoidal.
 For asymmetric niches, consider <code>"skew_normal_weighted"</code>
 (Model 5) or <code>"skew_t_weighted"</code> (Model 7).</p></li>

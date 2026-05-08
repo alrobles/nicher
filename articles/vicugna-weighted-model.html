@@ -6,13 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Why the Weighted Model Struggles on the Vicugna Dataset • nicher</title>
-<!-- mathjax math --><script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script><script>
-  window.MathJax = {
-    chtml: {
-      fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
-    }
-  };
-</script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
@@ -39,7 +33,8 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/model_ip_weighted.html">Model 3: Inverse-Probability-Weighted Normal Niche (Horvitz--Thompson)</a></li>
+<li><a class="dropdown-item" href="../articles/cross_validation.html">Cross-Validation: Penalty Tuning and Model Selection</a></li>
+    <li><a class="dropdown-item" href="../articles/model_ip_weighted.html">Model 3: Inverse-Probability-Weighted Normal Niche (Horvitz--Thompson)</a></li>
     <li><a class="dropdown-item" href="../articles/model_presence_only.html">Model 1: Presence-Only Gaussian Niche</a></li>
     <li><a class="dropdown-item" href="../articles/model_skew_normal_weighted.html">Model 5: Skew-Normal Weighted Niche</a></li>
     <li><a class="dropdown-item" href="../articles/model_skew_normal.html">Model 4: Skew-Normal Niche (Azzalini &amp; Capitanio 1999)</a></li>
@@ -47,6 +42,8 @@
     <li><a class="dropdown-item" href="../articles/model_skew_t.html">Model 6: Skew-t Niche (Branco &amp; Dey 2001)</a></li>
     <li><a class="dropdown-item" href="../articles/model_weighted.html">Model 2: Weighted-Normal Niche (Paper Eq. 5/8)</a></li>
     <li><a class="dropdown-item" href="../articles/nicher-introduction.html">Introduction to nicher</a></li>
+    <li><a class="dropdown-item" href="../articles/nicher-workflow.html">Package Workflow: End-to-End Niche Fitting and Projection</a></li>
+    <li><a class="dropdown-item" href="../articles/non_symmetric_models.html">Non-Symmetric Models: Skew-Normal, Skew-t, and NCST Families</a></li>
     <li><a class="dropdown-item" href="../articles/vicugna-weighted-model.html">Why the Weighted Model Struggles on the Vicugna Dataset</a></li>
   </ul>
 </li>
@@ -104,10 +101,12 @@ choosing among the seven likelihood families available in
 <h2 id="the-core-issue-multimodal-m-with-a-concentrated-niche">The core issue: multimodal M with a concentrated niche<a class="anchor" aria-label="anchor" href="#the-core-issue-multimodal-m-with-a-concentrated-niche"></a>
 </h2>
 <p>The vicugna occupies a narrow band in environmental space: most
-occurrences cluster tightly around bio1 <span class="math inline">\(\approx\)</span> 5–6 degrees Celsius and bio12
-<span class="math inline">\(\approx\)</span> 100 mm. The accessible area
-(M), however, spans a much wider and <strong>multimodal</strong> range
-of climates.</p>
+occurrences cluster tightly around bio1
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>≈</mo><annotation encoding="application/x-tex">\approx</annotation></semantics></math>
+5–6 degrees Celsius and bio12
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>≈</mo><annotation encoding="application/x-tex">\approx</annotation></semantics></math>
+100 mm. The accessible area (M), however, spans a much wider and
+<strong>multimodal</strong> range of climates.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Occurrences (n ="</span>, <span class="fu"><a href="https://rspatial.github.io/terra/reference/dimensions.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">env_occ</span><span class="op">)</span>, <span class="st">")\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Occurrences (n = 545 )</span></span>
@@ -151,9 +150,12 @@ direct consequences for the weighted likelihood.</p>
 <div class="section level2">
 <h2 id="the-presence-only-model-a-clean-baseline">The presence-only model: a clean baseline<a class="anchor" aria-label="anchor" href="#the-presence-only-model-a-clean-baseline"></a>
 </h2>
-<p>The presence-only family estimates <span class="math inline">\((\mu,
-\Sigma)\)</span> by maximising the log-likelihood: <span class="math display">\[\ell_{\mathrm{PO}}(\theta) = \sum_{i=1}^{n} \log
-f(x_i \mid \theta)\]</span> where <span class="math inline">\(f\)</span>
+<p>The presence-only family estimates
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mi>μ</mi><mo>,</mo><mi mathvariant="normal">Σ</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(\mu, \Sigma)</annotation></semantics></math>
+by maximising the log-likelihood:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ℓ</mi><mrow><mi mathvariant="normal">P</mi><mi mathvariant="normal">O</mi></mrow></msub><mo stretchy="false" form="prefix">(</mo><mi>θ</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>∣</mo><mi>θ</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\ell_{\mathrm{PO}}(\theta) = \sum_{i=1}^{n} \log f(x_i \mid \theta)</annotation></semantics></math>
+where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
 is the multivariate Gaussian density. Since it only uses the occurrence
 data, the PO estimator reduces to the sample mean and covariance, which
 are well-defined for the unimodal, concentrated vicugna niche.</p>
@@ -177,16 +179,21 @@ are well-defined for the unimodal, concentrated vicugna niche.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"PO mu:"</span>, <span class="fu"><a href="https://rspatial.github.io/terra/reference/math-generics.html" class="external-link">round</a></span><span class="op">(</span><span class="va">fit_po</span><span class="op">$</span><span class="va">best</span><span class="op">$</span><span class="va">theta</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">p</span><span class="op">)</span><span class="op">]</span>, <span class="fl">2</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; PO mu: 6.12 214.96</span></span></code></pre></div>
 <p>The PO estimates are stable and close to the empirical mean: bio1
-<span class="math inline">\(\approx\)</span> 6.1, bio12 <span class="math inline">\(\approx\)</span> 215.</p>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>≈</mo><annotation encoding="application/x-tex">\approx</annotation></semantics></math>
+6.1, bio12
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>≈</mo><annotation encoding="application/x-tex">\approx</annotation></semantics></math>
+215.</p>
 </div>
 <div class="section level2">
 <h2 id="the-weighted-model-denominator-instability">The weighted model: denominator instability<a class="anchor" aria-label="anchor" href="#the-weighted-model-denominator-instability"></a>
 </h2>
 <p>The weighted likelihood (Jimenez et al. 2022) introduces a correction
-for the background: <span class="math display">\[\ell_{\mathrm{W}}(\theta) =
+for the background:
+<math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ℓ</mi><mi mathvariant="normal">W</mi></msub><mo stretchy="false" form="prefix">(</mo><mi>θ</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mfrac><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>∣</mo><mi>θ</mi><mo stretchy="false" form="postfix">)</mo></mrow><mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow></mfrac><mo>−</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>m</mi></munderover><mfrac><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><msubsup><mi>x</mi><mi>j</mi><mrow><mo stretchy="false" form="prefix">(</mo><mi>M</mi><mo stretchy="false" form="postfix">)</mo></mrow></msubsup><mo>∣</mo><mi>θ</mi><mo stretchy="false" form="postfix">)</mo></mrow><mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msubsup><mi>x</mi><mi>j</mi><mrow><mo stretchy="false" form="prefix">(</mo><mi>M</mi><mo stretchy="false" form="postfix">)</mo></mrow></msubsup><mo stretchy="false" form="postfix">)</mo></mrow></mfrac></mrow><annotation encoding="application/x-tex">\ell_{\mathrm{W}}(\theta) =
   \sum_{i=1}^{n} \log \frac{f(x_i \mid \theta)}{\hat g(x_i)}
-  - \log \sum_{j=1}^{m} \frac{f(x_j^{(M)} \mid \theta)}{\hat
-g(x_j^{(M)})}\]</span> where <span class="math inline">\(\hat g\)</span>
+  - \log \sum_{j=1}^{m} \frac{f(x_j^{(M)} \mid \theta)}{\hat g(x_j^{(M)})}</annotation></semantics></math>
+where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mover><mi>g</mi><mo accent="true">̂</mo></mover><annotation encoding="application/x-tex">\hat g</annotation></semantics></math>
 is a kernel density estimate of the background distribution. The
 denominator (the integral approximation) sums over background points,
 weighted inversely by the KDE.</p>
@@ -208,38 +215,50 @@ weighted inversely by the KDE.</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"W mu:"</span>, <span class="fu"><a href="https://rspatial.github.io/terra/reference/math-generics.html" class="external-link">round</a></span><span class="op">(</span><span class="va">fit_w</span><span class="op">$</span><span class="va">best</span><span class="op">$</span><span class="va">theta</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">p</span><span class="op">)</span><span class="op">]</span>, <span class="fl">2</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; W mu: -0.62 235.01</span></span></code></pre></div>
-<p>The weighted model’s <span class="math inline">\(\mu\)</span>
+<p>The weighted model’s
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>μ</mi><annotation encoding="application/x-tex">\mu</annotation></semantics></math>
 estimate for bio1 is pulled far from the occurrence centre, and the
 log-sigma values are inflated. <strong>The model fits worse by every
-metric</strong>: higher (worse) AIC, and a <span class="math inline">\(\mu\)</span> that does not correspond to the
-observed niche.</p>
+metric</strong>: higher (worse) AIC, and a
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>μ</mi><annotation encoding="application/x-tex">\mu</annotation></semantics></math>
+that does not correspond to the observed niche.</p>
 <div class="section level3">
 <h3 id="why-this-happens">Why this happens<a class="anchor" aria-label="anchor" href="#why-this-happens"></a>
 </h3>
 <p>Three interacting factors create the problem:</p>
 <ol style="list-style-type: decimal">
-<li><p><strong>Multimodal KDE denominator.</strong> When <span class="math inline">\(\hat g(x)\)</span> has multiple modes, the inverse
-weights <span class="math inline">\(1/\hat g(x)\)</span> amplify points
-in the low-density valleys between modes. Background points near bio12
-<span class="math inline">\(\approx\)</span> 400–600 mm (the trough
-between the 100 mm and 850 mm peaks) receive disproportionately high
-weight, pulling the denominator integral and distorting the gradient
-landscape.</p></li>
+<li><p><strong>Multimodal KDE denominator.</strong> When
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\hat g(x)</annotation></semantics></math>
+has multiple modes, the inverse weights
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">1/\hat g(x)</annotation></semantics></math>
+amplify points in the low-density valleys between modes. Background
+points near bio12
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>≈</mo><annotation encoding="application/x-tex">\approx</annotation></semantics></math>
+400–600 mm (the trough between the 100 mm and 850 mm peaks) receive
+disproportionately high weight, pulling the denominator integral and
+distorting the gradient landscape.</p></li>
 <li><p><strong>Scale mismatch between niche and M.</strong> The
 occurrences occupy a small, concentrated region of E-space, but M
 extends over a far wider volume. The denominator integral involves
-evaluating the Gaussian <span class="math inline">\(f(x \mid
-\theta)\)</span> over a 10 000-point grid that mostly lies far from
-<span class="math inline">\(\mu\)</span>. Small changes in <span class="math inline">\(\Sigma\)</span> cause large changes in the
-denominator sum, creating a nearly flat or multimodal
-objective.</p></li>
+evaluating the Gaussian
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mo stretchy="false" form="prefix">(</mo><mi>x</mi><mo>∣</mo><mi>θ</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">f(x \mid \theta)</annotation></semantics></math>
+over a 10 000-point grid that mostly lies far from
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>μ</mi><annotation encoding="application/x-tex">\mu</annotation></semantics></math>.
+Small changes in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi mathvariant="normal">Σ</mi><annotation encoding="application/x-tex">\Sigma</annotation></semantics></math>
+cause large changes in the denominator sum, creating a nearly flat or
+multimodal objective.</p></li>
 <li><p><strong>Heavy right tail in bio12.</strong> The precipitation
-variable has a mean/median ratio of <span class="math inline">\(\approx
-1.9\)</span> in the occurrences and <span class="math inline">\(\approx
-1.6\)</span> in M, indicating strong right-skewness. A symmetric
-Gaussian kernel in the weighted likelihood cannot represent this shape
-faithfully. The optimizer compensates by inflating <span class="math inline">\(\sigma_{\mathrm{bio12}}\)</span> and shifting
-<span class="math inline">\(\mu\)</span>.</p></li>
+variable has a mean/median ratio of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≈</mo><mn>1.9</mn></mrow><annotation encoding="application/x-tex">\approx 1.9</annotation></semantics></math>
+in the occurrences and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>≈</mo><mn>1.6</mn></mrow><annotation encoding="application/x-tex">\approx 1.6</annotation></semantics></math>
+in M, indicating strong right-skewness. A symmetric Gaussian kernel in
+the weighted likelihood cannot represent this shape faithfully. The
+optimizer compensates by inflating
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>σ</mi><mrow><mi mathvariant="normal">b</mi><mi mathvariant="normal">i</mi><mi mathvariant="normal">o</mi><mn mathvariant="normal">12</mn></mrow></msub><annotation encoding="application/x-tex">\sigma_{\mathrm{bio12}}</annotation></semantics></math>
+and shifting
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>μ</mi><annotation encoding="application/x-tex">\mu</annotation></semantics></math>.</p></li>
 </ol>
 </div>
 </div>
@@ -296,8 +315,10 @@ presence-only indicates that the background correction is not
 helping.</p></li>
 <li><p><strong>Consider skew-normal families</strong> when bio12 or
 other variables show strong asymmetry. The <code>skew_normal</code>
-family adds shape parameters <span class="math inline">\(\alpha\)</span>
-that can capture the right tail without inflating <span class="math inline">\(\Sigma\)</span>.</p></li>
+family adds shape parameters
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+that can capture the right tail without inflating
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi mathvariant="normal">Σ</mi><annotation encoding="application/x-tex">\Sigma</annotation></semantics></math>.</p></li>
 <li><p><strong>Inspect the M distribution</strong> before choosing a
 weighted family. If <code>density(env_m$variable)</code> shows multiple
 peaks, the KDE-based correction may be unstable.</p></li>

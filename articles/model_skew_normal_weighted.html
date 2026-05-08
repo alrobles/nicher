@@ -6,13 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Model 5: Skew-Normal Weighted Niche • nicher</title>
-<!-- mathjax math --><script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script><script>
-  window.MathJax = {
-    chtml: {
-      fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
-    }
-  };
-</script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
@@ -39,7 +33,8 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/model_ip_weighted.html">Model 3: Inverse-Probability-Weighted Normal Niche (Horvitz--Thompson)</a></li>
+<li><a class="dropdown-item" href="../articles/cross_validation.html">Cross-Validation: Penalty Tuning and Model Selection</a></li>
+    <li><a class="dropdown-item" href="../articles/model_ip_weighted.html">Model 3: Inverse-Probability-Weighted Normal Niche (Horvitz--Thompson)</a></li>
     <li><a class="dropdown-item" href="../articles/model_presence_only.html">Model 1: Presence-Only Gaussian Niche</a></li>
     <li><a class="dropdown-item" href="../articles/model_skew_normal_weighted.html">Model 5: Skew-Normal Weighted Niche</a></li>
     <li><a class="dropdown-item" href="../articles/model_skew_normal.html">Model 4: Skew-Normal Niche (Azzalini &amp; Capitanio 1999)</a></li>
@@ -47,6 +42,8 @@
     <li><a class="dropdown-item" href="../articles/model_skew_t.html">Model 6: Skew-t Niche (Branco &amp; Dey 2001)</a></li>
     <li><a class="dropdown-item" href="../articles/model_weighted.html">Model 2: Weighted-Normal Niche (Paper Eq. 5/8)</a></li>
     <li><a class="dropdown-item" href="../articles/nicher-introduction.html">Introduction to nicher</a></li>
+    <li><a class="dropdown-item" href="../articles/nicher-workflow.html">Package Workflow: End-to-End Niche Fitting and Projection</a></li>
+    <li><a class="dropdown-item" href="../articles/non_symmetric_models.html">Non-Symmetric Models: Skew-Normal, Skew-t, and NCST Families</a></li>
     <li><a class="dropdown-item" href="../articles/vicugna-weighted-model.html">Why the Weighted Model Struggles on the Vicugna Dataset</a></li>
   </ul>
 </li>
@@ -88,26 +85,31 @@
 asymmetric along each environmental axis.</li>
 <li>
 <strong>Background weighting</strong> (from Model 2): the
-non-uniform distribution of environments in <span class="math inline">\(M\)</span> is modelled via a KDE <span class="math inline">\(\hat{g}(\mathbf{x})\)</span>.</li>
+non-uniform distribution of environments in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>
+is modelled via a KDE
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><mi>𝐱</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\hat{g}(\mathbf{x})</annotation></semantics></math>.</li>
 </ol>
 <p>The result is a model that estimates an <strong>asymmetric
 fundamental niche</strong> while accounting for the fact that presence
-records are more likely in environments that are common in <span class="math inline">\(M\)</span> (the use-availability DGP).</p>
+records are more likely in environments that are common in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math>
+(the use-availability DGP).</p>
 </div>
 <div class="section level2">
 <h2 id="data-generating-process">2 Data-Generating Process<a class="anchor" aria-label="anchor" href="#data-generating-process"></a>
 </h2>
 <p>The DGP is the same as Model 2, but with a skew-normal kernel
 replacing the Gaussian:</p>
-<p><span class="math display">\[
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo>∣</mo><mrow><mtext mathvariant="normal">presence in </mtext><mspace width="0.333em"></mspace></mrow><mi>M</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mfrac><mrow><msub><mi>f</mi><mtext mathvariant="normal">SN</mtext></msub><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo>;</mo><mi>μ</mi><mo>,</mo><mi mathvariant="normal">Σ</mi><mo>,</mo><mi>α</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.278em"></mspace><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><mrow><msub><mo>∫</mo><mi>M</mi></msub><msub><mi>f</mi><mtext mathvariant="normal">SN</mtext></msub><mo stretchy="false" form="prefix">(</mo><mi>𝐱</mi><mo>;</mo><mi>μ</mi><mo>,</mo><mi mathvariant="normal">Σ</mi><mo>,</mo><mi>α</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.278em"></mspace><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><mi>𝐱</mi><mo stretchy="false" form="postfix">)</mo><mspace width="0.167em"></mspace><mi>d</mi><mi>𝐱</mi></mrow></mfrac><mo>,</mo></mrow><annotation encoding="application/x-tex">
 p(\mathbf{x}_i \mid \text{presence in } M) =
 \frac{f_{\text{SN}}(\mathbf{x}_i;\mu,\Sigma,\alpha)\;\hat{g}(\mathbf{x}_i)}
-     {\int_M
-f_{\text{SN}}(\mathbf{x};\mu,\Sigma,\alpha)\;\hat{g}(\mathbf{x})\,d\mathbf{x}},
+     {\int_M f_{\text{SN}}(\mathbf{x};\mu,\Sigma,\alpha)\;\hat{g}(\mathbf{x})\,d\mathbf{x}},
 \tag{1}
-\]</span></p>
-<p>where <span class="math inline">\(f_{\text{SN}}\)</span> is the
-skew-normal density (Model 4, Eq. 1).</p>
+</annotation></semantics></math></p>
+<p>where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>f</mi><mtext mathvariant="normal">SN</mtext></msub><annotation encoding="application/x-tex">f_{\text{SN}}</annotation></semantics></math>
+is the skew-normal density (Model 4, Eq. 1).</p>
 </div>
 <div class="section level2">
 <h2 id="mathematical-specification">3 Mathematical Specification<a class="anchor" aria-label="anchor" href="#mathematical-specification"></a>
@@ -115,7 +117,7 @@ skew-normal density (Model 4, Eq. 1).</p>
 <div class="section level3">
 <h3 id="negative-log-likelihood">3.1 Negative Log-Likelihood<a class="anchor" aria-label="anchor" href="#negative-log-likelihood"></a>
 </h3>
-<p><span class="math display">\[
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>−</mi><msup><mi>ℓ</mi><mo>*</mo></msup><mo stretchy="false" form="prefix">(</mo><mi>θ</mi><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><msub><mi>q</mi><mi>i</mi></msub><mo>−</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi mathvariant="normal">Φ</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>z</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>−</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>+</mo><mi>n</mi><mo>⋅</mo><msub><mrow><mi mathvariant="normal">logsumexp</mi><mo>⁡</mo></mrow><mi>j</mi></msub><mspace width="-0.167em"></mspace><mrow><mo stretchy="true" form="prefix">[</mo><mi mathvariant="normal">log</mi><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>+</mo><mi mathvariant="normal">log</mi><mi mathvariant="normal">Φ</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>z</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mstyle displaystyle="false"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><msub><mi>q</mi><mi>j</mi></msub><mo stretchy="true" form="postfix">]</mo></mrow><mo>+</mo><mtext mathvariant="normal">penalty</mtext><mo>,</mo></mrow><annotation encoding="application/x-tex">
 -\ell^*(\theta) =
 \frac{1}{2}\sum_{i=1}^{n} q_i
 - \sum_{i=1}^{n}\log\Phi(z_i)
@@ -125,25 +127,28 @@ skew-normal density (Model 4, Eq. 1).</p>
 \right]
 + \text{penalty},
 \tag{2}
-\]</span></p>
+</annotation></semantics></math></p>
 <p>where:</p>
 <ul>
 <li>
-<span class="math inline">\(q_i = \|L^{-1}(\mathbf{x}_i -
-\mu)\|^2\)</span> (squared Mahalanobis distance at presence point <span class="math inline">\(i\)</span>),</li>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>=</mo><mo stretchy="false" form="postfix">∥</mo><msup><mi>L</mi><mrow><mi>−</mi><mn>1</mn></mrow></msup><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo>−</mo><mi>μ</mi><mo stretchy="false" form="postfix">)</mo><msup><mo stretchy="false" form="postfix">∥</mo><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">q_i = \|L^{-1}(\mathbf{x}_i - \mu)\|^2</annotation></semantics></math>
+(squared Mahalanobis distance at presence point
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>),</li>
 <li>
-<span class="math inline">\(q_j\)</span> is the same at background
-point <span class="math inline">\(j\)</span>,</li>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>q</mi><mi>j</mi></msub><annotation encoding="application/x-tex">q_j</annotation></semantics></math>
+is the same at background point
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>,</li>
 <li>
-<span class="math inline">\(z_i =
-\alpha^\top\operatorname{diag}(\sigma)^{-1}(\mathbf{x}_i - \mu)\)</span>
-is the skew score at presence point <span class="math inline">\(i\)</span>,</li>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>z</mi><mi>i</mi></msub><mo>=</mo><msup><mi>α</mi><mi>⊤</mi></msup><mrow><mi mathvariant="normal">diag</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><mi>σ</mi><msup><mo stretchy="false" form="postfix">)</mo><mrow><mi>−</mi><mn>1</mn></mrow></msup><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐱</mi><mi>i</mi></msub><mo>−</mo><mi>μ</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">z_i = \alpha^\top\operatorname{diag}(\sigma)^{-1}(\mathbf{x}_i - \mu)</annotation></semantics></math>
+is the skew score at presence point
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math>,</li>
 <li>
-<span class="math inline">\(z_j\)</span> is the skew score at
-background point <span class="math inline">\(j\)</span>,</li>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>z</mi><mi>j</mi></msub><annotation encoding="application/x-tex">z_j</annotation></semantics></math>
+is the skew score at background point
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>,</li>
 <li>
-<span class="math inline">\(\hat{g}(\cdot)\)</span> is the Gaussian
-KDE of the background,</li>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><mi>⋅</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\hat{g}(\cdot)</annotation></semantics></math>
+is the Gaussian KDE of the background,</li>
 <li>the penalty term is as in Model 4, Eq. (4).</li>
 </ul>
 </div>
@@ -152,16 +157,19 @@ KDE of the background,</li>
 </h3>
 <p>The denominator integrand (inside the logsumexp) has three log-scale
 terms:</p>
-<p><span class="math display">\[
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mi>j</mi></msub><mo>=</mo><munder><munder><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">availability</mtext></munder><mo>+</mo><munder><munder><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi mathvariant="normal">Φ</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>z</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">skewness</mtext></munder><mo>−</mo><munder><munder><mrow><mstyle displaystyle="false"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle><msub><mi>q</mi><mi>j</mi></msub></mrow><mo accent="true">⏟</mo></munder><mtext mathvariant="normal">Mahalanobis</mtext></munder><mi>.</mi></mrow><annotation encoding="application/x-tex">
 a_j = \underbrace{\log\hat{g}(\mathbf{y}_j)}_{\text{availability}}
     + \underbrace{\log\Phi(z_j)}_{\text{skewness}}
     - \underbrace{\tfrac{1}{2}q_j}_{\text{Mahalanobis}}.
 \tag{3}
-\]</span></p>
-<p>This is exactly the log of <span class="math inline">\(\hat{g}(\mathbf{y}_j) \cdot \Phi(z_j) \cdot
-\exp(-\frac{1}{2}q_j)\)</span>, which is proportional to <span class="math inline">\(\hat{g} \cdot f_{\text{SN}}\)</span> evaluated at
-background point <span class="math inline">\(j\)</span> — the discrete
-approximation to the denominator integral in Eq. (1).</p>
+</annotation></semantics></math></p>
+<p>This is exactly the log of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo stretchy="false" form="prefix">(</mo><msub><mi>𝐲</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>⋅</mo><mi mathvariant="normal">Φ</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>z</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>⋅</mo><mrow><mi mathvariant="normal">exp</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><mi>−</mi><mfrac><mn>1</mn><mn>2</mn></mfrac><msub><mi>q</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\hat{g}(\mathbf{y}_j) \cdot \Phi(z_j) \cdot \exp(-\frac{1}{2}q_j)</annotation></semantics></math>,
+which is proportional to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mover><mi>g</mi><mo accent="true">̂</mo></mover><mo>⋅</mo><msub><mi>f</mi><mtext mathvariant="normal">SN</mtext></msub></mrow><annotation encoding="application/x-tex">\hat{g} \cdot f_{\text{SN}}</annotation></semantics></math>
+evaluated at background point
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math>
+— the discrete approximation to the denominator integral in Eq. (1).</p>
 </div>
 <div class="section level3">
 <h3 id="relationship-to-models-2-and-4">3.3 Relationship to Models 2 and 4<a class="anchor" aria-label="anchor" href="#relationship-to-models-2-and-4"></a>
@@ -182,21 +190,21 @@ approximation to the denominator integral in Eq. (1).</p>
 <tbody>
 <tr class="odd">
 <td>Mahalanobis</td>
-<td><span class="math inline">\(\checkmark\)</span></td>
-<td><span class="math inline">\(\checkmark\)</span></td>
-<td><span class="math inline">\(\checkmark\)</span></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>✓</mi><annotation encoding="application/x-tex">\checkmark</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>✓</mi><annotation encoding="application/x-tex">\checkmark</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>✓</mi><annotation encoding="application/x-tex">\checkmark</annotation></semantics></math></td>
 </tr>
 <tr class="even">
-<td><span class="math inline">\(\log\Phi(z)\)</span></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi mathvariant="normal">Φ</mi><mo stretchy="false" form="prefix">(</mo><mi>z</mi><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\log\Phi(z)</annotation></semantics></math></td>
 <td>—</td>
-<td><span class="math inline">\(\checkmark\)</span></td>
-<td><span class="math inline">\(\checkmark\)</span></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>✓</mi><annotation encoding="application/x-tex">\checkmark</annotation></semantics></math></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>✓</mi><annotation encoding="application/x-tex">\checkmark</annotation></semantics></math></td>
 </tr>
 <tr class="odd">
 <td>KDE weighting</td>
-<td><span class="math inline">\(\checkmark\)</span></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>✓</mi><annotation encoding="application/x-tex">\checkmark</annotation></semantics></math></td>
 <td>—</td>
-<td><span class="math inline">\(\checkmark\)</span></td>
+<td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>✓</mi><annotation encoding="application/x-tex">\checkmark</annotation></semantics></math></td>
 </tr>
 <tr class="even">
 <td>Background data</td>
@@ -230,13 +238,22 @@ approximation to the denominator integral in Eq. (1).</p>
 </h3>
 <p>The C++ kernel:</p>
 <ol style="list-style-type: decimal">
-<li>Reconstructs <span class="math inline">\(L_{\text{cov}}\)</span> and
-maps <span class="math inline">\(\alpha\)</span> (lines 611–615).</li>
-<li>Computes occurrence-side Mahalanobis distances and <span class="math inline">\(\sum_i\log\Phi(z_i)\)</span> (lines 620–624).</li>
-<li>Computes background-side Mahalanobis distances <span class="math inline">\(q_j\)</span> and skew scores <span class="math inline">\(z_j\)</span> (lines 626–634).</li>
-<li>Evaluates the denominator integrand <span class="math inline">\(a_j
-= \log\hat{g}_j + \log\Phi(z_j) - \frac{1}{2}q_j\)</span> (line
-640).</li>
+<li>Reconstructs
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>L</mi><mtext mathvariant="normal">cov</mtext></msub><annotation encoding="application/x-tex">L_{\text{cov}}</annotation></semantics></math>
+and maps
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+(lines 611–615).</li>
+<li>Computes occurrence-side Mahalanobis distances and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>∑</mo><mi>i</mi></msub><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi mathvariant="normal">Φ</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>z</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">\sum_i\log\Phi(z_i)</annotation></semantics></math>
+(lines 620–624).</li>
+<li>Computes background-side Mahalanobis distances
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>q</mi><mi>j</mi></msub><annotation encoding="application/x-tex">q_j</annotation></semantics></math>
+and skew scores
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>z</mi><mi>j</mi></msub><annotation encoding="application/x-tex">z_j</annotation></semantics></math>
+(lines 626–634).</li>
+<li>Evaluates the denominator integrand
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mi>j</mi></msub><mo>=</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><msub><mover><mi>g</mi><mo accent="true">̂</mo></mover><mi>j</mi></msub><mo>+</mo><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi mathvariant="normal">Φ</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>z</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><msub><mi>q</mi><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">a_j = \log\hat{g}_j + \log\Phi(z_j) - \frac{1}{2}q_j</annotation></semantics></math>
+(line 640).</li>
 <li>Applies the logsumexp trick (lines 642–644).</li>
 <li>Adds the ridge + alpha penalty (lines 646–647).</li>
 <li>Returns the guarded negative log-likelihood (lines 649–655).</li>
@@ -269,18 +286,22 @@ regions where the accessible area has heterogeneous environments.</li>
 <h2 id="limitations">6 Limitations<a class="anchor" aria-label="anchor" href="#limitations"></a>
 </h2>
 <ol style="list-style-type: decimal">
-<li><p><strong>Parameter count</strong>. Adds <span class="math inline">\(p\)</span> skewness parameters over Model 2.
-Requires larger sample sizes for reliable estimation.</p></li>
+<li><p><strong>Parameter count</strong>. Adds
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>
+skewness parameters over Model 2. Requires larger sample sizes for
+reliable estimation.</p></li>
 <li><p><strong>Patil &amp; Ord drift</strong> (shared with Model 2). The
-ridge prior on <span class="math inline">\(\log\sigma\)</span> is
-essential; do not set <span class="math inline">\(\lambda =
-0\)</span>.</p></li>
+ridge prior on
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mi mathvariant="normal">log</mi><mo>⁡</mo></mrow><mi>σ</mi></mrow><annotation encoding="application/x-tex">\log\sigma</annotation></semantics></math>
+is essential; do not set
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\lambda = 0</annotation></semantics></math>.</p></li>
 <li><p><strong>Unimodal</strong>. The skew-normal is still unimodal. For
 bimodal niches, mixture extensions are needed (not
 implemented).</p></li>
-<li><p><strong>Numerical stability</strong>. The product <span class="math inline">\(\Phi(z_j) \cdot \hat{g}_j\)</span> can be very
-small for background points far from the niche centre. The logsumexp
-trick (lines 642–644) handles this by working entirely in log
+<li><p><strong>Numerical stability</strong>. The product
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="normal">Φ</mi><mo stretchy="false" form="prefix">(</mo><msub><mi>z</mi><mi>j</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>⋅</mo><msub><mover><mi>g</mi><mo accent="true">̂</mo></mover><mi>j</mi></msub></mrow><annotation encoding="application/x-tex">\Phi(z_j) \cdot \hat{g}_j</annotation></semantics></math>
+can be very small for background points far from the niche centre. The
+logsumexp trick (lines 642–644) handles this by working entirely in log
 space.</p></li>
 </ol>
 </div>
