@@ -1,0 +1,163 @@
+# Model 1: Presence-Only Gaussian Niche
+
+## 1 Ecological Motivation
+
+The fundamental ecological niche of a species (sensu Hutchinson 1957) is
+the set of environmental conditions under which the species can maintain
+a viable population. When the niche is modelled as a multivariate normal
+density \\f(\mathbf{x};\mu,\Sigma)\\ in \\p\\-dimensional environmental
+space, the problem reduces to estimating the centroid \\\mu\\ and the
+shape/orientation matrix \\\Sigma\\ from observed presence records.
+
+The **presence-only** model is the simplest formulation: it treats the
+occurrence records \\\\\mathbf{x}\_1,\dots,\mathbf{x}\_n\\\\ as an
+i.i.d. sample from the normal density and estimates \\(\mu,\Sigma)\\ by
+maximum likelihood.
+
+## 2 Mathematical Specification
+
+### 2.1 Density
+
+The multivariate normal density in \\p\\ dimensions is
+
+\\ f(\mathbf{x};\mu,\Sigma) = (2\pi)^{-p/2}\\\|\Sigma\|^{-1/2}\\
+\exp\\\left\[-\tfrac{1}{2}
+(\mathbf{x}-\mu)^\top\Sigma^{-1}(\mathbf{x}-\mu)\right\]. \tag{1} \\
+
+This is Equation 2 of Jimenez et al. (2019), written for a single
+observation.
+
+### 2.2 Log-Likelihood
+
+Given \\n\\ presence records, the log-likelihood is
+
+\\ \ell(\mu,\Sigma) = -\frac{n}{2}\log\|\Sigma\|
+-\frac{1}{2}\sum\_{i=1}^{n}
+(\mathbf{x}\_i-\mu)^\top\Sigma^{-1}(\mathbf{x}\_i-\mu) + \text{const.}
+\tag{2} \\
+
+The constant \\-\frac{np}{2}\log(2\pi)\\ does not depend on
+\\(\mu,\Sigma)\\ and is dropped in the implementation because it does
+not affect the optimum.
+
+### 2.3 Negative Log-Likelihood (Minimised Objective)
+
+The optimizer minimises the *negative* log-likelihood:
+
+\\ -\ell(\mu,\Sigma) = \frac{n}{2}\log\|\Sigma\| +
+\frac{1}{2}\sum\_{i=1}^{n} q_i, \qquad q_i =
+\\L^{-1}(\mathbf{x}\_i-\mu)\\^2, \tag{3} \\
+
+where \\\Sigma = LL^\top\\ (Cholesky factorisation) and \\q_i\\ is the
+squared Mahalanobis distance.
+
+## 3 Parameterisation
+
+### 3.1 Theta Layout
+
+The unconstrained parameter vector \\\theta\\ has length \\2p +
+p(p-1)/2\\:
+
+\\ \theta = \bigl\[\underbrace{\mu_1,\dots,\mu_p}\_{p},\\
+\underbrace{\log\sigma_1,\dots,\log\sigma_p}\_{p},\\
+\underbrace{v_1,\dots,v\_{p(p-1)/2}}\_{\text{C-vine}}\bigr\]. \\
+
+| Block | Length | Constraint | Meaning |
+|----|----|----|----|
+| \\\mu\\ | \\p\\ | Unconstrained | Niche centroid |
+| \\\log\sigma\\ | \\p\\ | \\\sigma_k \> 0\\ via \\\exp\\ | Marginal standard deviations |
+| \\v\\ | \\p(p-1)/2\\ | Unconstrained | C-vine partial correlations |
+
+### 3.2 Covariance Reconstruction
+
+The covariance matrix is reconstructed as \\\Sigma =
+L\_{\text{cov}}\\L\_{\text{cov}}^\top\\, where
+
+\\ L\_{\text{cov}} =
+\operatorname{diag}(\sigma)\\\cdot\\L\_{\text{corr}}, \\
+
+and \\L\_{\text{corr}}\\ is the lower-triangular Cholesky factor of the
+correlation matrix \\R\\, built from the C-vine parameterisation of
+Lewandowski, Kurowicka & Joe (2009). The LKJ prior with shape \\\eta\\
+penalises extreme correlations when \\\eta \> 1\\.
+
+## 4 Implementation Call Chain
+
+    optimize_niche(likelihood = "presence_only")
+      └─ niche_obj.cpp::create_niche_obj_ptr()
+           └─ loglik_niche_math_presence_only_eigen()    [C++, lines 65–95]
+                ├─ build_L_cov()                          [theta → mu, sigma, L_cov]
+                ├─ L_cov.triangularView.solve(diff)       [Mahalanobis via forward solve]
+                └─ 0.5 * n * log_det + 0.5 * sum_q       [Eq. 3]
+
+### 4.1 Key Code (loglik_niche_math_cpp.cpp, lines 65–95)
+
+The C++ kernel:
+
+1.  Reconstructs \\L\_{\text{cov}}\\ from \\\theta\\ via `build_L_cov()`
+    (lines 40–59).
+2.  Computes \\Y = L\_{\text{cov}}^{-1}(X - \mu)\\ by triangular forward
+    solve (line 84).
+3.  Sums squared column norms \\\sum_i \\y_i\\^2\\ (line 85).
+4.  Computes \\\log\|\Sigma\| = 2\sum_k \log L\_{\text{cov}}(k,k)\\
+    (lines 87–89).
+5.  Returns `0.5 * n * log_det + 0.5 * sum_q` (line 92), guarded by
+    `OPTIM_PENALTY` for NaN/Inf (line 93).
+
+### 4.2 R Entry Point
+
+``` r
+
+loglik_niche_math_presence_only(theta, env_occ, eta = 1, neg = TRUE)
+```
+
+This function reconstructs \\L\_{\text{cov}}\\ via
+[`cvine_cholesky()`](https://alrobles.github.io/nicher/reference/cvine_cholesky.md)
+in R, then calls `loglik_niche_presence_only_cpp()` (the Rcpp-exported
+wrapper).
+
+## 5 Analytical Properties
+
+| Property | Value |
+|----|----|
+| MLE for \\\mu\\ | Sample mean \\\bar{\mathbf{x}}\\ |
+| MLE for \\\Sigma\\ | Sample covariance \\\frac{1}{n}\sum_i(\mathbf{x}\_i-\bar{\mathbf{x}})(\mathbf{x}\_i-\bar{\mathbf{x}})^\top\\ |
+| Likelihood shape | Unimodal (convex negative log-likelihood) |
+| Identifiability | Full: \\\mu\\ and \\\Sigma\\ are both identifiable |
+| Background data | Not used |
+| Dropped constants | \\(2\pi)^{-np/2}\\ — does not affect \\\hat\theta\\ |
+
+## 6 When To Use
+
+- **Sanity check**: The MLE has a closed form, so numerical results
+  should match the sample mean and covariance exactly (up to optimiser
+  tolerance).
+- **Warm start**: `optimize_niche(warm_start = TRUE)` uses the
+  presence-only MLE as the initial point for the more complex weighted
+  models.
+- **No background available**: When the accessible area \\M\\ is unknown
+  or the background sample is unreliable.
+
+## 7 Limitations
+
+1.  **Ignores environmental availability**. The estimate reflects the
+    *observed* distribution of presences, which is confounded by the
+    distribution of environments in \\M\\. If \\M\\ over-represents
+    certain environments, \\\hat\mu\\ will be biased toward those
+    environments.
+
+2.  **No background correction**. Unlike the `"weighted"` and
+    `"ip_weighted"` models, no KDE of \\g(\mathbf{x})\\ is used. The
+    resulting niche estimate is the *realised* niche (or a biased
+    estimate of it), not the fundamental niche.
+
+3.  **Normality assumption**. The niche is assumed to be ellipsoidal.
+    For species with multi-modal or strongly skewed niches, consider
+    `"skew_normal"` or `"skew_t"`.
+
+## References
+
+Jimenez, L., J. Soberón, J. A. Christen, and D. Soto. 2019. “On the
+Problem of Modeling a Fundamental Niche from Occurrence Data.”
+*Ecological Modelling* 397: 74–83.
+<https://doi.org/10.1016/j.ecolmodel.2019.01.020>.

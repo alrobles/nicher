@@ -1,0 +1,17 @@
+pandoc: 3.8.3
+pkgdown: 2.2.0
+pkgdown_sha: ~
+articles:
+  model_ip_weighted: model_ip_weighted.html
+  model_presence_only: model_presence_only.html
+  model_skew_normal_weighted: model_skew_normal_weighted.html
+  model_skew_normal: model_skew_normal.html
+  model_skew_t_weighted: model_skew_t_weighted.html
+  model_skew_t: model_skew_t.html
+  model_weighted: model_weighted.html
+  nicher-introduction: nicher-introduction.html
+  vicugna-weighted-model: vicugna-weighted-model.html
+last_built: 2026-05-08T04:58Z
+urls:
+  reference: https://alrobles.github.io/nicher/reference
+  article: https://alrobles.github.io/nicher/articles

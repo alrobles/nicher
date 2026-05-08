@@ -1,0 +1,392 @@
+# nicher
+
+![nicher ENM package logo](reference/figures/nicher-logo.png)
+
+`nicher` estimates ecological niche models with ellipsoidal
+environmental responses under the *M* hypothesis. It includes symmetric
+Gaussian models, background-weighted models, and non-symmetric
+skew-normal and skew-t models for niches with asymmetric or heavy-tailed
+environmental responses.
+
+## Installation
+
+You can install the development version of nicher from
+[GitHub](https://github.com/) with:
+
+``` r
+
+# install.packages("devtools")
+devtools::install_github("alrobles/nicher")
+```
+
+## Quick start
+
+`nicher` ships with a small cropped raster stack and occurrence records
+for the Emerald-bellied Hummingbird (*Abeillia abeillei*). This example
+reads those files, fits two baseline niche models, and overlays their
+iso-suitability contours in environmental space.
+
+### Load the package, rasters, and occurrences
+
+``` r
+
+library(nicher)
+library(terra)
+#> terra 1.9.11
+library(ggplot2)
+
+stack_path <- system.file("extdata", "stack_1_12_crop.rds",
+                          package = "nicher")
+env_rasters <- readRDS(stack_path)
+data(example_occ_df, package = "nicher")
+
+env_rasters
+#> class       : SpatRaster 
+#> size        : 70, 99, 2  (nrow, ncol, nlyr)
+#> resolution  : 0.1666667, 0.1666667  (x, y)
+#> extent      : -99.5, -83, 10.66667, 22.33333  (xmin, xmax, ymin, ymax)
+#> coord. ref. : lon/lat WGS 84 (EPSG:4326) 
+#> source(s)   : memory
+#> names       :    bio1WH, bio12WH 
+#> min values  :  7.985291,     399 
+#> max values  : 28.588655,    4249
+head(example_occ_df)
+#>             species     lon    lat
+#> 1 Abeillia abeillei -92.933 15.733
+#> 2 Abeillia abeillei -93.192 15.880
+#> 3 Abeillia abeillei -92.632 15.420
+#> 4 Abeillia abeillei -92.741 15.644
+#> 5 Abeillia abeillei -92.229 15.158
+#> 6 Abeillia abeillei -93.093 15.823
+```
+
+Plot both environmental variables bundled in `inst/extdata`.
+
+``` r
+
+op <- par(mfrow = c(1, 2), mar = c(3, 3, 3, 5))
+plot(env_rasters[[1]], main = names(env_rasters)[1])
+points(example_occ_df$lon, example_occ_df$lat, pch = 20, cex = 0.45)
+plot(env_rasters[[2]], main = names(env_rasters)[2])
+points(example_occ_df$lon, example_occ_df$lat, pch = 20, cex = 0.45)
+```
+
+![](reference/figures/README-quick-start-raster-plot-1.png)
+
+``` r
+
+par(op)
+```
+
+### Extract environmental values
+
+Occurrence records are stored as longitude/latitude coordinates. We
+extract raster values at those points for `env_occ`, then use every
+non-`NA` raster cell as the accessible background environment `env_m`.
+
+``` r
+
+occ_points <- terra::vect(example_occ_df, geom = c("lon", "lat"),
+                          crs = "EPSG:4326")
+
+env_occ <- terra::extract(env_rasters, occ_points, ID = FALSE)
+env_occ <- stats::na.omit(as.data.frame(env_occ))
+
+env_m <- stats::na.omit(as.data.frame(terra::values(env_rasters)))
+
+head(env_occ)
+#>     bio1WH bio12WH
+#> 1 20.73091    2075
+#> 2 22.41057    1630
+#> 3 22.25763    2203
+#> 4 19.31113    1897
+#> 5 23.88845    3060
+#> 6 23.12673    2032
+dim(env_m)
+#> [1] 2371    2
+```
+
+### Fit presence-only and weighted models
+
+The presence-only model uses occurrence environments only. The weighted
+model uses both occurrences (`env_occ`) and the accessible background
+environment (`env_m`). For a real analysis, increase `num_starts` and
+`control$maxeval`; these values keep the README example fast.
+
+``` r
+
+fit_presence <- optimize_niche(
+  env_occ = env_occ,
+  env_m = NULL,
+  likelihood = "presence_only",
+  num_starts = 3L,
+  seed = 42L,
+  control = list(maxeval = 1000L),
+  verbose = FALSE
+)
+
+fit_weighted <- optimize_niche(
+  env_occ = env_occ,
+  env_m = env_m,
+  likelihood = "ip_weighted",
+  num_starts = 3L,
+  seed = 42L,
+  control = list(maxeval = 150L),
+  verbose = FALSE, grad = "analytic",
+)
+
+fit_presence
+#> -- nicher optimization result --
+#>   Likelihood : presence_only 
+#>   Starts     : 3 (converged: 3 )
+#>   Best loglik: -621.8936 
+#>   Convergence: 1 
+#>   eta        : 1 
+#>   Variables  : bio1WH, bio12WH
+fit_weighted
+#> -- nicher optimization result --
+#>   Likelihood : ip_weighted 
+#>   Starts     : 3 (converged: 4 )
+#>   Best loglik: -524.229 
+#>   Convergence: 1 
+#>   eta        : 1 
+#>   Variables  : bio1WH, bio12WH
+```
+
+### Compare the two fits
+
+[`compare_nicher()`](https://alrobles.github.io/nicher/reference/compare_nicher.md)
+reports log-likelihood, AIC, BIC, and Akaike weights. Presence-only and
+weighted likelihoods have different normalizing assumptions, so treat
+this as a quick diagnostic rather than a final model-selection decision.
+
+``` r
+
+suppressWarnings(
+  compare_nicher(
+    presence_only = fit_presence,
+    weighted = fit_weighted
+  )
+)
+#>           model         likelihood    loglik df nobs      AIC     dAIC     BIC
+#> 1      weighted ip_weighted -524.2290  5   73 1058.458   0.0000 1069.91
+#> 2 presence_only      presence_only -621.8936  5   73 1253.787 195.3292 1265.24
+#>       dBIC   weight_AIC convergence
+#> 1   0.0000 1.000000e+00           1
+#> 2 195.3292 3.844224e-43           1
+```
+
+### Overlay iso-suitability contours
+
+The blue contours are the presence-only niche. The orange dashed
+contours are the weighted niche, regularized by the accessible
+background environment.
+
+``` r
+
+ggplot() +
+  geom_nicher_background(env_m, size = 0.35, alpha = 0.18) +
+  geom_nicher_occ(env_occ, size = 1.2, alpha = 0.85) +
+  geom_nicher_isosuitability(
+    fit_presence,
+    level = c(0.75, 0.5, 0.25),
+    colour = "#2f6fb2",
+    linewidth = 0.7
+  ) +
+  geom_nicher_isosuitability(
+    fit_weighted,
+    level = c(0.75, 0.5, 0.25),
+    colour = "#d95f02",
+    linetype = "dashed",
+    linewidth = 0.7
+  ) +
+  labs(
+    title = "Presence-only vs weighted niches",
+    subtitle = "Blue = presence-only; orange dashed = weighted",
+    x = names(env_occ)[1],
+    y = names(env_occ)[2]
+  ) +
+  theme_minimal()
+```
+
+![](reference/figures/README-quick-start-isosuitability-1.png)
+
+## Documentation at a glance
+
+| Article | What it covers |
+|----|----|
+| [Package workflow](https://alrobles.github.io/nicher/vignettes/nicher-intro.Rmd) | End-to-end niche fitting and projection workflow |
+| [Non-symmetric models](https://alrobles.github.io/nicher/vignettes/non_symmetric_models.Rmd) | Skew-normal and skew-t likelihood families |
+| [Cross-validation](https://alrobles.github.io/nicher/vignettes/cross_validation.Rmd) | Penalty tuning and model selection with [`cv_nicher()`](https://alrobles.github.io/nicher/reference/cv_nicher.md) |
+
+# Package index
+
+## All functions
+
+- [`AIC(`*`<nicher>`*`)`](https://alrobles.github.io/nicher/reference/AIC.nicher.md)
+  : Akaike information criterion for a nicher fit
+
+- [`BIC(`*`<nicher>`*`)`](https://alrobles.github.io/nicher/reference/BIC.nicher.md)
+  : Bayesian information criterion for a nicher fit
+
+- [`assess()`](https://alrobles.github.io/nicher/reference/assess.md) :
+  Assess acceptance criteria for an optimization result
+
+- [`assess(`*`<nicher>`*`)`](https://alrobles.github.io/nicher/reference/assess.nicher.md)
+  : Assess acceptance criteria for a nicher result
+
+- [`compare_nicher()`](https://alrobles.github.io/nicher/reference/compare_nicher.md)
+  : Compare nicher fits side-by-side via AIC and BIC
+
+- [`cv_nicher()`](https://alrobles.github.io/nicher/reference/cv_nicher.md)
+  : k-fold (or leave-one-out) cross-validation for a nicher fit
+
+- [`cvine_cholesky()`](https://alrobles.github.io/nicher/reference/cvine_cholesky.md)
+  : Build Cholesky factor of a correlation matrix from C‑vine partial
+  correlations
+
+- [`example_env_m_2d`](https://alrobles.github.io/nicher/reference/example_env_m_2d.md)
+  : Samples of environmental data from M hypothesis to estimate negative
+  log likelihood from Abeillia abeillei presence points. This is a
+  hummingbird example. A dataset with two variables containing points
+  contains 2 bioclimatic variables
+
+- [`example_env_m_3d`](https://alrobles.github.io/nicher/reference/example_env_m_3d.md)
+  : Samples points from M hypothesis to estimate negative log likelihood
+  from Abeillia abeillei presence points. This is a hummingbird example.
+  A dataset with three columns containing extracted information from 3
+  bioclimatic variables
+
+- [`example_env_occ_2d`](https://alrobles.github.io/nicher/reference/example_env_occ_2d.md)
+  : Species occurrence points to estimate negative log likelihood from
+  Abeillia abeillei presence points. This is a hummingbird example. A
+  dataset with two variables containing points contains 2 bioclimatic
+  variables
+
+- [`example_env_occ_3d`](https://alrobles.github.io/nicher/reference/example_env_occ_3d.md)
+  : Species occurrence points to estimate negative log likelihood from
+  Abeillia abeillei presence points. This is a hummingbird example. A
+  dataset with three variables containing points contains 3 bioclimatic
+  variables
+
+- [`example_mu_vec`](https://alrobles.github.io/nicher/reference/example_mu_vec.md)
+  : Example of a vector of the center of an ellipsoid from two
+  environmental variables. vector of length 2 corresponding to the
+  centroid of an ellipsoid
+
+- [`example_occ_df`](https://alrobles.github.io/nicher/reference/example_occ_df.md)
+  : Species occurrence points from Abeillia abeillei presence points
+  after download and clean from GBIF. This is a hummingbird example. A
+  dataset with three variables. Contains scientific name, longitude and
+  latitude.
+
+- [`example_s_mat`](https://alrobles.github.io/nicher/reference/example_s_mat.md)
+  : Example of a covariance matrix of an ellipsoid from two
+  environmental variables. The 2 x 2 matrix corresponded to a positive
+  semi-definite matrix. In two dimensions encodes the rotation
+  (orientation) and scaling of an ellipse.
+
+- [`example_vicugna`](https://alrobles.github.io/nicher/reference/example_vicugna.md)
+  : Samples of environmental data from M hypothesis to estimate negative
+  log likelihood from Vicugna vicugna.
+
+- [`geom_nicher_background()`](https://alrobles.github.io/nicher/reference/geom_nicher_background.md)
+  : Background environment layer
+
+- [`geom_nicher_ellipse()`](https://alrobles.github.io/nicher/reference/geom_nicher_ellipse.md)
+  :
+
+  Niche-ellipse layer derived from a fitted `nicher` model
+
+- [`geom_nicher_isosuitability()`](https://alrobles.github.io/nicher/reference/geom_nicher_isosuitability.md)
+  :
+
+  Iso-suitability contour layer derived from a fitted `nicher` model
+
+- [`geom_nicher_occ()`](https://alrobles.github.io/nicher/reference/geom_nicher_occ.md)
+  : Occurrence-points layer
+
+- [`get_ellipsoid_pars()`](https://alrobles.github.io/nicher/reference/get_ellipsoid_pars.md)
+  : Get ellipsoid parameters. A function to compute average and the
+  inverse of covariance matrix from environmental data
+
+- [`habitat_suitability()`](https://alrobles.github.io/nicher/reference/habitat_suitability.md)
+  :
+
+  Tiled habitat-suitability map from an environmental terra stack
+
+- [`kde_gaussian()`](https://alrobles.github.io/nicher/reference/kde_gaussian.md)
+  : Multivariate Gaussian KDE with fixed Scott bandwidth
+
+- [`logLik(`*`<nicher>`*`)`](https://alrobles.github.io/nicher/reference/logLik.nicher.md)
+  : Log-likelihood of a fitted nicher model
+
+- [`loglik_niche()`](https://alrobles.github.io/nicher/reference/loglik_niche.md)
+  : Negative log likelihood of an ellipsoid corrected with environmental
+  combinations which come from the area of study (M)
+
+- [`loglik_niche_math_cpp()`](https://alrobles.github.io/nicher/reference/loglik_niche_math_cpp.md)
+  : Negative log-likelihood (M-restricted, math scale, Cholesky version)
+
+- [`loglik_niche_math_ip_weighted()`](https://alrobles.github.io/nicher/reference/loglik_niche_math_ip_weighted.md)
+  : Negative log-likelihood (inverse-probability-weighted normal, math
+  scale)
+
+- [`loglik_niche_math_ip_weighted_integrated()`](https://alrobles.github.io/nicher/reference/loglik_niche_math_ip_weighted_integrated.md)
+  : Negative log-likelihood (inverse-probability-weighted normal,
+  integrated C++)
+
+- [`loglik_niche_math_presence_only()`](https://alrobles.github.io/nicher/reference/loglik_niche_math_presence_only.md)
+  : Negative log-likelihood (presence-only, math scale)
+
+- [`niche_ip_weighted()`](https://alrobles.github.io/nicher/reference/niche_ip_weighted.md)
+  : Fit inverse-probability-weighted (IPW) normal niche model
+
+- [`niche_presence_only()`](https://alrobles.github.io/nicher/reference/niche_presence_only.md)
+  : Fit presence-only Gaussian niche model
+
+- [`nobs(`*`<nicher>`*`)`](https://alrobles.github.io/nicher/reference/nobs.nicher.md)
+  : Number of observations used to fit a nicher model
+
+- [`optimize_niche()`](https://alrobles.github.io/nicher/reference/optimize_niche.md)
+  : Optimize niche model log-likelihood with multi-start Sobol design
+
+- [`optimize_niche_xptr()`](https://alrobles.github.io/nicher/reference/optimize_niche_xptr.md)
+  : Optimize niche model using a compiled XPtr backend
+
+- [`predict(`*`<nicher>`*`)`](https://alrobles.github.io/nicher/reference/predict.nicher.md)
+  :
+
+  Habitat-suitability raster from a fitted `nicher` object
+
+- [`print(`*`<nicher>`*`)`](https://alrobles.github.io/nicher/reference/print.nicher.md)
+  : Print a nicher object
+
+- [`start_theta()`](https://alrobles.github.io/nicher/reference/start_theta.md)
+  : Starting values for niche model on math scale
+
+- [`start_theta_multiple()`](https://alrobles.github.io/nicher/reference/start_theta_multiple.md)
+  : Generate multiple starting points for niche model optimization
+
+# Articles
+
+### All vignettes
+
+- [Model 3: Inverse-Probability-Weighted Normal Niche
+  (Horvitz--Thompson)](https://alrobles.github.io/nicher/articles/model_ip_weighted.md):
+- [Model 1: Presence-Only Gaussian
+  Niche](https://alrobles.github.io/nicher/articles/model_presence_only.md):
+- [Model 5: Skew-Normal Weighted
+  Niche](https://alrobles.github.io/nicher/articles/model_skew_normal_weighted.md):
+- [Model 4: Skew-Normal Niche (Azzalini & Capitanio
+  1999)](https://alrobles.github.io/nicher/articles/model_skew_normal.md):
+- [Model 7: Skew-t Weighted
+  Niche](https://alrobles.github.io/nicher/articles/model_skew_t_weighted.md):
+- [Model 6: Skew-t Niche (Branco & Dey
+  2001)](https://alrobles.github.io/nicher/articles/model_skew_t.md):
+- [Model 2: Weighted-Normal Niche (Paper Eq.
+  5/8)](https://alrobles.github.io/nicher/articles/model_weighted.md):
+- [Introduction to
+  nicher](https://alrobles.github.io/nicher/articles/nicher-introduction.md):
+- [Why the Weighted Model Struggles on the Vicugna
+  Dataset](https://alrobles.github.io/nicher/articles/vicugna-weighted-model.md):
