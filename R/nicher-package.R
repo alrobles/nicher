@@ -1,0 +1,74 @@
+#' @keywords internal
+#' @aliases nicher-package
+"_PACKAGE"
+
+#' nicher: Ecological Niche Models Using Ellipsoidal Geometry
+#'
+#' Estimates ecological niche models by fitting multivariate distributions
+#' (Gaussian, skew-normal, or skew-t) to species occurrence data in
+#' environmental space.
+#'
+#' @section Likelihood families:
+#'
+#' Seven likelihood formulations are available via [optimize_niche()]:
+#'
+#' \describe{
+#'   \item{\code{"presence_only"}}{Multivariate normal density estimated from
+#'     presence records alone (Jimenez et al. 2019, Eq. 2).}
+#'   \item{\code{"weighted"}}{Paper-faithful weighted-normal model with KDE
+#'     weights accounting for the density of available environments in M
+#'     (Jimenez & Soberon 2022, Eq. 5/8), plus a ridge prior on
+#'     \eqn{\log\sigma}. Default and recommended.}
+#'   \item{\code{"ip_weighted"}}{Inverse-probability-weighted (IPW)
+#'     normal.  Assumes the Jimenez et al. (2019) DGP (presences drawn
+#'     from \eqn{f} restricted to \eqn{M}) and uses
+#'     \eqn{w = 1/\hat{g}} (Horvitz--Thompson correction) to estimate
+#'     the fundamental niche on uniform environmental space (Lebesgue
+#'     measure), removing the distortion caused by non-uniform
+#'     environmental density in \eqn{M}.  See
+#'     \code{\link{loglik_niche_math_ip_weighted}} for the full
+#'     derivation, model comparison, and known limitations.
+#'     Formerly \code{"kde_bias_corrected"}.}
+#'   \item{\code{"skew_normal"}}{Presence-only multivariate skew-normal
+#'     (Azzalini & Capitanio 1999).}
+#'   \item{\code{"skew_normal_weighted"}}{Weighted skew-normal (Eq. 8 with
+#'     skew-normal density).}
+#'   \item{\code{"skew_t"}}{Presence-only non-central skew-t (Branco & Dey
+#'     2001) via 32-node Gauss-Laguerre quadrature.}
+#'   \item{\code{"skew_t_weighted"}}{Weighted skew-t (Eq. 8 with NCST
+#'     density).}
+#' }
+#'
+#' See the package website for the full mathematical specification of each
+#' model.
+#'
+#' @references
+#' Jimenez, L., Soberon, J., Christen, J. A., & Soto, D. (2019).
+#' On the problem of modeling a fundamental niche from occurrence data.
+#' \emph{Ecological Modelling}, 397, 109823.
+#' \doi{10.1016/j.ecolmodel.2019.01.009}
+#'
+#' Jimenez, L., & Soberon, J. (2022).
+#' Weighted-normal model for the fundamental niche.
+#' \emph{Ecological Modelling}, 438, 109982.
+#'
+#' Azzalini, A., & Capitanio, A. (1999).
+#' Statistical applications of the multivariate skew normal distribution.
+#' \emph{J. R. Stat. Soc. B}, 61(3), 579--602.
+#'
+#' Branco, M. D., & Dey, D. K. (2001).
+#' A general class of multivariate skew-elliptical distributions.
+#' \emph{J. Multivariate Anal.}, 79(1), 99--113.
+#'
+#' @docType _PACKAGE
+#' @name nicher-package
+## usethis namespace: start
+#' @importFrom Rcpp sourceCpp
+#' @importFrom stats AIC BIC logLik nobs
+#' @useDynLib nicher, .registration = TRUE
+## usethis namespace: end
+NULL
+
+if (getRversion() >= "2.15.1") {
+  utils::globalVariables(".data")
+}

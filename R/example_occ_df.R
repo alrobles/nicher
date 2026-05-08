@@ -1,0 +1,14 @@
+#' Species occurrence points from Abeillia abeillei presence points after
+#' download and clean from GBIF. This is a hummingbird example.
+#' A dataset with three variables. Contains scientific name, longitude and
+#' latitude.
+#' @format A data frame with 73 rows and 3 variables:
+#' \describe{
+#'   \item{species}{Species name}
+#'   \item{lon}{Decimal longitude geographical coordinate, in degrees}
+#'   \item{lat}{Decimal latitude geographical coordinate, in degrees}
+#' }
+#' @source <doi:10.1016/j.ecolmodel.2021.109823>
+#' @examples
+#' head(example_occ_df)
+"example_occ_df"

@@ -1,0 +1,103 @@
+---
+title: "Introduction to nicher"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to nicher}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Overview
+
+The `nicher` package estimates ecological niche models using ellipsoidal
+geometry under an M hypothesis (Jimenez et al. 2022).
+It fits seven likelihood families via multi-start optimisation with Sobol
+sequences, backed by a compiled C++/Eigen engine for speed.
+
+## Example data
+
+The package ships with example datasets for *Vicugna vicugna*:
+
+```{r data}
+library(nicher)
+
+str(example_env_occ_2d)
+str(example_env_m_2d)
+```
+
+## Fitting a niche model
+
+The main entry point is `optimize_niche()`. Here we fit a presence-only
+model with a small number of starts for speed:
+```{r fit-po}
+set.seed(42)
+fit_po <- optimize_niche(
+  env_occ    = example_env_occ_2d,
+  env_m      = NULL,
+  num_starts = 5L,
+  breadth    = 0.1,
+  likelihood = "presence_only"
+)
+print(fit_po)
+```
+
+## Convergence diagnostics
+
+The `assess()` generic checks whether multiple starts converged to the
+same optimum:
+```{r assess}
+diag <- assess(fit_po)
+diag$flag
+diag$recommendation
+```
+
+## Extracting ellipsoid parameters
+
+Recover the estimated mean vector and covariance matrix on the natural
+scale:
+```{r ellipsoid}
+pars <- get_ellipsoid_pars(example_env_occ_2d)
+pars$mu
+pars$s_mat
+```
+
+## Weighted model
+
+For models that correct for sampling bias in the accessible area (M),
+supply `env_m`:
+```{r fit-w}
+set.seed(42)
+fit_w <- optimize_niche(
+  env_occ    = example_env_occ_2d,
+  env_m      = example_env_m_2d,
+  num_starts = 5L,
+  breadth    = 0.1,
+  likelihood = "weighted"
+)
+print(fit_w)
+```
+
+## Model comparison with AIC/BIC
+
+Compare competing models using information criteria:
+```{r compare, warning = FALSE}
+cmp <- compare_nicher(
+  presence_only = fit_po,
+  weighted      = fit_w
+)
+print(cmp[, c("model", "likelihood", "AIC", "dAIC", "BIC", "dBIC")])
+```
+
+## References
+
+Jimenez, L., Soberon, J., Christen, J. A., & Soto, D. (2022).
+Dealing with critical uncertainty in ecological niche models.
+*Ecological Modelling*, 468, 109823.
+<https://doi.org/10.1016/j.ecolmodel.2021.109823>

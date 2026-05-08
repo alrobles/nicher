@@ -1,12 +1,23 @@
+---
+output: github_document
+---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
 
 <img src="man/figures/nicher-logo.png" align="center" width="520" alt="nicher ENM package logo" />
 
 # nicher
 
 <!-- badges: start -->
-
 <!-- badges: end -->
 
 `nicher` estimates ecological niche models with ellipsoidal
@@ -34,10 +45,9 @@ iso-suitability contours in environmental space.
 
 ### Load the package, rasters, and occurrences
 
-``` r
+```{r quick-start-load}
 library(nicher)
 library(terra)
-#> terra 1.9.11
 library(ggplot2)
 
 stack_path <- system.file("extdata", "stack_1_12_crop.rds",
@@ -46,38 +56,17 @@ env_rasters <- readRDS(stack_path)
 data(example_occ_df, package = "nicher")
 
 env_rasters
-#> class       : SpatRaster 
-#> size        : 70, 99, 2  (nrow, ncol, nlyr)
-#> resolution  : 0.1666667, 0.1666667  (x, y)
-#> extent      : -99.5, -83, 10.66667, 22.33333  (xmin, xmax, ymin, ymax)
-#> coord. ref. : lon/lat WGS 84 (EPSG:4326) 
-#> source(s)   : memory
-#> names       :    bio1WH, bio12WH 
-#> min values  :  7.985291,     399 
-#> max values  : 28.588655,    4249
 head(example_occ_df)
-#>             species     lon    lat
-#> 1 Abeillia abeillei -92.933 15.733
-#> 2 Abeillia abeillei -93.192 15.880
-#> 3 Abeillia abeillei -92.632 15.420
-#> 4 Abeillia abeillei -92.741 15.644
-#> 5 Abeillia abeillei -92.229 15.158
-#> 6 Abeillia abeillei -93.093 15.823
 ```
 
 Plot both environmental variables bundled in `inst/extdata`.
 
-``` r
+```{r quick-start-raster-plot, fig.width = 8, fig.height = 4}
 op <- par(mfrow = c(1, 2), mar = c(3, 3, 3, 5))
 plot(env_rasters[[1]], main = names(env_rasters)[1])
 points(example_occ_df$lon, example_occ_df$lat, pch = 20, cex = 0.45)
 plot(env_rasters[[2]], main = names(env_rasters)[2])
 points(example_occ_df$lon, example_occ_df$lat, pch = 20, cex = 0.45)
-```
-
-<img src="man/figures/README-quick-start-raster-plot-1.png" alt="" width="100%" />
-
-``` r
 par(op)
 ```
 
@@ -87,7 +76,7 @@ Occurrence records are stored as longitude/latitude coordinates. We
 extract raster values at those points for `env_occ`, then use every
 non-`NA` raster cell as the accessible background environment `env_m`.
 
-``` r
+```{r quick-start-extract}
 occ_points <- terra::vect(example_occ_df, geom = c("lon", "lat"),
                           crs = "EPSG:4326")
 
@@ -97,15 +86,7 @@ env_occ <- stats::na.omit(as.data.frame(env_occ))
 env_m <- stats::na.omit(as.data.frame(terra::values(env_rasters)))
 
 head(env_occ)
-#>     bio1WH bio12WH
-#> 1 20.73091    2075
-#> 2 22.41057    1630
-#> 3 22.25763    2203
-#> 4 19.31113    1897
-#> 5 23.88845    3060
-#> 6 23.12673    2032
 dim(env_m)
-#> [1] 2371    2
 ```
 
 ### Fit presence-only and weighted models
@@ -115,7 +96,7 @@ model uses both occurrences (`env_occ`) and the accessible background
 environment (`env_m`). For a real analysis, increase `num_starts` and
 `control$maxeval`; these values keep the README example fast.
 
-``` r
+```{r quick-start-fit}
 fit_presence <- optimize_niche(
   env_occ = env_occ,
   env_m = NULL,
@@ -137,21 +118,7 @@ fit_weighted <- optimize_niche(
 )
 
 fit_presence
-#> -- nicher optimization result --
-#>   Likelihood : presence_only 
-#>   Starts     : 3 (converged: 3 )
-#>   Best loglik: -621.8936 
-#>   Convergence: 1 
-#>   eta        : 1 
-#>   Variables  : bio1WH, bio12WH
 fit_weighted
-#> -- nicher optimization result --
-#>   Likelihood : ip_weighted 
-#>   Starts     : 3 (converged: 4 )
-#>   Best loglik: -524.229 
-#>   Convergence: 1 
-#>   eta        : 1 
-#>   Variables  : bio1WH, bio12WH
 ```
 
 ### Compare the two fits
@@ -161,19 +128,13 @@ Presence-only and weighted likelihoods have different normalizing
 assumptions, so treat this as a quick diagnostic rather than a final
 model-selection decision.
 
-``` r
+```{r quick-start-compare}
 suppressWarnings(
   compare_nicher(
     presence_only = fit_presence,
     weighted = fit_weighted
   )
 )
-#>           model         likelihood    loglik df nobs      AIC     dAIC     BIC
-#> 1      weighted ip_weighted -524.2290  5   73 1058.458   0.0000 1069.91
-#> 2 presence_only      presence_only -621.8936  5   73 1253.787 195.3292 1265.24
-#>       dBIC   weight_AIC convergence
-#> 1   0.0000 1.000000e+00           1
-#> 2 195.3292 3.844224e-43           1
 ```
 
 ### Overlay iso-suitability contours
@@ -182,7 +143,7 @@ The blue contours are the presence-only niche. The orange dashed
 contours are the weighted niche, regularized by the accessible
 background environment.
 
-``` r
+```{r quick-start-isosuitability, fig.width = 7, fig.height = 5}
 ggplot() +
   geom_nicher_background(env_m, size = 0.35, alpha = 0.18) +
   geom_nicher_occ(env_occ, size = 1.2, alpha = 0.85) +
@@ -208,12 +169,10 @@ ggplot() +
   theme_minimal()
 ```
 
-<img src="man/figures/README-quick-start-isosuitability-1.png" alt="" width="100%" />
-
 ## Documentation at a glance
 
 | Article | What it covers |
-|----|----|
+|---|---|
 | [Package workflow](vignettes/nicher-intro.Rmd) | End-to-end niche fitting and projection workflow |
 | [Non-symmetric models](vignettes/non_symmetric_models.Rmd) | Skew-normal and skew-t likelihood families |
 | [Cross-validation](vignettes/cross_validation.Rmd) | Penalty tuning and model selection with `cv_nicher()` |

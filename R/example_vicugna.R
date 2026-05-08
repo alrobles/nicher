@@ -1,0 +1,18 @@
+#' Samples of environmental data from M hypothesis to estimate negative
+#' log likelihood from Vicugna vicugna.
+#' @format A list with 4 elements:
+#' \describe{
+#'   \item{env_m}{Data frame with two columns and 10 000 rows
+#'   each representing
+#'   bio1 and bio12 of the accessibility area of the species}
+#'   \item{env_occ}{Data frame with two columns and 545 rows
+#'   each representing environmental information
+#'   bio1 and bio12 associated with the occurrence the species}
+#'   \item{coords_m}{Data frame with geographical coordinates
+#'   of the accesitibility area (M). }
+#'   \item{coords_occ}{Data frame with geographical coordinates
+#'   of the occurrence points. }
+#' }
+#' @examples
+#' head(example_vicugna$env_occ)
+"example_vicugna"

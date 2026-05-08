@@ -1,0 +1,52 @@
+Package: nicher
+Type: Package
+Title: Estimates Ecological Niche Models Using Ellipses
+Version: 1.0.0
+Authors@R: 
+  c(person(given = "Angel",
+           family = "Robles",
+           email = "a.l.robles.fernandez@gmail.com",
+           role = c("aut", "cre")),
+    person(given = "Laura",
+           family = "Jimenez",
+           comment = c(ORCID = "0000-0002-4674-4270"),
+           email = "ljimenez@cmm.uchile.cl",
+           role = c("aut", "ctb"))
+           )
+Description: Ecological niche model estimation using ellipsoidal geometry
+    under an M hypothesis.  Fits seven likelihood families
+    (presence-only, weighted, inverse-probability-weighted, skew-normal,
+    skew-normal-weighted, skew-t, and skew-t-weighted) via multi-start
+    optimisation with Sobol sequences.  Methods for the optimisation of
+    ellipses parameters are as described in Jimenez et al. (2022)
+    <doi:10.1016/j.ecolmodel.2021.109823>.
+URL: https://alrobles.github.io/nicher/,
+    https://github.com/alrobles/nicher-devel
+BugReports: https://github.com/alrobles/nicher-devel/issues
+License: GPL (>= 3)
+Encoding: UTF-8
+LazyData: true
+Depends: 
+    R (>= 3.5)
+RoxygenNote: 7.3.3
+Imports: 
+    checkmate,
+    Rcpp (>= 1.1.0),
+    RcppParallel,
+    stats,
+    terra,
+    ucminf,
+    ucminfcpp,
+    utils
+Suggests:
+    ggplot2 (>= 3.0.0),
+    knitr,
+    pomp,
+    rmarkdown,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+LinkingTo: 
+    Rcpp,
+    RcppEigen,
+    RcppParallel
+SystemRequirements: GNU make

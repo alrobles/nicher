@@ -1,0 +1,218 @@
+---
+title: "Model 2: Weighted-Normal Niche (Paper Eq. 5/8)"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Model 2: Weighted-Normal Niche (Paper Eq. 5/8)}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: references.bib
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+## 1 Ecological Motivation
+
+The presence-only model (Model 1) ignores the distribution of environments
+in the accessible area $M$.  When some environments are more common than
+others, the uncorrected MLE is biased toward those common environments.
+
+The **weighted-normal** model corrects for this by incorporating a kernel
+density estimate (KDE) $\hat{g}(\mathbf{x})$ of the environmental density
+in $M$.  The weight function $w(\mathbf{x}) = \hat{g}(\mathbf{x})$ enters
+both the numerator and denominator of the restricted likelihood, modelling
+an observation process where the probability of recording a presence at
+$\mathbf{x}$ is proportional to the product of the species' suitability
+$f(\mathbf{x})$ and the environmental availability $g(\mathbf{x})$.
+
+This is the **default model** in `nicher` and implements Equation 5 (or
+equivalently Equation 8 with $w = \hat{g}$) of @jimenez2022weighted.
+
+## 2 Data-Generating Process
+
+The weighted model assumes the **use-availability** DGP:
+
+$$
+p(\mathbf{x}_i \mid \text{presence in } M) =
+\frac{f(\mathbf{x}_i;\mu,\Sigma)\;\hat{g}(\mathbf{x}_i)}
+     {\int_M f(\mathbf{x};\mu,\Sigma)\;\hat{g}(\mathbf{x})\,d\mathbf{x}}.
+\tag{1}
+$$
+
+This assumes that the intensity of presence records at environment
+$\mathbf{x}$ is proportional to both the species' fundamental niche density
+$f$ and the environmental density $g$ in $M$.  This is appropriate when:
+
+- Observation probability correlates with environmental density (e.g.
+  opportunistic citizen-science records where more observers visit common
+  habitats).
+- The analyst wants to model the *realised* niche as shaped by both
+  intrinsic tolerances and environmental availability.
+
+## 3 Mathematical Specification
+
+### 3.1 Restricted Log-Likelihood (Paper Eq. 5)
+
+$$
+\ell(\mu,\Sigma) =
+\sum_{i=1}^{n}\log f(\mathbf{x}_i)
++ \sum_{i=1}^{n}\log \hat{g}(\mathbf{x}_i)
+- n\,\log\!\sum_{j=1}^{K}\hat{g}(\mathbf{y}_j)\,f(\mathbf{y}_j),
+\tag{2}
+$$
+
+where $\{\mathbf{y}_j\}_{j=1}^K$ are background points sampled from $M$.
+
+### 3.2 Negative Log-Likelihood (Minimised Objective)
+
+Dropping the $\log f$ normalisation constant $(2\pi)^{-p/2}|\Sigma|^{-1/2}$
+from the denominator (it cancels between numerator and denominator up to a
+factor that does not affect the optimum), the minimised objective is:
+
+$$
+-\ell^*(\theta) =
+\frac{1}{2}\sum_{i=1}^{n} q_i
+- \sum_{i=1}^{n}\log\hat{g}(\mathbf{x}_i)
++ n\cdot\operatorname{logsumexp}_j\!\left[
+  \log\hat{g}(\mathbf{y}_j) - \tfrac{1}{2}q_j
+\right]
++ \lambda\sum_{k=1}^{p}(\log\sigma_k - c_k)^2,
+\tag{3}
+$$
+
+where:
+
+- $q_i = \|L^{-1}(\mathbf{x}_i - \mu)\|^2$ is the squared Mahalanobis
+  distance at presence point $i$,
+- $q_j = \|L^{-1}(\mathbf{y}_j - \mu)\|^2$ at background point $j$,
+- $\hat{g}(\cdot)$ is the Gaussian KDE of the background evaluated at the
+  point,
+- $c_k = \log\hat\sigma_k(\text{env\_occ})$ centres the ridge prior at the
+  sample standard deviation of each variable,
+- $\lambda$ controls the ridge strength (default 1.0; set to 0 for pure
+  paper Eq. 5).
+
+### 3.3 The Ridge Prior
+
+The pure MLE of the weighted-normal model is susceptible to the
+Patil & Ord (1976) drift: as $\sigma_k \to \infty$, the numerator density
+$f(\mathbf{x}_i)$ flattens, the denominator approaches $\sum_j \hat{g}(\mathbf{y}_j)$
+(a constant), and the likelihood increases without bound.
+
+The ridge term $\lambda\sum_k(\log\sigma_k - c_k)^2$ is a weakly
+informative prior that penalises log-standard-deviations far from the
+empirical scale, preventing this drift while having negligible influence
+near the optimum.  Users can set $\lambda = 0$ to recover the exact paper
+formula, but this is not recommended for multimodal $M$.
+
+### 3.4 Sign Convention (vs. ip_weighted)
+
+Note the signs on the KDE terms:
+
+| Term | `"weighted"` (this model) | `"ip_weighted"` (Model 3) |
+|------|--------------------------|--------------------------|
+| Denominator integrand | $+\log\hat{g}(\mathbf{y}_j) - \frac{1}{2}q_j$ | $-\frac{1}{2}q_j - \log\hat{g}(\mathbf{y}_j)$ |
+| Numerator KDE | $-\sum_i\log\hat{g}(\mathbf{x}_i)$ | $+\sum_i\log\hat{g}(\mathbf{x}_i)$ |
+
+These sign differences correspond to $w = \hat{g}$ (weighted) vs.
+$w = 1/\hat{g}$ (ip_weighted).  Both are instances of Equation 8 with
+different weight functions.
+
+## 4 Implementation Call Chain
+
+```
+optimize_niche(likelihood = "weighted")
+  └─ niche_obj.cpp::create_niche_obj_ptr()
+       └─ loglik_niche_math_weighted_eigen()       [C++, lines 324–381]
+            ├─ build_L_cov()                        [theta → mu, sigma, L_cov]
+            ├─ Mahalanobis q1 (occurrences), q2 (background)
+            ├─ a_j = log_w_den - 0.5 * q2           [line 366]
+            ├─ logsumexp(a)                          [lines 368–370]
+            ├─ neg_log = 0.5*sum_q1 - log_w_occ + n*lse + penalty
+            └─ prior_penalty_value()                 [ridge on log_sigma]
+```
+
+### 4.1 Key Code (loglik_niche_math_cpp.cpp, lines 324–381)
+
+The C++ kernel:
+
+1. Reconstructs $L_{\text{cov}}$ from $\theta$ via `build_L_cov()`.
+2. Computes Mahalanobis distances for both presence and background points.
+3. Clamps KDE weights: `w.max(MIN_KDE_WEIGHT).log()` with
+   `MIN_KDE_WEIGHT = 1e-300` to prevent $\log(0) = -\infty$.
+4. Computes the logsumexp of $a_j = \log\hat{g}(\mathbf{y}_j) - \frac{1}{2}q_j$ (line 366).
+5. Adds the ridge penalty via `prior_penalty_value()` (line 372–373).
+6. Returns the guarded negative log-likelihood (line 379).
+
+### 4.2 Analytic Gradient (lines 383–499)
+
+The gradient is computed analytically for $\mu$ and $\log\sigma$, and by
+central finite differences for the C-vine partial-correlation block $v$:
+
+- **$\nabla_\mu$**: Closed-form via $\Sigma^{-1}[\text{weighted mean shift}]$ (lines 449–457).
+- **$\nabla_{\log\sigma_k}$**: Closed-form via $U \odot V$ products with softmax weights $\pi_j$ (lines 459–464).
+- **$\nabla_{v_k}$**: Central FD with step $\Delta = |v_k| \cdot h_{\text{rel}} + h_{\text{abs}}$ (lines 466–484).
+- **Ridge gradient**: Added by `prior_penalty_grad_add()` (line 493).
+
+### 4.3 R Entry Point
+
+```r
+optimize_niche(env_occ, env_m, likelihood = "weighted",
+               prior_log_sigma_lambda = 1.0)
+```
+
+## 5 KDE Computation
+
+The background KDE $\hat{g}$ is computed **once** before optimisation begins
+(it depends only on the data, not on $\theta$).  The KDE uses a Gaussian
+kernel with Scott's rule bandwidth:
+
+$$
+h_k = \hat\sigma_k \cdot K^{-1/(p+4)},
+$$
+
+where $K$ is the number of reference points and $\hat\sigma_k$ is the
+sample standard deviation of the $k$-th environmental variable in the
+background.  For $p = 2$, a specialised `kde_2d()` kernel is used; for
+$p \geq 3$, the general `kde_eigen()` kernel handles arbitrary dimensions.
+
+## 6 Analytical Properties
+
+| Property | Value |
+|----------|-------|
+| MLE for $\mu$ | No closed form (implicit through the weighted denominator) |
+| Likelihood shape | Can be multimodal for complex $M$ |
+| Identifiability | Full for finite $M$ with ridge ($\lambda > 0$) |
+| Background data | Required ($\mathbf{y}_j$ from $M$) |
+| KDE weights | Precomputed, fixed during optimisation |
+| Regularisation | Ridge prior on $\log\sigma$ (default $\lambda = 1$) |
+
+## 7 When To Use
+
+- **Default choice** for most species distribution modelling workflows.
+- When observation probability correlates with environmental density
+  (opportunistic records, citizen-science data).
+- When the goal is to estimate the niche *as observed through M's lens*
+  (realised niche under the use-availability DGP).
+- When $M$ is unimodal or mildly multimodal (the ridge prior handles
+  moderate non-convexity).
+
+## 8 Limitations
+
+1. **DGP assumption**.  Assumes presence intensity $\propto f \cdot g$.
+   If sampling effort is uniform across $M$ and the goal is the fundamental
+   niche on Lebesgue measure, consider `"ip_weighted"` (Model 3) instead.
+
+2. **Patil & Ord drift** (without ridge).  Setting $\lambda = 0$ recovers
+   the exact paper Eq. 5 but the MLE may not exist ($\sigma \to \infty$).
+   Always use $\lambda > 0$ in practice.
+
+3. **KDE bandwidth sensitivity**.  Scott's rule may over- or under-smooth.
+   Diagnostic plots of $\hat{g}$ are recommended.
+
+4. **Normality assumption**.  The niche is ellipsoidal.  For asymmetric
+   niches, consider `"skew_normal_weighted"` (Model 5) or
+   `"skew_t_weighted"` (Model 7).
+
+## References

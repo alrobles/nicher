@@ -1,0 +1,13 @@
+bibentry(
+  bibtype  = "Article",
+  title    = "Dealing with critical uncertainty in ecological niche models",
+  author   = c(
+    person("Laura", "Jimenez"),
+    person("Angel", "Robles")
+  ),
+  journal  = "Ecological Modelling",
+  year     = "2022",
+  volume   = "468",
+  pages    = "109823",
+  doi      = "10.1016/j.ecolmodel.2021.109823"
+)
