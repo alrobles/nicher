@@ -118,7 +118,7 @@ loglik_niche_math_ncst_r <- function(theta, env_occ, eta = 1.0) {
       z_iq <- s_q * zt_i - zxi
 
       log_terms[q] <- log(w_q) + a_exp * log(u_q) -
-        0.5 * q_iq + pnorm(z_iq, log.p = TRUE)
+        0.5 * q_iq + stats::pnorm(z_iq, log.p = TRUE)
     }
 
     # log-sum-exp

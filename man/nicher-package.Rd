@@ -3,10 +3,9 @@
 \docType{package}
 \name{nicher-package}
 \alias{nicher-package}
-\alias{_PACKAGE}
 \title{nicher: Estimates Ecological Niche Models Using Ellipses}
 \description{
-Ecological niche model estimation using ellipsoidal geometry under an M hypothesis. Fits seven likelihood families (presence-only, weighted, inverse-probability-weighted, skew-normal, skew-normal-weighted, skew-t, and skew-t-weighted) via multi-start optimisation with Sobol sequences. Methods for the optimisation of ellipses parameters are as described in Jimenez et al. (2022) <doi:10.1016/j.ecolmodel.2021.109823>.
+Ecological niche model estimation using ellipsoidal geometry under an M hypothesis. Fits seven likelihood families (presence-only, weighted, inverse-probability-weighted, skew-normal, skew-normal-weighted, skew-t, and skew-t-weighted) via multi-start optimisation with Sobol sequences. Methods for the optimisation of ellipses parameters are as described in Jimenez et al. (2022) \doi{10.1016/j.ecolmodel.2021.109823}.
 
 Estimates ecological niche models by fitting multivariate distributions
 (Gaussian, skew-normal, or skew-t) to species occurrence data in
@@ -70,8 +69,8 @@ A general class of multivariate skew-elliptical distributions.
 Useful links:
 \itemize{
   \item \url{https://alrobles.github.io/nicher/}
-  \item \url{https://github.com/alrobles/nicher-devel}
-  \item Report bugs at \url{https://github.com/alrobles/nicher-devel/issues}
+  \item \url{https://github.com/alrobles/nicher}
+  \item Report bugs at \url{https://github.com/alrobles/nicher/issues}
 }
 
 }
@@ -80,6 +79,7 @@ Useful links:
 
 Authors:
 \itemize{
+  \item Angel Robles \email{a.l.robles.fernandez@gmail.com}
   \item Laura Jimenez \email{ljimenez@cmm.uchile.cl} (\href{https://orcid.org/0000-0002-4674-4270}{ORCID}) [contributor]
 }
 

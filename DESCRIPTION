@@ -21,14 +21,13 @@ Description: Ecological niche model estimation using ellipsoidal geometry
     ellipses parameters are as described in Jimenez et al. (2022)
     <doi:10.1016/j.ecolmodel.2021.109823>.
 URL: https://alrobles.github.io/nicher/,
-    https://github.com/alrobles/nicher-devel
-BugReports: https://github.com/alrobles/nicher-devel/issues
+    https://github.com/alrobles/nicher
+BugReports: https://github.com/alrobles/nicher/issues
 License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
 Depends: 
     R (>= 3.5)
-RoxygenNote: 7.3.3
 Imports: 
     checkmate,
     Rcpp (>= 1.1.0),
@@ -51,3 +50,4 @@ LinkingTo:
     RcppEigen,
     RcppParallel
 SystemRequirements: GNU make
+Config/roxygen2/version: 8.0.0

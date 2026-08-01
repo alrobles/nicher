@@ -30,6 +30,7 @@ library(terra)
 stack_path <- system.file("extdata", "stack_1_12_crop.rds",
                           package = "nicher")
 env_rasters <- readRDS(stack_path)
+env_rasters <- terra::rast(env_rasters)
 data(example_occ_df, package = "nicher")
 ```
 
@@ -44,6 +45,8 @@ occ_points <- terra::vect(example_occ_df, geom = c("lon", "lat"),
                           crs = "EPSG:4326")
 
 env_occ <- terra::extract(env_rasters, occ_points, ID = FALSE)
+# Drop the ID column if present (older terra always returns it)
+env_occ <- env_occ[, names(env_occ) != "ID", drop = FALSE]
 env_occ <- stats::na.omit(as.data.frame(env_occ))
 
 env_m <- stats::na.omit(as.data.frame(terra::values(env_rasters)))
